@@ -214,10 +214,6 @@ def list_genres() -> list:
     return list(GENRE_TEMPLATES.keys())
 
 
-# Alias for backward compatibility
-list_genre_templates = list_genres
-
-
 def get_genre_info(genre: str) -> dict:
     """Get info about a genre template without creating full template."""
     genre_lower = genre.lower().replace("-", "_").replace(" ", "_")

@@ -100,29 +100,9 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-testpaths = ["tests_music-brain", "tests_penta-core", "DAiW-Music-Brain/tests"]
-python_files = ["test_*.py", "*_test.py"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 python_functions = ["test_*"]
-python_classes = ["Test*"]
-addopts = [
-    "-v",
-    "--tb=short",
-    "-ra",
-]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "bridge: marks tests that test Python/C++ bridge",
-    "requires_audio: marks tests that require audio dependencies",
-    "requires_theory: marks tests that require music21",
-    "asyncio: marks tests as asyncio tests",
-]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 
 [tool.mypy]
 python_version = "3.9"

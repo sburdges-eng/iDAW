@@ -10,24 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
-# Check for optional AI package availability
-def _has_module(name: str) -> bool:
-    try:
-        __import__(name)
-        return True
-    except ImportError:
-        return False
-
-
-HAS_OPENAI = _has_module("openai")
-HAS_ANTHROPIC = _has_module("anthropic")
-HAS_GOOGLE = _has_module("google.generativeai")
-
-requires_openai = pytest.mark.skipif(not HAS_OPENAI, reason="openai not installed")
-requires_anthropic = pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic not installed")
-requires_google = pytest.mark.skipif(not HAS_GOOGLE, reason="google-generativeai not installed")
-
-
 class TestPentaCoreServerImports:
     """Test that server modules can be imported."""
 
@@ -61,7 +43,6 @@ class TestPentaCoreServerImports:
 class TestPentaCoreClientInitialization:
     """Test client initialization functions."""
 
-    @requires_openai
     def test_get_openai_client_missing_key(self):
         from penta_core.server import _get_openai_client
 
@@ -72,7 +53,6 @@ class TestPentaCoreClientInitialization:
             with pytest.raises(ValueError, match="OPENAI_API_KEY"):
                 _get_openai_client()
 
-    @requires_anthropic
     def test_get_anthropic_client_missing_key(self):
         from penta_core.server import _get_anthropic_client
 
@@ -82,7 +62,6 @@ class TestPentaCoreClientInitialization:
             with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
                 _get_anthropic_client()
 
-    @requires_google
     def test_get_google_client_missing_key(self):
         from penta_core.server import _get_google_client
 
@@ -92,7 +71,6 @@ class TestPentaCoreClientInitialization:
             with pytest.raises(ValueError, match="GOOGLE_API_KEY"):
                 _get_google_client()
 
-    @requires_openai
     def test_get_xai_client_missing_key(self):
         from penta_core.server import _get_xai_client
 
@@ -115,7 +93,6 @@ class TestPentaCoreClientInitialization:
 class TestConsultArchitect:
     """Test consult_architect tool."""
 
-    @requires_openai
     @pytest.mark.asyncio
     async def test_consult_architect_missing_api_key(self):
         from penta_core.server import consult_architect
@@ -126,7 +103,6 @@ class TestConsultArchitect:
             result = await fn("Design a REST API")
             assert "Configuration error" in result or "OPENAI_API_KEY" in result
 
-    @requires_openai
     @pytest.mark.asyncio
     async def test_consult_architect_success(self):
         from penta_core.server import consult_architect
@@ -144,7 +120,6 @@ class TestConsultArchitect:
 class TestConsultDeveloper:
     """Test consult_developer tool."""
 
-    @requires_anthropic
     @pytest.mark.asyncio
     async def test_consult_developer_missing_api_key(self):
         from penta_core.server import consult_developer
@@ -154,7 +129,6 @@ class TestConsultDeveloper:
             result = await fn("Refactor this code")
             assert "Configuration error" in result or "ANTHROPIC_API_KEY" in result
 
-    @requires_anthropic
     @pytest.mark.asyncio
     async def test_consult_developer_success(self):
         from penta_core.server import consult_developer
@@ -172,7 +146,6 @@ class TestConsultDeveloper:
 class TestConsultResearcher:
     """Test consult_researcher tool."""
 
-    @requires_google
     @pytest.mark.asyncio
     async def test_consult_researcher_missing_api_key(self):
         from penta_core.server import consult_researcher
@@ -182,7 +155,6 @@ class TestConsultResearcher:
             result = await fn("Research topic", "Context text")
             assert "Configuration error" in result or "GOOGLE_API_KEY" in result
 
-    @requires_google
     @pytest.mark.asyncio
     async def test_consult_researcher_success(self):
         from penta_core.server import consult_researcher
@@ -203,7 +175,6 @@ class TestConsultResearcher:
 class TestConsultMaverick:
     """Test consult_maverick tool."""
 
-    @requires_openai
     @pytest.mark.asyncio
     async def test_consult_maverick_missing_api_key(self):
         from penta_core.server import consult_maverick
@@ -213,7 +184,6 @@ class TestConsultMaverick:
             result = await fn("Critique this plan")
             assert "Configuration error" in result or "XAI_API_KEY" in result
 
-    @requires_openai
     @pytest.mark.asyncio
     async def test_consult_maverick_success(self):
         from penta_core.server import consult_maverick
