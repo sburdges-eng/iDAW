@@ -730,7 +730,7 @@ def load_emotion_taxonomy():
 
 # Extract all unique emotions from taxonomy
 def extract_all_emotions(taxonomy: Dict) -> List[str]:
-    """Extract all emotion names from the taxonomy"""
+    """Extract all emotion names from the taxonomy - optimized with list comprehensions"""
     all_emotions = []
 
     for base_emotion, data in taxonomy.items():
@@ -743,14 +743,16 @@ def extract_all_emotions(taxonomy: Dict) -> List[str]:
         # Add all sub-emotions (dict keys)
         sub_emotions = data.get("sub_emotions", {})
         if isinstance(sub_emotions, dict):
-            for sub_name, sub_data in sub_emotions.items():
-                all_emotions.append(sub_name.lower())
-
-                # Add all sub-sub-emotions (dict keys)
-                sub_sub_emotions = sub_data.get("sub_sub_emotions", {})
-                if isinstance(sub_sub_emotions, dict):
-                    for subsub_name in sub_sub_emotions.keys():
-                        all_emotions.append(subsub_name.lower())
+            # Use list comprehension instead of nested loops
+            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions.keys())
+            
+            # Add all sub-sub-emotions - flattened comprehension
+            all_emotions.extend(
+                subsub_name.lower()
+                for sub_data in sub_emotions.values()
+                if isinstance(sub_data.get("sub_sub_emotions"), dict)
+                for subsub_name in sub_data["sub_sub_emotions"].keys()
+            )
 
     return all_emotions
 
@@ -808,24 +810,36 @@ def generate_scale_variations():
 
         # 6 intensity levels
         intensities = ["subtle", "mild", "moderate", "strong", "intense", "overwhelming"]
+        
+        # Arousal modifier map - computed once
+        arousal_map = {
+            "subtle": 0.1,
+            "mild": 0.3,
+            "moderate": 0.5,
+            "strong": 0.7,
+            "intense": 0.9,
+            "overwhelming": 1.0
+        }
 
-        # Create combinations
+        # Pre-compute iDAW category once per scale (doesn't change in inner loop)
+        # Use set for O(1) lookup instead of repeated list scans
+        base_qualities_set = set(base_emotional_qualities)
+        if base_qualities_set & {"dark", "sad", "melancholy", "grief"}:
+            idaw_cat = "velvet_noir"
+        elif base_qualities_set & {"happy", "joy", "uplifting"}:
+            idaw_cat = "brass_soul"
+        elif base_qualities_set & {"exotic", "world", "ethnic"}:
+            idaw_cat = "organic_textures"
+        elif base_qualities_set & {"groovy", "rhythm", "funk"}:
+            idaw_cat = "rhythm_core"
+        elif base_qualities_set & {"lo_fi", "ambient", "dreamy"}:
+            idaw_cat = "lo_fi_dreams"
+        else:
+            idaw_cat = "cinema_fx"
+
+        # Create combinations - optimized to avoid repeated lookups
         for emotion in emotion_sample[:5]:  # 5 emotions per scale
             for intensity in intensities:  # 6 intensities
-                # Pick an iDAW category based on emotional quality
-                if any(e in ["dark", "sad", "melancholy", "grief"] for e in base_emotional_qualities):
-                    idaw_cat = "velvet_noir"
-                elif any(e in ["happy", "joy", "uplifting"] for e in base_emotional_qualities):
-                    idaw_cat = "brass_soul"
-                elif any(e in ["exotic", "world", "ethnic"] for e in base_emotional_qualities):
-                    idaw_cat = "organic_textures"
-                elif any(e in ["groovy", "rhythm", "funk"] for e in base_emotional_qualities):
-                    idaw_cat = "rhythm_core"
-                elif any(e in ["lo_fi", "ambient", "dreamy"] for e in base_emotional_qualities):
-                    idaw_cat = "lo_fi_dreams"
-                else:
-                    idaw_cat = "cinema_fx"
-
                 variation = {
                     "id": scale_id,
                     "scale_type": scale_name,
@@ -839,14 +853,7 @@ def generate_scale_variations():
                     "intensity": intensity,
                     "music_brain_emotion": emotion,
                     "idaw_category": idaw_cat,
-                    "arousal_modifier": {
-                        "subtle": 0.1,
-                        "mild": 0.3,
-                        "moderate": 0.5,
-                        "strong": 0.7,
-                        "intense": 0.9,
-                        "overwhelming": 1.0
-                    }[intensity]
+                    "arousal_modifier": arousal_map[intensity]
                 }
                 variations.append(variation)
                 scale_id += 1
