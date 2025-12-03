@@ -4,11 +4,12 @@ This document describes the performance optimizations made to the iDAW codebase.
 
 ## Summary of Improvements
 
-1. **File Handle Management** - Fixed resource leaks in Logger.py
+1. **File Handle Management** - Fixed resource leaks in Logger.py and audio_cataloger.py
 2. **JSON Caching** - Added intelligent caching for template metadata and files
 3. **Loop Optimization** - Replaced inefficient nested loops with optimized patterns
 4. **Code Modernization** - Replaced `range(len())` with `enumerate()` and `zip()`
 5. **Data Structure Optimization** - Pre-computed lookup tables and use of set operations
+6. **Database Context Managers** - Fixed SQLite connection leaks in audio_cataloger.py
 
 ## Detailed Changes
 
@@ -22,6 +23,36 @@ This document describes the performance optimizations made to the iDAW codebase.
 - Improved exception handling with specific Exception types instead of bare `except:`
 
 **Impact**: Prevents file descriptor exhaustion in long-running processes.
+
+### 2. audio_cataloger.py - Database Connection Management
+
+**Issue**: SQLite database connections were manually closed with `.close()` calls, risking resource leaks on exceptions.
+
+**Fix**:
+- Replaced all manual connection management with `with` statements
+- Updated `init_database()`, `scan_folder()`, `search_catalog()`, `show_stats()`, and `list_all()`
+- Automatic commit and connection cleanup on context exit
+
+**Impact**:
+- Guaranteed connection cleanup even on exceptions
+- Prevents database lock issues
+- Cleaner, more maintainable code
+
+**Functions Updated**:
+```python
+# Before
+conn = get_connection()
+cursor = conn.cursor()
+# ... operations ...
+conn.commit()
+conn.close()
+
+# After  
+with sqlite3.connect(DB_PATH) as conn:
+    cursor = conn.cursor()
+    # ... operations ...
+    conn.commit()  # Auto-committed on exit
+```
 
 ### 2. template_storage.py - Metadata and Template Caching
 
