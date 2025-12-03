@@ -1,226 +1,118 @@
-# DAiW - Digital Audio Intelligent Workstation
+![alt text](https://assets.juce.com/juce/JUCE_banner_github.png "JUCE")
 
-> A Python toolkit for music production intelligence: groove extraction, chord analysis, arrangement generation, and AI-assisted songwriting.
-> 
-> **Philosophy: "Interrogate Before Generate"** — The tool shouldn't finish art for people. It should make them braver.
+JUCE is an open-source cross-platform C++ application framework for creating
+desktop and mobile applications, including VST, VST3, AU, AUv3, AAX and LV2
+audio plug-ins and plug-in hosts. JUCE can be easily integrated with existing
+projects via CMake, or can be used as a project generation tool via the
+[Projucer](#the-projucer), which supports exporting projects for Xcode (macOS
+and iOS), Visual Studio, Android Studio, and Linux Makefiles as well as
+containing a source code editor.
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## Getting Started
 
-## Overview
+The JUCE repository contains a
+[master](https://github.com/juce-framework/JUCE/tree/master) and
+[develop](https://github.com/juce-framework/JUCE/tree/develop) branch. The
+develop branch contains the latest bug fixes and features and is periodically
+merged into the master branch in stable [tagged
+releases](https://github.com/juce-framework/JUCE/releases) (the latest release
+containing pre-built binaries can be also downloaded from the [JUCE
+website](https://juce.com/get-juce)).
 
-DAiW (Digital Audio intelligent Workstation) combines:
-- **Music Brain** - Python analysis engine for MIDI/audio
-- **Intent Schema** - Three-phase deep interrogation for songwriting
-- **Rule-Breaking Engine** - Intentional theory violations for emotional impact
-- **Vault** - Knowledge base of songwriting guides and theory references
-- **CLI** - Command-line tools for groove extraction, chord analysis, and AI-assisted composition
+JUCE projects can be managed with either the Projucer (JUCE's own
+project-configuration tool) or with CMake.
 
-## Installation
+### The Projucer
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/DAiW-Music-Brain.git
-cd DAiW-Music-Brain
+The repository doesn't contain a pre-built Projucer so you will need to build it
+for your platform - Xcode, Visual Studio and Linux Makefile projects are located
+in [extras/Projucer/Builds](/extras/Projucer/Builds) (the minimum system
+requirements are listed in the [minimum system
+requirements](#minimum-system-requirements) section below). The Projucer can
+then be used to create new JUCE projects, view tutorials and run examples. It is
+also possible to include the JUCE modules source code in an existing project
+directly, or build them into a static or dynamic library which can be linked
+into a project.
 
-# Install as package
-pip install -e .
-```
+For further help getting started, please refer to the JUCE
+[documentation](https://juce.com/learn/documentation) and
+[tutorials](https://juce.com/learn/tutorials).
 
-## Quick Start
+### CMake
 
-### Intent-Based Song Generation (New!)
+Version 3.22 or higher is required. To use CMake, you will need to install it,
+either from your system package manager or from the [official download
+page](https://cmake.org/download/). For comprehensive documentation on JUCE's
+CMake API, see the [JUCE CMake documentation](/docs/CMake%20API.md). For
+examples which may be useful as starting points for new CMake projects, see the
+[CMake examples directory](/examples/CMake).
 
-```bash
-# Create a new song intent template
-daiw intent new --title "My Song" --output my_intent.json
+#### Building Examples
 
-# Edit the JSON to fill in your emotional intent...
+To use CMake to build the examples and extras bundled with JUCE, simply clone
+JUCE and then run the following commands, replacing "DemoRunner" with the name
+of the target you wish to build.
 
-# Process intent to generate musical elements
-daiw intent process my_intent.json
+    cd /path/to/JUCE
+    cmake . -B cmake-build -DJUCE_BUILD_EXAMPLES=ON -DJUCE_BUILD_EXTRAS=ON
+    cmake --build cmake-build --target DemoRunner
 
-# Get suggestions for rules to break
-daiw intent suggest grief
+## Minimum System Requirements
 
-# List all rule-breaking options
-daiw intent list
-```
+#### Building JUCE Projects
 
-### Command Line Interface
+- __C++ Standard__: 17
+- __macOS/iOS__: Xcode 12.4 (Intel macOS 10.15.4, Apple Silicon macOS 11.0)
+- __Windows__: Visual Studio 2019 (Windows 10)
+- __Linux__: g++ 7.0 or Clang 6.0 (for a full list of dependencies, see
+[here](/docs/Linux%20Dependencies.md)).
+- __Android__: Android Studio (NDK 26) on Windows, macOS or Linux
 
-```bash
-# Extract groove from a MIDI file
-daiw extract drums.mid
+#### Deployment Targets
 
-# Apply genre groove template
-daiw apply --genre funk track.mid
+- __macOS__: macOS 10.11 (x86_64, Arm64)
+- __Windows__: Windows 10 (x86_64, x86, Arm64, Arm64EC)
+- __Linux__: Mainstream Linux distributions (x86_64, Arm64/aarch64, (32 bit Arm systems like armv7 should work but are not regularly tested))
+- __iOS__: iOS 12 (Arm64, Arm64e, x86_64 (Simulator))
+- __Android__: Android 7 - Nougat (API Level 24) (arm64-v8a, armeabi-v7a, x86_64, x86)
 
-# Analyze chord progression
-daiw analyze --chords song.mid
+## Contributing
 
-# Diagnose harmonic issues
-daiw diagnose "F-C-Am-Dm"
+Please see our [contribution guidelines](.github/contributing.md).
 
-# Generate reharmonizations
-daiw reharm "F-C-Am-Dm" --style jazz
+## Licensing
 
-# Interactive teaching mode
-daiw teach rulebreaking
-```
+See [LICENSE.md](LICENSE.md) for licensing and dependency information.
 
-### Python API
+## AAX Plug-Ins
 
-```python
-from music_brain.groove import extract_groove, apply_groove
-from music_brain.structure import analyze_chords
-from music_brain.session import (
-    CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints,
-    suggest_rule_break
-)
-from music_brain.session.intent_processor import process_intent
+AAX plug-ins need to be digitally signed using PACE Anti-Piracy's signing tools
+before they will run in commercially available versions of Pro Tools. These
+tools are provided free of charge by Avid. Before obtaining the signing tools,
+you will need to use a special build of Pro Tools, called Pro Tools Developer,
+to test your unsigned plug-ins. The steps to obtain Pro Tools Developer are:
 
-# Create song intent
-intent = CompleteSongIntent(
-    song_root=SongRoot(
-        core_event="Finding someone I loved after they chose to leave",
-        core_resistance="Fear of making it about me",
-        core_longing="To process without exploiting the loss",
-    ),
-    song_intent=SongIntent(
-        mood_primary="Grief",
-        mood_secondary_tension=0.3,
-        vulnerability_scale="High",
-        narrative_arc="Slow Reveal",
-    ),
-    technical_constraints=TechnicalConstraints(
-        technical_key="F",
-        technical_mode="major",
-        technical_rule_to_break="HARMONY_ModalInterchange",
-        rule_breaking_justification="Bbm makes hope feel earned and bittersweet",
-    ),
-)
+1. Sign up as an AAX Developer [here](https://developer.avid.com/aax/).
+2. Request a Pro Tools Developer Bundle activation code by sending an email to
+   [devauth@avid.com](mailto:devauth@avid.com).
+3. Download the latest Pro Tools Developer build from your Avid Developer
+   account.
 
-# Process intent to generate elements
-result = process_intent(intent)
-print(result['harmony'].chords)  # ['F', 'C', 'Bbm', 'F']
-```
+When your plug-ins have been tested and debugged in Pro Tools Developer, and you
+are ready to digitally sign them, please send an email to
+[audiosdk@avid.com](mailto:audiosdk@avid.com) with the subject "PACE Eden
+Signing Tools Request". You need to include an overview of each plug-in along
+with a screen recording showing the plug-in running in Pro Tools Developer, with
+audio if possible.
 
-## The Intent Schema
+Please also include the following information:
 
-### Three-Phase Deep Interrogation
+- Company name
+- Admin full name
+- Telephone number
 
-**Phase 0: Core Wound/Desire**
-- `core_event` — What happened?
-- `core_resistance` — What holds you back from saying it?
-- `core_longing` — What do you want to feel?
-- `core_stakes` — What's at risk?
-- `core_transformation` — How should you feel when done?
-
-**Phase 1: Emotional Intent**
-- `mood_primary` — Dominant emotion
-- `mood_secondary_tension` — Internal conflict (0.0-1.0)
-- `imagery_texture` — Visual/tactile quality
-- `vulnerability_scale` — Emotional exposure level
-- `narrative_arc` — Structural emotion pattern
-
-**Phase 2: Technical Implementation**
-- `technical_genre` — Genre/style
-- `technical_key` — Musical key
-- `technical_rule_to_break` — Intentional rule violation
-- `rule_breaking_justification` — WHY break this rule
-
-## Rule-Breaking Categories
-
-### Harmony
-| Rule | Effect | Use When |
-|------|--------|----------|
-| `HARMONY_AvoidTonicResolution` | Unresolved yearning | Grief, longing |
-| `HARMONY_ModalInterchange` | Bittersweet color | Making hope feel earned |
-| `HARMONY_ParallelMotion` | Power, defiance | Anger, punk energy |
-
-### Rhythm
-| Rule | Effect | Use When |
-|------|--------|----------|
-| `RHYTHM_ConstantDisplacement` | Off-kilter anxiety | Before a dramatic shift |
-| `RHYTHM_TempoFluctuation` | Organic breathing | Intimacy, vulnerability |
-
-### Production
-| Rule | Effect | Use When |
-|------|--------|----------|
-| `PRODUCTION_BuriedVocals` | Dissociation, texture | Dreams, distance |
-| `PRODUCTION_PitchImperfection` | Emotional honesty | Raw vulnerability |
-
-## Project Structure
-
-```
-DAiW-Music-Brain/
-├── music_brain/              # Python analysis package
-│   ├── groove/               # Groove extraction & application
-│   ├── structure/            # Chord, section, progression analysis
-│   ├── audio/                # Audio feel analysis
-│   ├── session/              # Intent schema, teaching, interrogator
-│   │   ├── intent_schema.py  # Three-phase intent system
-│   │   ├── intent_processor.py # Rule-breaking execution
-│   │   ├── teaching.py       # Interactive lessons
-│   │   └── interrogator.py   # Song interrogation
-│   ├── utils/                # MIDI I/O, instruments, PPQ
-│   ├── daw/                  # DAW integration
-│   └── data/                 # JSON datasets
-│       ├── song_intent_schema.yaml
-│       ├── song_intent_examples.json
-│       └── genre_pocket_maps.json
-│
-├── vault/                    # Knowledge base (Obsidian-compatible)
-│   └── Songwriting_Guides/
-│       ├── song_intent_schema.md
-│       ├── rule_breaking_practical.md
-│       └── rule_breaking_masterpieces.md
-│
-└── tests/                    # Test suite
-```
-
-## Features
-
-### Intent-Based Generation
-- Deep interrogation before technical decisions
-- Emotion-to-music mapping
-- Intentional rule-breaking with justification
-- Phase validation for completeness
-
-### Groove Analysis
-- Extract timing deviations (swing, push/pull)
-- Velocity contours and accent patterns
-- Genre-specific templates
-- Cross-DAW PPQ normalization
-
-### Chord & Harmony
-- Roman numeral analysis
-- Borrowed chord detection
-- Modal interchange identification
-- Reharmonization suggestions
-
-### Teaching Module
-- Interactive lessons on rule-breaking
-- Emotion-specific technique suggestions
-- Production philosophy guidance
-
-## Requirements
-
-- Python 3.9+
-- mido (MIDI I/O)
-- numpy (numerical analysis)
-
-Optional:
-- librosa (audio analysis)
-- music21 (advanced theory)
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Built for musicians who think in sound, not spreadsheets
-- Inspired by the lo-fi bedroom recording philosophy
-- **"The wrong note played with conviction is the right note."**
+Once the request is submitted, PACE Anti-Piracy will contact you directly with
+information about signing your plug-ins. When the plug-ins have been signed, you
+are free to sell and distribute them. If you are interested in selling your
+plug-ins on the Avid Marketplace, please send an email to
+[audiosdk@avid.com](mailto:audiosdk@avid.com).
