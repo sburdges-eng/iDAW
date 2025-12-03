@@ -13,7 +13,7 @@ Write-Host ""
 $pythonCmd = $null
 try {
     $pythonVersion = python --version 2>&1
-    if ($pythonVersion -match "Python 3\.([9-9]|1[0-3])") {
+    if ($pythonVersion -match "Python 3\.(9|1[0-3])") {
         $pythonCmd = "python"
         Write-Host "✓ Python found: $pythonVersion" -ForegroundColor Green
     }
