@@ -467,3 +467,165 @@ class TestAPIErrorHandling:
         result = api.diagnose_progression("")
 
         assert isinstance(result, dict)
+
+
+class TestAudioAnalysis:
+    """Tests for audio analysis methods."""
+
+    def test_api_has_audio_analyzer(self):
+        """Test DAiWAPI has audio_analyzer attribute."""
+        from music_brain.api import DAiWAPI
+
+        api = DAiWAPI()
+
+        assert hasattr(api, "audio_analyzer")
+        assert api.audio_analyzer is not None
+
+    def test_audio_analyzer_import(self):
+        """Test AudioAnalyzer can be imported from audio module."""
+        from music_brain.audio import AudioAnalyzer, AudioAnalysis
+
+        assert AudioAnalyzer is not None
+        assert AudioAnalysis is not None
+
+    def test_audio_analysis_to_dict(self):
+        """Test AudioAnalysis.to_dict() method."""
+        from music_brain.audio import AudioAnalysis
+
+        analysis = AudioAnalysis(
+            filename="test.wav",
+            duration_seconds=120.0,
+            tempo_bpm=120.0,
+            detected_key="C",
+            key_mode="major",
+        )
+
+        result = analysis.to_dict()
+
+        assert isinstance(result, dict)
+        assert result["file_info"]["filename"] == "test.wav"
+        assert result["tempo"]["bpm"] == 120.0
+        assert result["key"]["detected"] == "C"
+        assert result["key"]["mode"] == "major"
+
+    def test_analyze_audio_file_method_exists(self):
+        """Test analyze_audio_file method exists on DAiWAPI."""
+        from music_brain.api import DAiWAPI
+        import inspect
+
+        api = DAiWAPI()
+
+        assert hasattr(api, "analyze_audio_file")
+        assert callable(api.analyze_audio_file)
+
+        sig = inspect.signature(api.analyze_audio_file)
+        params = list(sig.parameters.keys())
+        assert "audio_path" in params
+
+    def test_analyze_audio_waveform_method_exists(self):
+        """Test analyze_audio_waveform method exists on DAiWAPI."""
+        from music_brain.api import DAiWAPI
+        import inspect
+
+        api = DAiWAPI()
+
+        assert hasattr(api, "analyze_audio_waveform")
+        assert callable(api.analyze_audio_waveform)
+
+        sig = inspect.signature(api.analyze_audio_waveform)
+        params = list(sig.parameters.keys())
+        assert "samples" in params
+        assert "sample_rate" in params
+
+    def test_detect_audio_bpm_method_exists(self):
+        """Test detect_audio_bpm method exists on DAiWAPI."""
+        from music_brain.api import DAiWAPI
+        import inspect
+
+        api = DAiWAPI()
+
+        assert hasattr(api, "detect_audio_bpm")
+        assert callable(api.detect_audio_bpm)
+
+        sig = inspect.signature(api.detect_audio_bpm)
+        params = list(sig.parameters.keys())
+        assert "samples" in params
+        assert "sample_rate" in params
+
+    def test_detect_audio_key_method_exists(self):
+        """Test detect_audio_key method exists on DAiWAPI."""
+        from music_brain.api import DAiWAPI
+        import inspect
+
+        api = DAiWAPI()
+
+        assert hasattr(api, "detect_audio_key")
+        assert callable(api.detect_audio_key)
+
+        sig = inspect.signature(api.detect_audio_key)
+        params = list(sig.parameters.keys())
+        assert "samples" in params
+        assert "sample_rate" in params
+
+    def test_audio_analyzer_initialization(self):
+        """Test AudioAnalyzer can be initialized with custom parameters."""
+        from music_brain.audio import AudioAnalyzer
+
+        # Default initialization
+        analyzer1 = AudioAnalyzer()
+        assert analyzer1.sample_rate == 44100
+        assert analyzer1.hop_length == 512
+
+        # Custom initialization
+        analyzer2 = AudioAnalyzer(sample_rate=48000, hop_length=1024)
+        assert analyzer2.sample_rate == 48000
+        assert analyzer2.hop_length == 1024
+
+
+class TestAudioAnalyzerWithMockedLibrosa:
+    """Tests for audio analyzer with mocked librosa for unit testing."""
+
+    def test_detect_bpm_with_mock(self):
+        """Test BPM detection with mocked audio data."""
+        from music_brain.api import DAiWAPI
+        import numpy as np
+
+        api = DAiWAPI()
+
+        # Create a simple sine wave as mock audio
+        sample_rate = 44100
+        duration = 2.0
+        t = np.linspace(0, duration, int(sample_rate * duration))
+        # 120 BPM = 2 Hz beat frequency
+        samples = np.sin(2 * np.pi * 2 * t)
+
+        try:
+            bpm = api.detect_audio_bpm(samples, sample_rate)
+            # BPM should be a positive float
+            assert isinstance(bpm, float)
+            assert bpm > 0
+        except ImportError:
+            # Skip if librosa not installed
+            pytest.skip("librosa not installed")
+
+    def test_detect_key_with_mock(self):
+        """Test key detection with mocked audio data."""
+        from music_brain.api import DAiWAPI
+        import numpy as np
+
+        api = DAiWAPI()
+
+        # Create mock audio data
+        sample_rate = 44100
+        duration = 2.0
+        samples = np.random.randn(int(sample_rate * duration)) * 0.1
+
+        try:
+            key, mode = api.detect_audio_key(samples, sample_rate)
+            # Should return valid key and mode
+            assert isinstance(key, str)
+            assert isinstance(mode, str)
+            assert mode in ["major", "minor"]
+        except ImportError:
+            # Skip if librosa not installed
+            pytest.skip("librosa not installed")

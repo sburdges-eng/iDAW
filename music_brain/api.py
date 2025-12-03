@@ -14,8 +14,8 @@ import numpy as np
 
 # Core imports
 from music_brain.audio import (
-    # AudioAnalyzer,  # TODO: Not yet implemented
-    # AudioAnalysis,  # TODO: Not yet implemented
+    AudioAnalyzer,
+    AudioAnalysis,
     analyze_feel,
     AudioFeatures,
 )
@@ -78,7 +78,8 @@ class DAiWAPI:
     
     def __init__(self):
         self.harmony_generator = HarmonyGenerator()
-        # TODO: Voice processors not yet implemented
+        self.audio_analyzer = AudioAnalyzer()
+        # Voice processors not yet implemented
         # self.auto_tune_processor = AutoTuneProcessor()
         # self.voice_modulator = VoiceModulator()
         # self.voice_synthesizer = VoiceSynthesizer()
@@ -345,27 +346,66 @@ class DAiWAPI:
         return generate_reharmonizations(progression, style=style, count=count)
     
     # ========== Audio Analysis ==========
-    # TODO: The following methods require AudioAnalyzer implementation
-    
-    # def analyze_audio_file(self, audio_path: str) -> Dict[str, Any]:
-    #     """
-    #     Analyze an audio file, returning tempo, key, spectrum, and chords.
-    #     """
-    #     analyzer = AudioAnalyzer()
-    #     return analyzer.analyze_file(audio_path).to_dict()
-    
-    # def analyze_audio_waveform(self, samples: np.ndarray, sample_rate: int) -> Dict[str, Any]:
-    #     analyzer = AudioAnalyzer(sample_rate=sample_rate)
-    #     return analyzer.analyze_waveform(samples, sample_rate).to_dict()
-    
-    # def detect_audio_bpm(self, samples: np.ndarray, sample_rate: int) -> float:
-    #     analyzer = AudioAnalyzer(sample_rate=sample_rate)
-    #     bpm, _ = analyzer.detect_bpm(samples, sample_rate)
-    #     return bpm
-    
-    # def detect_audio_key(self, samples: np.ndarray, sample_rate: int) -> Tuple[str, str]:
-    #     analyzer = AudioAnalyzer(sample_rate=sample_rate)
-    #     return analyzer.detect_key(samples, sample_rate)
+
+    def analyze_audio_file(self, audio_path: str) -> Dict[str, Any]:
+        """
+        Analyze an audio file, returning tempo, key, spectrum, and chords.
+
+        Args:
+            audio_path: Path to audio file (wav, mp3, etc.)
+
+        Returns:
+            Dict with comprehensive audio analysis including tempo, key,
+            spectral features, dynamics, and detected chords.
+        """
+        return self.audio_analyzer.analyze_file(audio_path).to_dict()
+
+    def analyze_audio_waveform(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Dict[str, Any]:
+        """
+        Analyze audio from raw waveform samples.
+
+        Args:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Dict with audio analysis results
+        """
+        return self.audio_analyzer.analyze_waveform(samples, sample_rate).to_dict()
+
+    def detect_audio_bpm(self, samples: np.ndarray, sample_rate: int) -> float:
+        """
+        Detect tempo (BPM) from audio samples.
+
+        Args:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Detected tempo in BPM
+        """
+        return self.audio_analyzer.detect_bpm(samples, sample_rate)
+
+    def detect_audio_key(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Tuple[str, str]:
+        """
+        Detect musical key from audio samples.
+
+        Args:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Tuple of (key_name, mode) e.g., ("C", "major")
+        """
+        return self.audio_analyzer.detect_key(samples, sample_rate)
     
     # ========== Voice Processing ==========
     # TODO: Voice processing methods require voice module implementation
