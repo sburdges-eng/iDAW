@@ -9,6 +9,7 @@ set(TEST_SOURCES
     groove_test.cpp
     osc_test.cpp
     rt_memory_test.cpp
+    performance_test.cpp
 )
 
 add_executable(penta_tests ${TEST_SOURCES})
@@ -18,6 +19,13 @@ target_link_libraries(penta_tests PRIVATE
     gtest
     gtest_main
 )
+
+# Enable SIMD optimizations for performance tests
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
+if(COMPILER_SUPPORTS_AVX2)
+    target_compile_options(penta_tests PRIVATE -mavx2 -mpopcnt -mfma)
+endif()
 
 # Discover tests for CTest
 gtest_discover_tests(penta_tests)
