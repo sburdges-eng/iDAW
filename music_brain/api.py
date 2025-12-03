@@ -75,6 +75,11 @@ class DAiWAPI:
         self.harmony_generator = HarmonyGenerator()
         self.voice_synthesizer = VoiceSynthesizer()
         self._audio_analyzer: AudioAnalyzer = None
+        self.audio_analyzer = AudioAnalyzer()
+        # Voice processors not yet implemented
+        # self.auto_tune_processor = AutoTuneProcessor()
+        # self.voice_modulator = VoiceModulator()
+        # self.voice_synthesizer = VoiceSynthesizer()
     
     # ========== Harmony Generation ==========
     
@@ -371,6 +376,30 @@ class DAiWAPI:
         """
         analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
         return analyzer.analyze_waveform(samples, sample_rate).to_dict()
+            audio_path: Path to audio file (wav, mp3, etc.)
+
+        Returns:
+            Dict with comprehensive audio analysis including tempo, key,
+            spectral features, dynamics, and detected chords.
+        """
+        return self.audio_analyzer.analyze_file(audio_path).to_dict()
+
+    def analyze_audio_waveform(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Dict[str, Any]:
+        """
+        Analyze audio from raw waveform samples.
+
+        Args:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Dict with audio analysis results
+        """
+        return self.audio_analyzer.analyze_waveform(samples, sample_rate).to_dict()
 
     def detect_audio_bpm(self, samples: np.ndarray, sample_rate: int) -> float:
         """
@@ -388,6 +417,19 @@ class DAiWAPI:
         return bpm
 
     def detect_audio_key(self, samples: np.ndarray, sample_rate: int) -> Tuple[str, str]:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Detected tempo in BPM
+        """
+        return self.audio_analyzer.detect_bpm(samples, sample_rate)
+
+    def detect_audio_key(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Tuple[str, str]:
         """
         Detect musical key from audio samples.
 
@@ -400,6 +442,13 @@ class DAiWAPI:
         """
         analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
         return analyzer.detect_key(samples, sample_rate)
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Tuple of (key_name, mode) e.g., ("C", "major")
+        """
+        return self.audio_analyzer.detect_key(samples, sample_rate)
     
     # ========== Voice Processing ==========
 

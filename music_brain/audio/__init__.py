@@ -11,6 +11,7 @@ Features:
 - Chord detection from audio
 - 8-band frequency analysis
 - Comprehensive audio analysis
+- Comprehensive audio analysis (AudioAnalyzer)
 """
 
 from music_brain.audio.feel import analyze_feel, AudioFeatures
@@ -33,6 +34,7 @@ from music_brain.audio.frequency_analysis import (
 from music_brain.audio.analyzer import (
     AudioAnalyzer,
     AudioAnalysis,
+    analyze_audio,
 )
 
 __all__ = [
@@ -54,4 +56,5 @@ __all__ = [
     # Comprehensive analyzer
     "AudioAnalyzer",
     "AudioAnalysis",
+    "analyze_audio",
 ]
