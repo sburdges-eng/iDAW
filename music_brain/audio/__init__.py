@@ -5,10 +5,12 @@ Features:
 - Feel/groove analysis
 - Energy extraction
 - Tempo detection
+- Key detection
 - Spectral analysis
 - Reference track DNA analysis
 - Chord detection from audio
 - 8-band frequency analysis
+- Comprehensive audio analysis
 - Comprehensive audio analysis (AudioAnalyzer)
 """
 
