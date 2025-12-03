@@ -422,19 +422,138 @@ class HarmonyRules:
                     return rule_data["types"][quality]
         return None
     
+    # Scale degree mapping for Roman numerals
+    _ROMAN_TO_DEGREE = {
+        "i": 1, "I": 1, "♭i": 1, "♭I": 1,
+        "ii": 2, "II": 2, "♭ii": 2, "♭II": 2, "ii°": 2, "ii°7": 2,
+        "iii": 3, "III": 3, "♭iii": 3, "♭III": 3,
+        "iv": 4, "IV": 4, "♭iv": 4, "♭IV": 4,
+        "v": 5, "V": 5, "V7": 5, "V⁷": 5,
+        "vi": 6, "VI": 6, "♭vi": 6, "♭VI": 6,
+        "vii": 7, "VII": 7, "vii°": 7, "♭vii": 7, "♭VII": 7,
+    }
+
+    @classmethod
+    def _parse_roman_numeral(cls, numeral: str) -> Optional[int]:
+        """
+        Parse a Roman numeral to its scale degree (1-7).
+
+        Args:
+            numeral: Roman numeral string (e.g., "V7", "ii", "♭VII")
+
+        Returns:
+            Scale degree (1-7) or None if not parseable
+        """
+        # Remove common suffixes for seventh chords, etc.
+        clean = numeral.replace("maj", "").replace("min", "")
+        clean = clean.replace("⁷", "").replace("7", "").replace("9", "")
+        clean = clean.replace("°", "").replace("ø", "")
+        clean = clean.replace("♯", "#").strip()
+
+        # Direct lookup
+        if clean in cls._ROMAN_TO_DEGREE:
+            return cls._ROMAN_TO_DEGREE[clean]
+
+        # Try without alterations
+        for key, val in cls._ROMAN_TO_DEGREE.items():
+            if key.lower() == clean.lower():
+                return val
+
+        return None
+
+    @classmethod
+    def _get_interval(cls, from_degree: int, to_degree: int) -> int:
+        """
+        Calculate the interval in scale degrees between two chords.
+
+        Args:
+            from_degree: Source scale degree (1-7)
+            to_degree: Target scale degree (1-7)
+
+        Returns:
+            Interval in scale degrees (positive = ascending, negative = descending)
+        """
+        diff = to_degree - from_degree
+        # Normalize to -3 to +4 range (shortest path around the scale)
+        if diff > 4:
+            diff -= 7
+        elif diff < -3:
+            diff += 7
+        return diff
+
     @classmethod
     def get_progression_strength(cls, from_chord: str, to_chord: str, key: str = "C") -> str:
         """
         Evaluate the strength of a harmonic progression.
-        
+
         Args:
             from_chord: Roman numeral of source chord
             to_chord: Roman numeral of target chord
             key: Key context (default C major)
-            
+
         Returns:
             Strength description: "very_strong", "strong", "moderate", "weak", "unusual"
+
+        Examples:
+            >>> HarmonyRules.get_progression_strength("V", "I")
+            'very_strong'
+            >>> HarmonyRules.get_progression_strength("ii", "V")
+            'very_strong'
+            >>> HarmonyRules.get_progression_strength("IV", "I")
+            'moderate'
+            >>> HarmonyRules.get_progression_strength("V", "vi")
+            'weak'
         """
-        # This would implement progression strength analysis
-        # For now, return placeholder
-        return "moderate"
+        from_degree = cls._parse_roman_numeral(from_chord)
+        to_degree = cls._parse_roman_numeral(to_chord)
+
+        if from_degree is None or to_degree is None:
+            return "unusual"
+
+        interval = cls._get_interval(from_degree, to_degree)
+
+        # Check for specific strong progressions first
+
+        # Authentic cadence: V → I (strongest in tonal music)
+        if from_degree == 5 and to_degree == 1:
+            return "very_strong"
+
+        # Circle of fifths movement: descending fifth (up a fourth)
+        # This includes ii→V, vi→ii, iii→vi, etc.
+        if interval == -4 or interval == 3:  # Down 4 or up 3 = descending fifth
+            return "very_strong"
+
+        # Leading tone resolution: vii° → I
+        if from_degree == 7 and to_degree == 1:
+            return "strong"
+
+        # Subdominant to tonic: IV → I (plagal cadence)
+        if from_degree == 4 and to_degree == 1:
+            return "moderate"
+
+        # Subdominant to dominant preparations: ii → V, IV → V
+        if to_degree == 5 and from_degree in (2, 4):
+            return "strong"
+
+        # Deceptive cadence: V → vi
+        if from_degree == 5 and to_degree == 6:
+            return "weak"
+
+        # Descending thirds: I → vi, vi → IV, etc.
+        if interval == -2:  # Down a third
+            return "moderate"
+
+        # Ascending thirds: I → iii, vi → I, etc.
+        if interval == 2:  # Up a third
+            return "moderate"
+
+        # Stepwise motion: ascending or descending by step
+        if abs(interval) == 1:
+            return "moderate"
+
+        # Ascending fifths (opposite of circle): weaker
+        if interval == 4 or interval == -3:  # Up 4 or down 3 = ascending fifth
+            return "weak"
+
+        # Anything else is unusual but not necessarily wrong
+        return "unusual"
