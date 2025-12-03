@@ -124,8 +124,8 @@ Documentation = "https://github.com/sburdges-eng/iDAW#readme"
 "DAiW-Music-Brain" = "https://github.com/sburdges-eng/DAiW-Music-Brain"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["music_brain*", "mcp_todo*", "mcp_workstation*"]
+where = [".", "python"]
+include = ["music_brain*", "mcp_todo*", "mcp_workstation*", "penta_core*"]
 exclude = ["tests*", "examples*", "vault*", "docs*"]
 
 [tool.setuptools.package-data]
