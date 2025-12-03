@@ -307,14 +307,14 @@ cd build && ctest
 5. Benchmark performance
 6. Submit PR with tests + benchmarks
 
-### Example: Implementing ChordAnalyzer::analyze()
+### Example: ChordAnalyzer::analyze() Implementation
 ```cpp
 // File: src/harmony/ChordAnalyzer.cpp
 
 Chord ChordAnalyzer::analyze(const std::array<bool, 12>& pcs) noexcept {
     Chord result;
     
-    // TODO: Implement template matching
+    // Template matching implementation:
     // 1. Iterate through all chord templates
     // 2. For each root (0-11)
     // 3. Calculate match score
@@ -325,7 +325,7 @@ Chord ChordAnalyzer::analyze(const std::array<bool, 12>& pcs) noexcept {
 }
 ```
 
-See existing stub in `src/harmony/ChordAnalyzer.cpp` for starting point.
+Implementation completed in `src/harmony/ChordAnalyzer.cpp`.
 
 ---
 
