@@ -8,9 +8,13 @@ in real-time or from recorded audio.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 from pathlib import Path
 import math
+
+if TYPE_CHECKING:
+    import numpy as np
 
 try:
     import librosa
@@ -20,6 +24,7 @@ except ImportError:
     librosa = None
     np = None
     LIBROSA_AVAILABLE = False
+    np = None  # type: ignore
 
 if TYPE_CHECKING:
     import numpy as np
@@ -118,7 +123,7 @@ class ChordProgressionDetection:
 # CHORD MATCHING
 # =================================================================
 
-def _create_chord_template(root: int, intervals: List[int]) -> np.ndarray:
+def _create_chord_template(root: int, intervals: List[int]) -> "np.ndarray":
     """Create a 12-element chroma template for a chord."""
     template = np.zeros(12)
     for interval in intervals:
@@ -126,7 +131,7 @@ def _create_chord_template(root: int, intervals: List[int]) -> np.ndarray:
     return template / np.sum(template)  # Normalize
 
 
-def _match_chord(chroma_vector: np.ndarray) -> Tuple[str, str, float]:
+def _match_chord(chroma_vector: "np.ndarray") -> Tuple[str, str, float]:
     """
     Match a chroma vector to the best chord template.
     
@@ -217,7 +222,7 @@ class ChordDetector:
     
     def detect_chord(
         self,
-        audio_data: np.ndarray,
+        audio_data: "np.ndarray",
         sr: int,
     ) -> Optional[ChordDetection]:
         """
