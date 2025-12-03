@@ -37,10 +37,35 @@ uint64_t RhythmQuantizer::applySwing(
         return samplePosition;
     }
     
-    // Stub implementation - TODO Week 10
-    // Apply swing by delaying every other subdivision
-    (void)samplesPerBeat;
-    (void)barStartPosition;
+    // Get grid interval based on resolution
+    uint64_t gridInterval = getGridInterval(samplesPerBeat);
+    if (gridInterval == 0) {
+        return samplePosition;
+    }
+    
+    // Calculate position relative to bar
+    int64_t relativePos = static_cast<int64_t>(samplePosition - barStartPosition);
+    
+    // Find which grid point we're at
+    int64_t gridIndex = relativePos / gridInterval;
+    
+    // Apply swing to every other subdivision (8th notes, 16th notes, etc.)
+    // Swing delays the upbeat (odd-numbered subdivisions)
+    if (gridIndex % 2 == 1) {
+        // This is an upbeat - delay it based on swing amount
+        // Swing amount: 0.5 = straight, 0.66 = triplet feel, higher = more swing
+        float swingFactor = config_.swingAmount;
+        
+        // Calculate delay: swing pushes upbeat later in the beat
+        // At 0.5 (50%), upbeat is exactly halfway
+        // At 0.66 (66%), upbeat is at 2/3 position (triplet)
+        float delayRatio = (swingFactor - 0.5f) * 2.0f;  // 0.0 to 1.0 range
+        int64_t maxDelay = gridInterval / 2;  // Maximum delay is half a grid
+        int64_t swingDelay = static_cast<int64_t>(maxDelay * delayRatio);
+        
+        return samplePosition + swingDelay;
+    }
+    
     return samplePosition;
 }
 

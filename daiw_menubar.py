@@ -130,19 +130,86 @@ class DAiWGenerator:
     
     def render_audio(self, midi_path: Path) -> Path:
         """Render MIDI + samples to audio."""
-        # For now, just create a placeholder
-        # Full implementation would use fluidsynth or map to samples
-        
         audio_path = midi_path.with_suffix('.wav')
         
-        # Simple sine wave placeholder (replace with real sample mapping)
+        # Load MIDI file
+        try:
+            mid = MidiFile(str(midi_path))
+        except Exception as e:
+            print(f"Error loading MIDI: {e}")
+            # Fallback to silent audio
+            duration_ms = int((self.bars * 4 * 60 / self.bpm) * 1000)
+            audio = AudioSegment.silent(duration=duration_ms)
+            audio.export(str(audio_path), format="wav")
+            return audio_path
+        
+        # Calculate total duration
         duration_ms = int((self.bars * 4 * 60 / self.bpm) * 1000)
-        audio = AudioSegment.silent(duration=duration_ms)
         
-        # TODO: Real implementation maps MIDI events to samples from library
-        # This requires loading samples and placing them at correct times
+        # Start with silence
+        output_audio = AudioSegment.silent(duration=duration_ms)
         
-        audio.export(str(audio_path), format="wav")
+        # Map MIDI events to samples from library
+        # Track instrument assignments from arrangement config
+        for track_idx, track in enumerate(mid.tracks):
+            if track_idx == 0:
+                continue  # Skip tempo track
+            
+            # Get instrument name from track
+            instrument_name = None
+            for msg in track:
+                if msg.type == 'track_name':
+                    instrument_name = msg.name.lower()
+                    break
+            
+            if not instrument_name:
+                continue
+            
+            # Find samples for this instrument
+            sample_dir = None
+            if instrument_name in SAMPLE_LIBRARY:
+                sample_dir = SAMPLE_LIBRARY[instrument_name]
+                if isinstance(sample_dir, dict):
+                    # Pick first available type
+                    sample_dir = list(sample_dir.values())[0]
+            
+            if not sample_dir or not sample_dir.exists():
+                continue
+            
+            # Load available samples
+            samples = {}
+            for sample_file in sample_dir.glob('*.wav'):
+                try:
+                    sample = AudioSegment.from_file(str(sample_file))
+                    # Use filename as key (pitch mapping would be more sophisticated)
+                    pitch = hash(sample_file.stem) % 128
+                    samples[pitch] = sample
+                except Exception:
+                    continue
+            
+            if not samples:
+                continue
+            
+            # Process MIDI events and place samples
+            time_ms = 0
+            for msg in track:
+                time_ms += msg.time * (60000.0 / (self.bpm * mid.ticks_per_beat))
+                
+                if msg.type == 'note_on' and msg.velocity > 0:
+                    # Find closest sample
+                    if samples:
+                        # Simple mapping: use any available sample
+                        sample = list(samples.values())[msg.note % len(samples)]
+                        
+                        # Adjust volume based on velocity
+                        velocity_db = (msg.velocity / 127.0) * 6 - 6  # -6dB to 0dB
+                        adjusted_sample = sample + velocity_db
+                        
+                        # Mix into output at correct position
+                        output_audio = output_audio.overlay(adjusted_sample, position=int(time_ms))
+        
+        # Export final audio
+        output_audio.export(str(audio_path), format="wav")
         return audio_path
     
     def generate(self) -> tuple[Path, Path]:

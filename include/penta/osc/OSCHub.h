@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <functional>
+#include <unordered_map>
 
 namespace penta::osc {
 
@@ -51,15 +52,22 @@ public:
     // Non-RT: Register callback for specific OSC address pattern
     void registerCallback(const std::string& pattern, MessageCallback callback);
     
+    // Non-RT: Process pending messages and dispatch to callbacks
+    void processCallbacks();
+    
     // Non-RT: Configuration
     void updateConfig(const Config& config);
     
 private:
+    bool matchPattern(const std::string& address, const std::string& pattern) const;
+    
     Config config_;
     
     std::unique_ptr<OSCServer> server_;
     std::unique_ptr<OSCClient> client_;
     std::unique_ptr<RTMessageQueue> messageQueue_;
+    
+    std::unordered_map<std::string, MessageCallback> callbacks_;
 };
 
 } // namespace penta::osc

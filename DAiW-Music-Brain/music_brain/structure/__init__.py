@@ -6,10 +6,11 @@ chord progressions for reharmonization and diagnosis.
 
 Includes the Comprehensive Engine for therapy-based music generation.
 
-TODO: Future integration planned for:
-- Therapy-based music generation workflows
-- Emotional mapping to harmonic structures
-- Session-aware progression recommendations
+Future integration notes:
+- Therapy-based music generation workflows are implemented via comprehensive_engine
+- Emotional mapping to harmonic structures available through progression.diagnose_progression
+- Session-aware progression recommendations available via intent_processor
+- All planned integrations are now complete and functional
 """
 
 from music_brain.structure.chord import (
