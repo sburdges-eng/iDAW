@@ -1,72 +1,70 @@
-cmake_minimum_required(VERSION 3.20)
+# CMakeLists.txt for DAiW Bridge Plugin Tests
+# 
+# This file provides an alternative build system for testing
+# if you prefer CMake over Projucer-generated projects
 
-project(PentaCore VERSION 1.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.15)
+project(DAiWBridgeTests)
 
-# C++20 standard for modern features
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Export compile commands for IDE integration
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Find JUCE
+find_package(JUCE CONFIG REQUIRED)
 
-# Build options
-option(PENTA_BUILD_PYTHON_BINDINGS "Build Python bindings via pybind11" ON)
-option(PENTA_BUILD_JUCE_PLUGIN "Build JUCE VST3/AU plugins" ON)
-option(PENTA_BUILD_TESTS "Build unit tests" ON)
-option(PENTA_ENABLE_SIMD "Enable SIMD optimizations" ON)
-option(PENTA_ENABLE_LTO "Enable Link-Time Optimization" OFF)
+# Add Catch2 (optional, for testing framework)
+# find_package(Catch2 3 REQUIRED)
 
-# Compiler warnings
-if(MSVC)
-    add_compile_options(/W4 /WX)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-endif()
+# Source files
+set(PLUGIN_SOURCES
+    PluginProcessor.cpp
+    PluginProcessor.h
+    PluginEditor.cpp
+    PluginEditor.h
+)
 
-# Release optimizations
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(PENTA_ENABLE_LTO)
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-    endif()
-    if(PENTA_ENABLE_SIMD)
-        if(MSVC)
-            add_compile_options(/arch:AVX2)
-        else()
-            add_compile_options(-mavx2 -mfma)
-        endif()
-    endif()
-endif()
+set(TEST_SOURCES
+    PluginProcessorTest.cpp
+    PluginEditorTest.cpp
+    OSCCommunicationTest.cpp
+)
+
+# Create test executable
+add_executable(DAiWBridgeTests
+    ${TEST_SOURCES}
+    ${PLUGIN_SOURCES}
+)
+
+# Link JUCE modules
+target_link_libraries(DAiWBridgeTests
+    PRIVATE
+    JUCE::juce_audio_basics
+    JUCE::juce_audio_processors
+    JUCE::juce_core
+    JUCE::juce_data_structures
+    JUCE::juce_events
+    JUCE::juce_graphics
+    JUCE::juce_gui_basics
+    JUCE::juce_osc
+)
+
+# Optional: Link Catch2 if available
+# target_link_libraries(DAiWBridgeTests PRIVATE Catch2::Catch2)
 
 # Include directories
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
-# External dependencies
-add_subdirectory(external)
-
-# Core library
-add_subdirectory(src)
-
-# Python bindings
-if(PENTA_BUILD_PYTHON_BINDINGS)
-    add_subdirectory(bindings)
-endif()
-
-# JUCE plugins
-if(PENTA_BUILD_JUCE_PLUGIN)
-    add_subdirectory(plugins)
-endif()
-
-# Tests
-if(PENTA_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-
-# Installation
-install(DIRECTORY include/ DESTINATION include)
-install(TARGETS penta_core
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
+target_include_directories(DAiWBridgeTests
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# Compiler options
+if(MSVC)
+    target_compile_options(DAiWBridgeTests PRIVATE /W4)
+else()
+    target_compile_options(DAiWBridgeTests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Optional: Add Catch2 test discovery
+# include(Catch)
+# catch_discover_tests(DAiWBridgeTests)
+
