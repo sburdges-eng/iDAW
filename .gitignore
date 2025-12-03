@@ -99,3 +99,25 @@ package-lock.json
 # Compiled binaries
 *.out
 *.app
+
+# Archive files (use version control instead)
+*.zip
+
+# Rich text format files
+*.rtf
+
+# Perl modules (not relevant to this project)
+*.3pm
+*.5
+
+# Duplicate files with numbered suffixes
+*\ (1).*
+*\ (2).*
+*\ (3).*
+*\ (4).*
+*\ (5).*
+*\ (6).*
+*\ (7).*
+*\ (8).*
+*\ (9).*
+*\ (10).*
