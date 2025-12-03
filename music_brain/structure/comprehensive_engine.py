@@ -17,6 +17,13 @@ import random
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
+# Check if MIDI dependencies are available
+try:
+    import mido
+    MIDO_AVAILABLE = True
+except ImportError:
+    MIDO_AVAILABLE = False
+
 # ==============================================================================
 # 1. AFFECT ANALYZER (Scored & Ranked)
 # ==============================================================================
@@ -110,15 +117,27 @@ class HarmonyPlan:
     This is what a "brain" outputs and a renderer consumes.
     """
 
-    root_note: str           # "C", "F#"
-    mode: str                # "ionian", "aeolian", "phrygian", etc.
-    tempo_bpm: int
-    time_signature: str      # "4/4"
-    length_bars: int
-    chord_symbols: List[str]  # ["Cm7", "Fm9"]
-    harmonic_rhythm: str      # "1_chord_per_bar"
-    mood_profile: str
-    complexity: float         # 0.0 - 1.0 (chaos/complexity dial)
+    root_note: str = "C"         # "C", "F#"
+    mode: str = "ionian"         # "ionian", "aeolian", "phrygian", etc.
+    tempo_bpm: int = 120
+    time_signature: str = "4/4"  # Default time signature
+    length_bars: int = 4         # Default length
+    chord_symbols: Optional[List[str]] = None  # ["Cm7", "Fm9"]
+    harmonic_rhythm: str = "1_chord_per_bar"  # Default rhythm
+    mood_profile: str = "neutral"  # Default mood
+    complexity: float = 0.5       # 0.0 - 1.0 (chaos/complexity dial)
+    vulnerability: float = 0.5    # 0.0 - 1.0 (vulnerability scale)
+    
+    def __post_init__(self):
+        """Generate default chord symbols if not provided."""
+        if self.chord_symbols is None:
+            # Generate basic progression based on mode
+            if "minor" in self.mode.lower() or self.mode in ["aeolian", "dorian", "phrygian"]:
+                self.chord_symbols = [f"{self.root_note}m", f"{self.root_note}m", 
+                                     f"{self.root_note}m", f"{self.root_note}m"]
+            else:
+                self.chord_symbols = [self.root_note, self.root_note, 
+                                     self.root_note, self.root_note]
 
 
 @dataclass
@@ -297,13 +316,18 @@ class TherapySession:
 # ==============================================================================
 
 
-def render_plan_to_midi(plan: HarmonyPlan, output_path: str) -> str:
+def render_plan_to_midi(plan: HarmonyPlan, output_path: str, include_guide_tones: bool = False) -> str:
     """
     Render a HarmonyPlan to a MIDI file using existing music_brain components:
 
     - music_brain.structure.progression.parse_progression_string
     - music_brain.structure.chord.CHORD_QUALITIES
     - music_brain.daw.logic.LogicProject, LOGIC_CHANNELS (if present)
+
+    Args:
+        plan: HarmonyPlan to render
+        output_path: Path to write MIDI file
+        include_guide_tones: If True, creates an additional guide tones track
 
     Returns: path to the written MIDI file (or the intended path if degraded).
     """
@@ -345,44 +369,61 @@ def render_plan_to_midi(plan: HarmonyPlan, output_path: str) -> str:
     bar_ticks = int(beats_per_bar * ppq)
 
     note_events: List[NoteEvent] = []
+    guide_tone_events: List[NoteEvent] = []
 
     # naive: one chord per bar, LOOPED to fill song length
     start_tick = 0
     current_bar = 0
     total_bars = plan.length_bars
 
-    while current_bar < total_bars:
-        for parsed in parsed_chords:
-            if current_bar >= total_bars:
-                break
+    # Handle empty progression gracefully
+    if not parsed_chords:
+        # No chords to render, return early
+        pass
+    else:
+        while current_bar < total_bars:
+            for parsed in parsed_chords:
+                if current_bar >= total_bars:
+                    break
 
-            quality = parsed.quality
-            intervals = CHORD_QUALITIES.get(quality)
+                quality = parsed.quality
+                intervals = CHORD_QUALITIES.get(quality)
 
-            # degrade gracefully if quality isn't in the map
-            if intervals is None:
-                base_quality = "min" if "m" in quality else "maj"
-                intervals = CHORD_QUALITIES.get(base_quality, (0, 4, 7))
+                # degrade gracefully if quality isn't in the map
+                if intervals is None:
+                    base_quality = "min" if "m" in quality else "maj"
+                    intervals = CHORD_QUALITIES.get(base_quality, (0, 4, 7))
 
-            root_midi = 48 + parsed.root_num  # C3 as base
-            duration_ticks = bar_ticks
+                root_midi = 48 + parsed.root_num  # C3 as base
+                duration_ticks = bar_ticks
 
-            # FUTURE GROOVE LAYER HOOK:
-            # Here we would modify start_tick and/or per-note offsets based on
-            # plan.complexity and any additional groove parameters.
+                # FUTURE GROOVE LAYER HOOK:
+                # Here we would modify start_tick and/or per-note offsets based on
+                # plan.complexity and any additional groove parameters.
 
-            for interval in intervals:
-                note_events.append(
-                    NoteEvent(
-                        pitch=root_midi + interval,
-                        velocity=80,
-                        start_tick=start_tick,
-                        duration_ticks=duration_ticks,
+                for i, interval in enumerate(intervals):
+                    note_events.append(
+                        NoteEvent(
+                            pitch=root_midi + interval,
+                            velocity=80,
+                            start_tick=start_tick,
+                            duration_ticks=duration_ticks,
+                        )
                     )
-                )
+                    
+                    # Add guide tones (3rd and 7th) if requested and available
+                    if include_guide_tones and len(intervals) >= 3 and i in [1, 3]:  # 3rd and 7th
+                        guide_tone_events.append(
+                            NoteEvent(
+                                pitch=root_midi + interval + 12,  # Octave up
+                                velocity=60,  # Softer
+                                start_tick=start_tick,
+                                duration_ticks=duration_ticks,
+                            )
+                        )
 
-            start_tick += duration_ticks
-            current_bar += 1
+                start_tick += duration_ticks
+                current_bar += 1
 
     # 4. Add track & export
     try:
@@ -398,6 +439,16 @@ def render_plan_to_midi(plan: HarmonyPlan, output_path: str) -> str:
         instrument=None,
         notes=notes_dicts,
     )
+    
+    # Add guide tones track if requested
+    if include_guide_tones and guide_tone_events:
+        guide_notes_dicts = [ne.to_dict() for ne in guide_tone_events]
+        project.add_track(
+            name="Guide Tones",
+            channel=channel + 1,
+            instrument=None,
+            notes=guide_notes_dicts,
+        )
 
     midi_path = project.export_midi(output_path)
     print(f"[SYSTEM]: MIDI written to {midi_path}")

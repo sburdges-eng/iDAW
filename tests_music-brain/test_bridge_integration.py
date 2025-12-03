@@ -153,6 +153,11 @@ def test_render_bridge_handles_import_error(mock_plan):
 def test_render_bridge_handles_empty_progression(MockLogicProject, mock_parse, mock_plan):
     """Empty progression should be handled gracefully."""
     mock_parse.return_value = []  # No chords parsed
+    
+    # Mock the project export to return expected path
+    mock_project_instance = MockLogicProject.return_value
+    mock_project_instance.export_midi.return_value = "output.mid"
+    mock_project_instance.ppq = 480
 
     output = render_plan_to_midi(mock_plan, "output.mid")
 
@@ -210,7 +215,7 @@ def test_full_therapy_to_plan_flow():
     assert session.state.suggested_mode == "aeolian"
 
     # Set scales
-    session.set_scales(motivation=7, chaos_tolerance=0.3)
+    session.set_scales(motivation=7, chaos=0.3)
 
     # Generate plan
     plan = session.generate_plan()
@@ -227,7 +232,7 @@ def test_therapy_to_plan_rage():
 
     session = TherapySession()
     session.process_core_input("I am furious and want revenge")
-    session.set_scales(motivation=9, chaos_tolerance=0.8)
+    session.set_scales(motivation=9, chaos=0.8)
 
     plan = session.generate_plan()
 
@@ -243,7 +248,7 @@ def test_therapy_to_plan_tenderness():
 
     session = TherapySession()
     session.process_core_input("I want to hold you gently and care for you")
-    session.set_scales(motivation=4, chaos_tolerance=0.2)
+    session.set_scales(motivation=4, chaos=0.2)
 
     plan = session.generate_plan()
 
