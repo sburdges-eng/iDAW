@@ -9,6 +9,7 @@ Features:
 - Reference track DNA analysis
 - Chord detection from audio
 - 8-band frequency analysis
+- Comprehensive audio analysis (AudioAnalyzer)
 """
 
 from music_brain.audio.feel import analyze_feel, AudioFeatures
@@ -28,10 +29,17 @@ from music_brain.audio.frequency_analysis import (
     suggest_eq_adjustments,
     FrequencyProfile,
 )
+from music_brain.audio.analyzer import (
+    AudioAnalyzer,
+    AudioAnalysis,
+)
 
 __all__ = [
     "analyze_feel",
     "AudioFeatures",
+    # Comprehensive analyzer
+    "AudioAnalyzer",
+    "AudioAnalysis",
     # Reference DNA
     "analyze_reference",
     "apply_reference_to_plan",
