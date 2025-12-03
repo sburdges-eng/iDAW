@@ -375,31 +375,36 @@ class AutoSampler:
         import shutil
 
         total_synced = 0
-        for level_dir in LOCAL_STAGING.iterdir():
-            if not level_dir.is_dir():
-                continue
-
-            for emotion_dir in level_dir.iterdir():
-                if not emotion_dir.is_dir():
+        
+        # Use generator expression to flatten the nested directory structure
+        # This reduces nesting from 4 levels to 1
+        def iter_all_mp3_files():
+            """Generator to iterate through all MP3 files in the directory tree"""
+            for level_dir in LOCAL_STAGING.iterdir():
+                if not level_dir.is_dir():
                     continue
-
-                for instrument_dir in emotion_dir.iterdir():
-                    if not instrument_dir.is_dir():
+                for emotion_dir in level_dir.iterdir():
+                    if not emotion_dir.is_dir():
                         continue
-
-                    # Create target
-                    target_dir = GDRIVE_SAMPLES / level_dir.name / emotion_dir.name / instrument_dir.name
-                    target_dir.mkdir(parents=True, exist_ok=True)
-
-                    # Copy files
-                    for file in instrument_dir.glob("*.mp3"):
-                        target_file = target_dir / file.name
-
-                        if not target_file.exists():
-                            shutil.copy2(file, target_file)
-                            total_synced += 1
+                    for instrument_dir in emotion_dir.iterdir():
+                        if not instrument_dir.is_dir():
+                            continue
+                        for file in instrument_dir.glob("*.mp3"):
+                            yield level_dir, emotion_dir, instrument_dir, file
+        
+        # Process files with single loop
+        for level_dir, emotion_dir, instrument_dir, file in iter_all_mp3_files():
+            # Create target directory
+            target_dir = GDRIVE_SAMPLES / level_dir.name / emotion_dir.name / instrument_dir.name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            target_file = target_dir / file.name
+            if not target_file.exists():
+                shutil.copy2(file, target_file)
+                total_synced += 1
 
         print(f"✓ Synced {total_synced} files to: {GDRIVE_SAMPLES}")
+
 
     def show_stats(self):
         """Show statistics"""
