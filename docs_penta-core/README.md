@@ -43,6 +43,17 @@ Welcome to the penta-core team documentation hub. This documentation is designed
 - **[Comprehensive System Requirements & TODO](comprehensive-system-requirements.md)** ⭐ MASTER DOC
   400+ requirements across all systems with prioritized TODO list: Core system (100), Ghost Writer ethics (10), Prrot interrogation (10), UI/UX (10), audio engine (10), data/storage (10), hardware (10), music theory (10), collaboration (10), DSP (10), edge cases (10), and biometric/therapeutic features (100). Includes 12-phase implementation roadmap.
 
+### Development Sprints
+
+- **[Sprint 1 – Core Testing & Quality](sprints-1.md)**
+  Establishing foundational testing infrastructure and ensuring code quality across Python components. Covers comprehensive test coverage for music-brain and penta-core modules.
+
+- **[Sprint 2 – Core Integration](sprints-2.md)**
+  Building and testing C++ core engine integration. Validates CMake builds, cross-platform compilation, C++ unit tests, and Python-C++ bridge functionality.
+
+- **[Sprint 3 – Documentation](sprints-3.md)**
+  Ensuring all documentation is complete, accurate, and follows best practices. Includes markdown validation, example script testing, and documentation consistency checks.
+
 ### AI & Research
 
 - **[Music Generation Research Topics](music-generation-research.md)**
@@ -80,13 +91,14 @@ Welcome to the penta-core team documentation hub. This documentation is designed
 8. **Working on film/game audio?** Explore the [Psychoacoustic Sound Design Guide](psychoacoustic-sound-design.md)
 9. **Implementing track import?** Check out the [DAW Track Import Methods](daw-track-import-methods.md)
 10. **Looking for the master TODO?** See the [Comprehensive System Requirements](comprehensive-system-requirements.md)
-11. **Researching music AI?** Explore the [Music Generation Research Topics](music-generation-research.md)
-12. **Working with AI tools?** See the [AI Prompting & Efficiency Guide](ai-prompting-guide.md)
-13. **Building multi-agent systems?** Check out the [Multi-Agent Systems & MCP Guide](multi-agent-mcp-guide.md)
-14. **Setting up autonomous debugging?** See the [MCP Protocol & Debugging Strategy](mcp-protocol-debugging.md)
-15. **Working on DAiW Music Brain?** See the [DAiW Music Brain Architecture](daiw-music-brain.md)
-15. **Building DAW user interfaces?** Check out the [DAW UI Design Patterns](daw-ui-patterns.md)
-16. **Researching instrument learning?** See the [Instrument Learning Research Tool](instrument-learning-research.md)
+11. **Following development sprints?** Check out [Sprint 1](sprints-1.md), [Sprint 2](sprints-2.md), and [Sprint 3](sprints-3.md)
+12. **Researching music AI?** Explore the [Music Generation Research Topics](music-generation-research.md)
+13. **Working with AI tools?** See the [AI Prompting & Efficiency Guide](ai-prompting-guide.md)
+14. **Building multi-agent systems?** Check out the [Multi-Agent Systems & MCP Guide](multi-agent-mcp-guide.md)
+15. **Setting up autonomous debugging?** See the [MCP Protocol & Debugging Strategy](mcp-protocol-debugging.md)
+16. **Working on DAiW Music Brain?** See the [DAiW Music Brain Architecture](daiw-music-brain.md)
+17. **Building DAW user interfaces?** Check out the [DAW UI Design Patterns](daw-ui-patterns.md)
+18. **Researching instrument learning?** See the [Instrument Learning Research Tool](instrument-learning-research.md)
 
 ### External Resources
 
