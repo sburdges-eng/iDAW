@@ -96,6 +96,23 @@ package-lock.json
 # *.mid
 # *.midi
 
+# Archive files (should not be committed)
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+
+# RTF and other document formats (source should be plain text)
+*.rtf
+*.doc
+*.docx
+
+# Perl modules and shell completion scripts
+*.3pm
+git-completion.*
+git-prompt.*
+
 # Compiled binaries
 *.out
 *.app
