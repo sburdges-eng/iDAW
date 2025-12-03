@@ -1,8 +1,6 @@
 ---
-
 name: Auto-Issue-Generator
 description: Creates TODOs/issues from user prompts, then initializes them with labels, assignees, and starter checklists.
-
 ---
 
 # Auto-Issue-Generator
