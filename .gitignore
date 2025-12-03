@@ -16,14 +16,19 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
 # IDEs
 .vscode/
@@ -31,21 +36,66 @@ ENV/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
 # OS
 .DS_Store
 Thumbs.db
+._*
 
-# Build artifacts
+# C++ Build artifacts
 *.o
 *.a
 *.dylib
 *.dll
+*.exe
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+*.cmake
+!CMakeLists.txt
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# JUCE build artifacts
+JuceLibraryCode/
+Builds/
 
 # Temporary files
 *.tmp
 *.log
+*.bak
+*~
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+site/
+
+# Package manager
+node_modules/
+package-lock.json
+
+# Audio files (large binary files)
+*.wav
+*.mp3
+*.aiff
+*.flac
+*.m4a
+
+# MIDI files (if large sample libraries)
+# *.mid
+# *.midi
+
+# Compiled binaries
+*.out
+*.app
