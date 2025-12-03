@@ -1,141 +1,325 @@
-# DAiW Bridge JUCE Plugin
+# Sample Library Automation System
+**Created:** 2025-11-25
+**For:** DAiW Music Brain + Lo-Fi Production Workflow
 
-This is the JUCE plugin skeleton that connects your DAW to the Python DAiW brain server via OSC.
+---
 
-## Overview
+## What This Is
 
-The plugin provides:
+A complete automated system for:
+1. Downloading curated Freesound sample packs
+2. Organizing samples into a standard folder structure
+3. Building a searchable catalog
+4. Creating Logic Pro drum kits
 
-- **UI**: Text input, parameter sliders, generate button
-- **OSC Communication**: Sends requests to Python brain, receives MIDI events
-- **MIDI Output**: Schedules MIDI events from brain server into your DAW
+Perfect for lo-fi bedroom emo/indie folk production (Kelly song aesthetic).
 
-## Building
+---
 
-### Prerequisites
+## Quick Start
 
-1. **JUCE Framework** - Download from <https://juce.com>
-2. **Projucer** - JUCE's project management tool
-3. **Xcode** (macOS) or **Visual Studio** (Windows)
+### 1. Set up Freesound API
+```bash
+# Get free API key from: https://freesound.org/apiv2/apply/
+echo "YOUR_API_KEY_HERE" > ~/.freesound_api_key
+chmod 600 ~/.freesound_api_key
+```
 
-### Setup
+### 2. Download Sample Packs
+```bash
+cd ~/Music/Samples
+./freesound_downloader.py
+```
 
-1. Open `DAiWBridge.jucer` in Projucer
-2. Set JUCE modules path
-3. Configure for your platform (macOS/Windows)
-4. Open generated Xcode/Visual Studio project
-5. Build the plugin
+Downloads 14 curated packs:
+- Acoustic drums (kicks, snares, hi-hats)
+- Brush drums
+- Room ambiences
+- Acoustic guitar (notes, harmonics, strums)
+- Bass (jazz, upright)
+- Vocal textures
+- Tape/vinyl FX
+- Forest ambience
 
-### Plugin Formats
+**Download time:** ~10-15 minutes
+**Total size:** ~2-3 GB
 
-The plugin builds as:
+### 3. Organize Samples
+```bash
+./organize_samples.py
+```
 
-- **AU** (Audio Unit) - For Logic Pro, GarageBand
-- **VST3** - For most DAWs (Ableton, Reaper, etc.)
+Sorts all downloads into:
+```
+~/Music/Samples/
+├── Drums/
+│   ├── Kicks/
+│   ├── Snares/
+│   ├── HiHats/
+│   └── ...
+├── Bass/
+├── Guitars/
+├── Vocals/
+└── FX/
+```
 
-## Usage
+Renames files to standard format:
+```
+[BPM]_[Key]_[Type]_[Description]_[Number].wav
+```
 
-### 1. Start the Python Brain Server
+Example: `120_Dmin_Kick_Acoustic_01.wav`
+
+### 4. Build Searchable Catalog
+```bash
+./sample_cataloger.py
+```
+
+Creates `sample_catalog.json` with:
+- Full metadata for every sample
+- BPM, key, type, description
+- File paths and sizes
+- MD5 hashes (for deduplication)
+
+### 5. Build Your First Kit
+```bash
+./build_lofi_kit.py
+```
+
+Creates `LoFi_Bedroom_Kit_01` with:
+- GM-standard MIDI mapping (C1-C2)
+- Best quality samples auto-selected
+- Logic Pro setup guide
+- MPK mini 3 compatible
+
+---
+
+## Searching Samples
 
 ```bash
-python brain_server.py
+# Find all kicks
+./search_samples.py --type Kick
+
+# Find samples at 120 BPM in D minor
+./search_samples.py --bpm 120 --key Dmin
+
+# Find all drum samples
+./search_samples.py --category Drums
+
+# Find acoustic samples
+./search_samples.py --description Acoustic
 ```
 
-The server listens on port 9000 and sends on port 9001.
-
-### 2. Load Plugin in DAW
-
-1. Build and install the plugin
-2. Open your DAW (Logic Pro, Ableton, etc.)
-3. Load DAiW Bridge on a MIDI track
-4. Plugin UI should show "Connected" status
-
-### 3. Generate MIDI
-
-1. Type emotional text in the text area
-2. Adjust sliders (motivation, chaos, vulnerability)
-3. Click "Generate MIDI"
-4. MIDI events will be scheduled and sent to your DAW
-
-## Architecture
-
-```
-┌─────────────┐         OSC          ┌──────────────┐
-│ JUCE Plugin │ ◄─────────────────► │ Python Brain │
-│  (in DAW)   │   Port 9000/9001     │  (server)    │
-└─────────────┘                       └──────────────┘
-     │                                       │
-     │                                       │
-     └──────► MIDI to DAW ◄─────────────────┘
-```
-
-## OSC Protocol
-
-### Plugin → Brain Server
-
-- `/daiw/generate` - Send generation request
-  - Arguments: text (string), motivation (float), chaos (float), vulnerability (float)
-- `/daiw/ping` - Health check
-
-### Brain Server → Plugin
-
-- `/daiw/result` - Generation result with MIDI events (JSON)
-- `/daiw/pong` - Response to ping
-- `/daiw/error` - Error message (JSON)
+---
 
 ## File Structure
 
 ```
-cpp/DAiWBridge/
-├── PluginProcessor.h      # Audio processing and OSC communication
-├── PluginProcessor.cpp
-├── PluginEditor.h         # UI components
-├── PluginEditor.cpp
-├── DAiWBridge.jucer      # Projucer project file (to be created)
-└── README.md             # This file
+~/Music/Samples/
+├── README.md                    # This file
+├── FREESOUND_PACK_LIST.md      # Curated pack list with URLs
+├── freesound_downloader.py     # Download automation
+├── organize_samples.py         # Sample organizer
+├── sample_cataloger.py         # Database builder
+├── build_lofi_kit.py          # Kit builder
+├── search_samples.py          # Search tool
+├── sample_catalog.json         # Generated database
+│
+├── Drums/
+│   ├── Kicks/
+│   ├── Snares/
+│   ├── HiHats/
+│   ├── Cymbals/
+│   ├── Toms/
+│   ├── Percussion/
+│   └── Loops/
+│
+├── Bass/{Synth,Acoustic,Loops}/
+├── Synths/{Pads,Leads,Keys,Arps}/
+├── Guitars/{Acoustic,Electric,Loops}/
+├── Vocals/{Phrases,Chops,FX}/
+├── FX/{Risers,Downlifters,Impacts,Atmosphere}/
+└── Loops/{Full,Stems}/
 ```
 
-## Testing
+---
 
-Comprehensive C++ unit tests are available in:
+## Logic Pro Integration
 
-- `PluginProcessorTest.cpp` - Processor functionality tests
-- `PluginEditorTest.cpp` - UI component tests
-- `OSCCommunicationTest.cpp` - OSC and JSON parsing tests
+### Using the Generated Kit
 
-See `TEST_README.md` for building and running tests.
+1. Open mapping guide:
+   ```bash
+   open ~/Music/Audio\ Music\ Apps/Sampler\ Instruments/LoFi_Bedroom_Kit_01_MAPPING.txt
+   ```
 
-## Next Steps
+2. In Logic Pro:
+   - Create Software Instrument track
+   - Load "Sampler" or "Quick Sampler"
+   - Drag samples onto MIDI notes (per mapping guide)
+   - Save as preset: "LoFi Bedroom Kit 01"
 
-1. **Create Projucer Project** - Use Projucer to generate the `.jucer` file
-2. **Build Tests** - Compile and run C++ test suite
-3. **Test OSC Communication** - Verify plugin can communicate with brain server
-4. **MIDI Scheduling** - Improve MIDI event timing and scheduling
-5. **UI Enhancements** - Add more controls and visual feedback
-6. **Error Handling** - Better error messages and recovery
+3. Play with your MIDI keyboard!
+
+### MIDI Mapping (GM Standard)
+
+| MIDI Note | Note Name | Drum |
+|-----------|-----------|------|
+| 36 | C1 | Kick |
+| 38 | D1 | Snare |
+| 42 | F#1 | Hi-Hat Closed |
+| 46 | A#1 | Hi-Hat Open |
+| 49 | C#2 | Crash Cymbal |
+| 51 | D#2 | Ride Cymbal |
+| 41-48 | F1-C2 | Toms (low to high) |
+
+---
+
+## Workflow Examples
+
+### For Kelly Song Production
+
+```bash
+# 1. Find acoustic guitar samples in D minor
+./search_samples.py --key Dmin --category Guitars
+
+# 2. Find room ambience for bedroom vibe
+./search_samples.py --description Room
+
+# 3. Find brush drums for intimate verses
+./search_samples.py --description Brush
+
+# 4. Build custom kit with these samples
+./build_lofi_kit.py
+```
+
+### For Hip-Hop Production
+
+```bash
+# Find 90 BPM drum loops
+./search_samples.py --bpm 90 --type Loop
+
+# Find bass hits
+./search_samples.py --type Bass
+
+# Find vinyl crackle FX
+./search_samples.py --description Vinyl
+```
+
+---
+
+## Customization
+
+### Add More Packs
+
+Edit `freesound_downloader.py` and add to `PACK_LIST`:
+
+```python
+"my_pack": {
+    "pack_id": 12345,
+    "name": "My Custom Pack",
+    "user": "username",
+},
+```
+
+### Change Naming Convention
+
+Edit `organize_samples.py` function `sanitize_description()`:
+
+```python
+# Current format: [BPM]_[Key]_[Type]_[Description]_[Number].wav
+# Change to whatever you want
+```
+
+### Custom Kit Mappings
+
+Edit `build_lofi_kit.py` function `build_lofi_drum_kit()`:
+
+```python
+drum_mapping = {
+    36: ("C1", "Kick", "Kick"),
+    # Add your own mappings
+}
+```
+
+---
 
 ## Troubleshooting
 
-### Plugin doesn't connect
+### "API key not found"
+```bash
+# Create API key file
+echo "YOUR_KEY_HERE" > ~/.freesound_api_key
+chmod 600 ~/.freesound_api_key
+```
 
-- Verify `brain_server.py` is running
-- Check ports 9000 and 9001 are not blocked
-- Check firewall settings
+### "No samples to organize"
+```bash
+# Run downloader first
+./freesound_downloader.py
+```
 
-### MIDI not appearing
+### "Catalog not found"
+```bash
+# Build catalog first
+./sample_cataloger.py
+```
 
-- Ensure plugin is on a MIDI track
-- Check MIDI channel settings
-- Verify JSON parsing is working (check console logs)
+### "No samples available to build kit"
+```bash
+# Complete the full workflow:
+./freesound_downloader.py
+./organize_samples.py
+./sample_cataloger.py
+./build_lofi_kit.py
+```
 
-### Build errors
+---
 
-- Ensure JUCE is properly installed
-- Check all modules are included (especially `juce_osc`)
-- Verify C++ standard (C++17 or later)
+## Tech Stack
 
-## See Also
+- **Python 3:** All automation scripts
+- **Freesound API:** Sample downloads
+- **JSON:** Database format
+- **Logic Pro:** Sampler/EXS24 integration
 
-- `docs/OSC_SERVER_GUIDE.md` - Python brain server documentation
-- `examples/test_osc_client.py` - Test client for OSC communication
-- `brain_server.py` - Python brain server implementation
+---
+
+## Next Steps
+
+1. ✅ Run `freesound_downloader.py` - Download packs
+2. ✅ Run `organize_samples.py` - Sort into folders
+3. ✅ Run `sample_cataloger.py` - Build database
+4. ✅ Run `build_lofi_kit.py` - Create first kit
+5. 🎹 Load kit in Logic Pro
+6. 🎵 Make music!
+
+---
+
+## Integration with DAiW Music Brain
+
+The sample catalog JSON can be used by DAiW for:
+- Auto-suggesting samples based on song key/tempo
+- Building genre-specific kits
+- Sample-based groove templates
+- Audio-to-MIDI extraction workflows
+
+Future integration:
+```python
+from music_brain.audio import SampleLibrary
+
+lib = SampleLibrary("~/Music/Samples/sample_catalog.json")
+kicks = lib.find(type="Kick", key="Dmin", bpm=82)
+```
+
+---
+
+## Credits
+
+**Sample Packs:** Freesound.org contributors
+**Scripts:** DAiW Music Brain project
+**Created:** 2025-11-25 for Kelly song production
+
+---
+
+*Happy sampling! 🎵*

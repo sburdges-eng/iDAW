@@ -1,0 +1,250 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f0\fs24 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 from dataclasses import dataclass\
+\
+from typing import Literal, List, Tuple\
+\
+@dataclass(frozen=True)\
+\
+class DirectiveModel:\
+\
+"""\
+\
+The final command structure for the music generation and output process (Phase 3).# The final object passed to the generation module for execution\
+FinalPayload = \{\
+# 0. Core Wound\
+"core_event": "...",\
+"core_resistance": "Fear of sounding selfish...",\
+# 1. Intent\
+"mood_primary": "Defiance and Liberation",\
+"mood_secondary_tension": 0.8,\
+"narrative_arc": "Sudden Shift",\
+# 2. Constraints\
+"technical_genre": "Industrial Pop/Synthwave",\
+"technical_tempo_range": (130, 140),\
+"technical_rule_to_break": "RHYTHM_ConstantDisplacement",\
+# 2b. Instrument Palette (New)\
+"instrument_palette": \{\
+"bass": "Mid-Range Fuzz Bass",\
+"drums": "Glitch/Percussive Noise",\
+"pad": "Cold Digital Pad",\
+"lead": "Plucked Arpeggiator"\
+\},\
+# 3. Directive\
+"output_target": "Full Arrangement Sketch (MIDI)",\
+"song_length_bars": 64\
+\}# music_brain/structure/interrogation_engine.py\
+\
+from typing import Tuple, Dict\
+from .models import CoreWoundModel, IntentModel\
+\
+def run_emotional_interrogation() -> Tuple[CoreWoundModel, IntentModel]:\
+"""\
+Executes Phase 0 (Core Wound) and Phase 1 (Intent) of the user journey.\
+Collects deep psychological and emotional data via conversational prompts.\
+\
+Returns:\
+Tuple[CoreWoundModel, IntentModel]: The populated and validated data models.\
+"""\
+\
+# 0. Emotional Safety Protocol Check\
+# (Placeholder for the actual safety check logic)\
+print("--- EMOTIONAL SAFETY CHECK ---")\
+if not _check_safety_protocol():\
+raise SystemExit("Interrogation halted by safety protocol.")\
+\
+print("\\n--- PHASE 0: THE CORE WOUND/DESIRE ---")\
+wound_data = _collect_core_wound()\
+\
+print("\\n--- PHASE 1: EMOTIONAL & NARRATIVE INTENT ---")\
+intent_data = _translate_wound_to_intent(wound_data)\
+\
+return wound_data, intent_data\
+\
+# Helper functions will contain the actual interactive prompts\
+def _check_safety_protocol() -> bool:\
+# ... implementation of opt-out / intensity slider ...\
+return True\
+\
+def _collect_core_wound() -> CoreWoundModel:\
+# ... implementation of deep therapist questions ...\
+pass # Will be detailed in the next step\
+\
+def _translate_wound_to_intent(wound: CoreWoundModel) -> IntentModel:\
+# ... implementation of translation and validation logic ...\
+pass # Will be detailed in the next step# Snippet for _collect_core_wound()\
+\
+# Example 1: Extracting core_event (Story Processing)\
+print("Question 1: What is the actual story you are trying to process or celebrate right now?")\
+print(" (Focus on the specific moment you want the song to freeze in time.)")\
+core_event = input("Your Story: ")\
+\
+# Example 2: Extracting core_resistance (Vulnerability/Conflict)\
+print("\\nQuestion 2: What part of you does NOT want this song to be written, and why?")\
+print(" (This helps us find the most vulnerable truth to put into the music.)")\
+core_resistance = input("Your Resistance: ")\
+\
+# System Suggestion based on the input (Non-deviating interaction)\
+# If core_resistance indicates high stakes, the system suggests a 'vulnerability_scale'.\
+if len(core_resistance) > 50 and any(kw in core_resistance.lower() for kw in ["afraid", "scared", "hide"]):\
+print("\\nSystem Insight: Your resistance suggests a HIGH emotional stake.")\
+print("We will mark the initial **vulnerability_scale** as HIGH, but you can change it later.")\
+\
+# ... continue for core_longing, core_transformation, and core_stakes ...\
+\
+return CoreWoundModel(\
+core_event=core_event,\
+core_resistance=core_resistance,\
+# ... other fields ...\
+)# Snippet for _translate_wound_to_intent()\
+\
+# Based on 'core_transformation', suggest a Narrative Arc:\
+if wound.core_transformation.lower().startswith("i want to feel stable"):\
+suggested_arc = "Sudden Shift"\
+elif wound.core_transformation.lower().startswith("i want to remember"):\
+suggested_arc = "Static Reflection"\
+else:\
+suggested_arc = "Climb-to-Climax"\
+\
+print("\\nBased on your desire for transformation, we suggest a **Narrative Arc**:")\
+print(f"Suggested Arc: \{suggested_arc\}")\
+print("\\nAvailable Arcs:")\
+print("1: Climb-to-Climax | 2: Slow Reveal | 3: Repetitive Despair | 4: Sudden Shift | 5: Static Reflection")\
+\
+user_choice = input(f"Select the corresponding number or type your own (default: \{suggested_arc\}): ")\
+\
+# Logic to handle the user's choice...\
+final_arc = suggested_arc # or the user's typed/selected choice\
+\
+# ... continue for mood_primary, mood_secondary_tension, etc. ...\
+\
+return IntentModel(\
+narrative_arc=final_arc,\
+# ... other fields ...\
+) """\
+\
+output_target: Literal[\
+\
+"MIDI Chord Progression",\
+\
+"MIDI Rhythm Pattern",\
+\
+"Full Arrangement Sketch (MIDI)",\
+\
+"Lyrical Concept/Outline",\
+\
+"Production/Mixing Template"\
+\
+]\
+\
+\
+\
+output_feedback_loop: Literal[\
+\
+"Harmony Only",\
+\
+"Groove Only",\
+\
+"Structure Only",\
+\
+"Full Sketch"\
+\
+]\
+\
+\
+\
+song_length_bars: int = 64\
+\
+\
+\
+output_format: Literal["MIDI", "JSON", "Obsidian Note"]@dataclass(frozen=True)\
+\
+class SelectionMenuOption:\
+\
+label: str\
+\
+previous_value: str\
+\
+choices: List[str]@dataclass(frozen=True)\
+\
+class RefinementPromptModel:\
+\
+constraint_area: str\
+\
+previous_value: str\
+\
+options: Tuple[str, ...]\
+\
+also add ParameterFinal SelectionNotesA. Emotional FoundationApprovedDefiance/Liberation with 0.8 High Tension and Sudden Shift arc.B. Technical ConstraintsApprovedIndustrial Pop/Synthwave, $130-140$ BPM, Straight/Driving Groove, and the RHYTHM_ConstantDisplacement rule break.D. Final DirectiveApprovedOutput Target: Full Arrangement Sketch (MIDI); Feedback Loop: Harmony and Rhythm; Length: 64 Bars; Format: MIDI.RoleC1: Basic (Simple Sound Design)C2: Advanced (Textural Complexity)Foundation/BassSub Bass (Clean, low-end support)Mid-Range Fuzz Bass (Harmonically rich and aggressive)Rhythm/DrumsClassic Drum Machine (909) (Iconic, powerful transients)Glitch/Percussive Noise (Disruptive, chaotic texture)Harmony/PadWarm Analog Pad (Supporting, non-intrusive)Cold Digital Pad (Dissonant, brittle high-end)Lead MelodyAggressive Saw Synth (Cutting, simple melody focus)Plucked Arpeggiator (Busy, complex rhythmic layer)This is a fantastic and disciplined roadmap. You're prioritizing structure and safety before engaging the creative chaos, which is essential for a system with such deep emotional hooks.\
+\
+I will finalize the selections you approved, implement the revised instrument selection (C1 Basic vs. C2 Advanced), freeze all the current data models, and then structure the response to address your subsequent architectural and process steps, particularly Defining the User Journey (Step 5) and the Meta-Design Document (Step 4).\
+\
+\
+\
+\uc0\u55356 \u57263  Directive Model Finalized\
+\
+\
+\
+Based on your input ("approve"), here are the final selections for the DirectiveModel:\
+\
+ParameterFinal SelectionNotesA. Emotional FoundationApprovedDefiance/Liberation with 0.8 High Tension and Sudden Shift arc.B. Technical ConstraintsApprovedIndustrial Pop/Synthwave, $130-140$ BPM, Straight/Driving Groove, and the RHYTHM_ConstantDisplacement rule break.D. Final DirectiveApprovedOutput Target: Full Arrangement Sketch (MIDI); Feedback Loop: Harmony and Rhythm; Length: 64 Bars; Format: MIDI.\
+\
+\
+\
+C. \uc0\u55358 \u56641  Revised Instrument Palette Selection\
+\
+\
+\
+Since you requested options for C1 Basic or C2 Advanced, we will make this the final selection. The Advanced option adds textural complexity.\
+\
+RoleC1: Basic (Simple Sound Design)C2: Advanced (Textural Complexity)Foundation/BassSub Bass (Clean, low-end support)Mid-Range Fuzz Bass (Harmonically rich and aggressive)Rhythm/DrumsClassic Drum Machine (909) (Iconic, powerful transients)Glitch/Percussive Noise (Disruptive, chaotic texture)Harmony/PadWarm Analog Pad (Supporting, non-intrusive)Cold Digital Pad (Dissonant, brittle high-end)Lead MelodyAggressive Saw Synth (Cutting, simple melody focus)Plucked Arpeggiator (Busy, complex rhythmic layer)\
+\
+Please choose one option to finalize the instrument selection:\
+\
+\
+\
+\
+\
+C1: Basic Palette (Focus on clean power and impact)\
+\
+\
+\
+C2: Advanced Palette (Focus on texture, aggression, and rhythmic complexity)\
+\
+\
+\
+\uc0\u9989  1. Freezing the Models (Schema of Truth)\
+\
+\
+\
+All five dataclasses are now formally locked as the definitive schema of truth for the DAiW project. Any function in the music_brain.structure module must accept and return data conforming to these contracts:\
+\
+\
+\
+\
+\
+CoreWoundModel\
+\
+\
+\
+IntentModel\
+\
+\
+\
+ConstraintModel\
+\
+\
+\
+RuleBreakModel\
+\
+\
+\
+DirectiveModelStepUser ActionSystem InterventionPurpose / Model Populated0. EntryUser initiates a new song idea (e.g., via CLI: daiw new).Emotional Safety Protocol: Present opt-out and intensity slider.Establish trust and boundaries.1. The Deep DiveUser answers Therapist Prompts (The Core Wound).System uses avoidance/contradiction logic (Phase F - Batshit) to gently re-interrogate if needed.Populate CoreWoundModel. Force honesty and define the root cause.2. The TranslationUser/System translates the Wound into high-level Intent (mood, arc).System proposes mood_secondary_tension based on core_resistance. User approves or refines.Populate IntentModel. Map psychological state to dramatic structure.3. Constraint SetupUser selects Genre, Tempo, Groove, and Rule-to-Break.System proposes initial technical values based on IntentModel (e.g., "Sudden Shift" suggests high tempo).Populate ConstraintModel and RuleBreakModel.4. Final ReviewUser reviews the Confirmation Dashboard (A-D).System highlights contradictions (e.g., "Joyful Mood" paired with "Glitch/Percussive Noise").Populate DirectiveModel. Final lock-in before generation.5. GenerationUser commands: daiw execute.Generation Engine executes the DirectiveModel.Produce the output_target.6. FeedbackUser listens to the Feedback Loop output.Emotional Compliance Check (Phase E): "Does this music match the wound you described?"Force reflection and start the refinement loop. do not\
+}
