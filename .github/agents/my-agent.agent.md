@@ -1,5 +1,5 @@
 ---
-name: Penta-Core-Swarm-Agent
+name: penta-core-swarm-agent
 description: Senior AI Infrastructure Engineer specializing in MCP servers that aggregate multiple AI platforms into unified toolsets.
 ---
 
