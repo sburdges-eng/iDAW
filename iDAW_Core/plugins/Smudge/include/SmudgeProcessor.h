@@ -116,23 +116,31 @@ public:
     void setPhotoCorner(float x, float y);
     
 private:
-    void processConvolution(float* input, float* output, int numSamples);
+    void processConvolutionChannel(int channel, const float* input, float* output, int numSamples);
+    void processFFTFrame(int channel);
     void prepareIR();
     void applyTimeStretch(float stretchFactor);
     void updateHighCutFilter();
     
     // FFT
     std::unique_ptr<juce::dsp::FFT> m_fft;
-    
+    std::unique_ptr<juce::dsp::WindowingFunction<float>> m_window;
+
     // IR data
     ImpulseResponse m_currentIR;
     std::vector<std::vector<std::complex<float>>> m_irPartitions;
     juce::String m_currentIRName;
-    
-    // Convolution buffers
-    std::vector<float> m_inputBuffer;
-    std::vector<float> m_outputBuffer;
-    std::vector<std::complex<float>> m_fftBuffer;
+    int m_numPartitions = 0;
+
+    // Convolution buffers (per channel)
+    std::array<std::vector<float>, 2> m_inputFIFO;     // Accumulate input samples
+    std::array<int, 2> m_inputFIFOIndex = {0, 0};
+    std::array<std::vector<float>, 2> m_overlapBuffer; // Overlap-add output
+
+    std::vector<float> m_fftWorkBuffer;  // Working buffer for FFT (real values)
+    std::vector<std::complex<float>> m_inputSpectrum;  // Current input frame spectrum
+    std::vector<std::complex<float>> m_accumSpectrum;  // Accumulated convolution result
+
     std::vector<std::vector<std::complex<float>>> m_fdlBuffer; // Frequency-domain delay line
     int m_fdlIndex = 0;
     
