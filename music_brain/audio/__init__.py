@@ -40,6 +40,9 @@ from music_brain.audio.analyzer import (
 __all__ = [
     "analyze_feel",
     "AudioFeatures",
+    # Comprehensive analyzer
+    "AudioAnalyzer",
+    "AudioAnalysis",
     # Reference DNA
     "analyze_reference",
     "apply_reference_to_plan",

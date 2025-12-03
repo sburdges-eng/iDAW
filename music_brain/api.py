@@ -56,6 +56,15 @@ from music_brain.session.intent_schema import (
 )
 from music_brain.session.intent_processor import process_intent
 from music_brain.voice import (
+    AutoTuneProcessor,
+    AutoTuneSettings,
+    get_auto_tune_preset,
+    VoiceModulator,
+    ModulationSettings,
+    get_modulation_preset,
+    VoiceSynthesizer,
+    SynthConfig,
+    get_voice_profile,
     VoiceSynthesizer,
     SynthConfig,
     get_voice_profile,
@@ -73,6 +82,10 @@ class DAiWAPI:
 
     def __init__(self):
         self.harmony_generator = HarmonyGenerator()
+        self.audio_analyzer = AudioAnalyzer()
+        self.auto_tune_processor = AutoTuneProcessor()
+        self.voice_modulator = VoiceModulator()
+        self.voice_synthesizer = VoiceSynthesizer()
         self.voice_synthesizer = VoiceSynthesizer()
         self._audio_analyzer: AudioAnalyzer = None
         self.audio_analyzer = AudioAnalyzer()
@@ -355,6 +368,20 @@ class DAiWAPI:
         Analyze an audio file, returning tempo, key, spectrum, and chords.
 
         Args:
+            audio_path: Path to audio file (WAV, MP3, etc.)
+
+        Returns:
+            Dict with analysis results including tempo, key, spectral features
+        """
+        return self.audio_analyzer.analyze_file(audio_path).to_dict()
+
+    def analyze_audio_waveform(self, samples: np.ndarray, sample_rate: int) -> Dict[str, Any]:
+        """
+        Analyze audio samples.
+
+        Args:
+            samples: Audio samples (numpy array)
+            sample_rate: Sample rate in Hz
             audio_path: Path to audio file
 
         Returns:
@@ -403,6 +430,11 @@ class DAiWAPI:
 
     def detect_audio_bpm(self, samples: np.ndarray, sample_rate: int) -> float:
         """
+        Detect tempo from audio samples.
+
+        Args:
+            samples: Audio samples (numpy array)
+            sample_rate: Sample rate in Hz
         Detect tempo (BPM) from audio samples.
 
         Args:
@@ -412,6 +444,10 @@ class DAiWAPI:
         Returns:
             Detected BPM
         """
+        bpm, _ = self.audio_analyzer.detect_bpm(samples, sample_rate)
+        return bpm
+
+    def detect_audio_key(self, samples: np.ndarray, sample_rate: int) -> Tuple[str, str]:
         analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
         bpm, _ = analyzer.detect_bpm(samples, sample_rate)
         return bpm
@@ -434,6 +470,8 @@ class DAiWAPI:
         Detect musical key from audio samples.
 
         Args:
+            samples: Audio samples (numpy array)
+            sample_rate: Sample rate in Hz
             samples: Audio samples
             sample_rate: Sample rate
 
@@ -452,6 +490,76 @@ class DAiWAPI:
     
     # ========== Voice Processing ==========
 
+    def auto_tune_vocals(
+        self,
+        input_path: str,
+        output_path: Optional[str] = None,
+        preset: str = "transparent",
+        key: Optional[str] = None,
+        mode: str = "major",
+    ) -> str:
+        """
+        Apply pitch correction to vocal audio.
+
+        Args:
+            input_path: Path to input audio file
+            output_path: Path for output (auto-generated if None)
+            preset: Auto-tune preset (transparent, natural, moderate, aggressive, hard_tune)
+            key: Musical key (None = chromatic)
+            mode: Scale mode (major, minor, etc.)
+
+        Returns:
+            Path to processed audio file
+        """
+        settings = get_auto_tune_preset(preset)
+        processor = AutoTuneProcessor(settings)
+        return processor.process_file(input_path, output_path, key, mode)
+
+    def modulate_voice(
+        self,
+        input_path: str,
+        output_path: Optional[str] = None,
+        preset: str = "intimate_whisper",
+    ) -> str:
+        """
+        Apply voice modulation effects.
+
+        Args:
+            input_path: Path to input audio file
+            output_path: Path for output (auto-generated if None)
+            preset: Modulation preset (intimate_whisper, vulnerable, powerful, ethereal, dark, bright, robot)
+
+        Returns:
+            Path to processed audio file
+        """
+        settings = get_modulation_preset(preset)
+        modulator = VoiceModulator(settings)
+        return modulator.process_file(input_path, output_path)
+
+    def synthesize_voice(
+        self,
+        lyrics: str,
+        melody_midi: List[int],
+        tempo_bpm: int = 82,
+        output_path: str = "guide_vocal.wav",
+        profile: str = "guide_vulnerable",
+    ) -> str:
+        """
+        Synthesize a guide vocal track.
+
+        Args:
+            lyrics: Lyrics text to sing
+            melody_midi: List of MIDI note numbers
+            tempo_bpm: Tempo in BPM
+            output_path: Path for output WAV file
+            profile: Voice profile (guide_vulnerable, guide_confident, guide_ethereal, guide_powerful)
+
+        Returns:
+            Path to generated audio file
+        """
+        config = get_voice_profile(profile)
+        synthesizer = VoiceSynthesizer(config)
+        return synthesizer.synthesize_guide(
     def synthesize_voice(
         self,
         lyrics: str,
@@ -485,6 +593,28 @@ class DAiWAPI:
         self,
         text: str,
         output_path: str = "spoken_prompt.wav",
+        profile: str = "guide_confident",
+        tempo_bpm: int = 80,
+    ) -> str:
+        """
+        Generate spoken text (text-to-speech).
+
+        Args:
+            text: Text to speak
+            output_path: Path for output WAV file
+            profile: Voice profile
+            tempo_bpm: Speaking rate
+
+        Returns:
+            Path to generated audio file
+        """
+        config = get_voice_profile(profile)
+        synthesizer = VoiceSynthesizer(config)
+        return synthesizer.speak_text(
+            text=text,
+            output_path=output_path,
+            tempo_bpm=tempo_bpm,
+        )
         profile: str = "narrator_neutral",
     ) -> Optional[str]:
         """
