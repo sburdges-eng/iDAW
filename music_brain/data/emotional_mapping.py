@@ -9,7 +9,7 @@ This module provides the vocabulary for emotional interrogation,
 not automated output generation.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Optional
 
@@ -449,8 +449,9 @@ def _derive_from_dimensions(valence: Valence, arousal: Arousal) -> MusicalParame
             return EMOTIONAL_PRESETS["anxiety"]
         else:
             # No "joy" preset yet - use calm with adjustments
-            params = EMOTIONAL_PRESETS["calm"]
-            params.tempo_suggested += 20
+            # Use replace() to avoid mutating the global preset
+            params = replace(EMOTIONAL_PRESETS["calm"], 
+                           tempo_suggested=EMOTIONAL_PRESETS["calm"].tempo_suggested + 20)
             return params
 
 
@@ -460,8 +461,6 @@ def _apply_modifier(
 ) -> MusicalParameters:
     """Apply a modifier to musical parameters."""
     # Create new instance to avoid mutating original
-    from dataclasses import replace
-    
     new_params = replace(params)
     
     new_params.tempo_suggested += modifier.tempo_adjust
