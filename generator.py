@@ -1,494 +1,548 @@
 """
-Song Generator - Generate song structures, progressions, and arrangements.
+Auto Song Generator
+Generate complete song structures with MIDI output.
 
-Generates:
-- Chord progressions by mood/genre
-- Song structures (verse/chorus/bridge arrangements)
-- Basic MIDI arrangements
+Features:
+- Genre-aware chord progressions
+- Section-based arrangement
+- Humanized timing from genre pockets
+- Drum, bass, and chord MIDI generation
 """
 
 import random
+from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
+try:
+    import mido
+    HAS_MIDO = True
+except ImportError:
+    HAS_MIDO = False
 
-# Progression templates by mood
-PROGRESSION_TEMPLATES = {
-    "hopeful": [
-        ["I", "V", "vi", "IV"],
-        ["I", "IV", "V", "I"],
-        ["I", "iii", "IV", "V"],
-    ],
-    "melancholy": [
-        ["i", "bVI", "bIII", "bVII"],
-        ["i", "iv", "bVI", "V"],
-        ["vi", "IV", "I", "V"],
-    ],
-    "triumphant": [
-        ["I", "V", "vi", "IV", "I", "V", "I"],
-        ["I", "IV", "I", "V"],
-        ["I", "bVII", "IV", "I"],
-    ],
-    "mysterious": [
-        ["i", "bII", "bVII", "i"],
-        ["i", "bVI", "bVII", "i"],
-        ["i", "iv", "bVI", "bVII"],
-    ],
-    "bittersweet": [
-        ["I", "V", "vi", "iv"],  # Major to borrowed minor iv
-        ["I", "IV", "iv", "I"],
-        ["vi", "IV", "I", "iv"],
-    ],
-    "grief_reveal": [
-        ["I", "V", "vi", "IV"],  # Happy setup
-        ["I", "V", "vi", "iv"],  # Minor iv gut punch
-        ["I", "bVI", "bVII", "I"],  # Borrowed chord devastation
-    ],
-    "nostalgia_loop": [
-        ["I", "IV", "vi", "V"],
-        ["IV", "iv", "I", "I"],  # The iv-I is the tearjerker
-    ],
-    "unresolved_ending": [
-        ["I", "IV", "V", "IV"],  # Never returns to I
-        ["I", "V", "vi", "bVII"],  # Ends on borrowed bVII
-    ],
-}
-
-# Genre-specific characteristics
-GENRE_TEMPLATES = {
-    "lo_fi_bedroom": {
-        "progressions": ["I", "vi", "IV", "V", "I", "vi", "ii", "V"],
-        "tempo_range": (70, 95),
-        "characteristics": [
-            "Sparse arrangement",
-            "Room sound/tape hiss",
-            "Slightly detuned instruments",
-            "Imperfect timing (humanized)",
-        ],
-    },
-    "emo_confessional": {
-        "progressions": ["vi", "IV", "I", "V", "vi", "IV", "I", "iii"],
-        "tempo_range": (80, 110),
-        "characteristics": [
-            "Dynamic contrast (quiet verse, loud chorus)",
-            "Register breaks in vocals",
-            "Acoustic to electric builds",
-            "Lyrical specificity over abstraction",
-        ],
-    },
-    "indie_folk": {
-        "progressions": ["I", "IV", "I", "V", "vi", "IV", "V", "I"],
-        "tempo_range": (90, 130),
-        "characteristics": [
-            "Fingerpicked acoustic guitar",
-            "Sparse percussion or none",
-            "Vocal harmonies",
-            "Natural room reverb",
-        ],
-    },
-    "post_rock": {
-        "progressions": ["i", "bVI", "bIII", "bVII", "i", "bVI", "IV", "i"],
-        "tempo_range": (60, 100),
-        "characteristics": [
-            "Long instrumental builds",
-            "Tremolo picking",
-            "Heavy use of delay/reverb",
-            "Dynamic crescendos",
-        ],
-    },
-}
-
-# Song structure templates
-STRUCTURE_TEMPLATES = {
-    "standard": ["intro", "verse", "chorus", "verse", "chorus", "bridge", "chorus", "outro"],
-    "verse_heavy": ["intro", "verse", "verse", "chorus", "verse", "chorus", "outro"],
-    "minimal": ["intro", "verse", "chorus", "verse", "chorus"],
-    "progressive": ["intro", "verse", "bridge", "verse", "chorus", "bridge", "outro"],
-    "building": ["intro", "verse", "verse", "prechorus", "chorus", "verse", "prechorus", "chorus", "chorus", "outro"],
-    "storytelling": ["verse", "verse", "verse", "chorus", "verse", "chorus", "outro"],
-}
-
-# Roman numeral to semitone offset from tonic
-NUMERAL_TO_SEMITONE = {
-    "I": 0, "i": 0,
-    "bII": 1, "II": 2, "ii": 2,
-    "bIII": 3, "III": 4, "iii": 4,
-    "IV": 5, "iv": 5,
-    "#IV": 6, "bV": 6,
-    "V": 7, "v": 7,
-    "bVI": 8, "VI": 9, "vi": 9,
-    "bVII": 10, "VII": 11, "vii": 11,
-}
-
-NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+from ..groove.pocket_rules import GENRE_POCKETS, get_pocket, get_push_pull, get_swing
+from ..structure.progression import COMMON_PROGRESSIONS, ProgressionMatcher
+from ..utils.ppq import STANDARD_PPQ
 
 
 @dataclass
-class GeneratedSection:
-    """A generated song section."""
-    name: str
-    bars: int
-    progression: List[str]  # Roman numerals
-    chords: List[str]  # Actual chord names
-    energy: float  # 0.0-1.0
-    notes: str  # Production/performance notes
+class SongSection:
+    """A section of the song."""
+    name: str           # verse, chorus, bridge, etc.
+    bars: int           # Length in bars
+    progression: List[int]  # Chord degrees
+    energy: float       # 0-1
+    has_drums: bool = True
+    has_bass: bool = True
+    has_chords: bool = True
 
 
 @dataclass
-class GeneratedSong:
-    """A complete generated song structure."""
-    title: str = "Untitled"
-    key: str = "C"
-    mode: str = "major"
-    tempo_bpm: float = 120.0
-    time_signature: Tuple[int, int] = (4, 4)
-    
-    sections: List[GeneratedSection] = field(default_factory=list)
-    genre: str = ""
-    mood: str = ""
-    
-    # Metadata
+class SongStructure:
+    """Complete song structure."""
+    title: str
+    genre: str
+    key: int            # 0-11 (C=0)
+    bpm: int
+    time_sig: Tuple[int, int]
+    sections: List[SongSection]
     total_bars: int = 0
-    duration_estimate_seconds: float = 0.0
     
-    def get_all_chords(self) -> List[str]:
-        """Get flat list of all chords in order."""
-        chords = []
-        for section in self.sections:
-            chords.extend(section.chords)
-        return chords
-    
-    def to_dict(self) -> Dict:
-        """Serialize to dictionary."""
-        return {
-            "title": self.title,
-            "key": self.key,
-            "mode": self.mode,
-            "tempo_bpm": self.tempo_bpm,
-            "time_signature": list(self.time_signature),
-            "genre": self.genre,
-            "mood": self.mood,
-            "total_bars": self.total_bars,
-            "duration_estimate_seconds": self.duration_estimate_seconds,
-            "sections": [
-                {
-                    "name": s.name,
-                    "bars": s.bars,
-                    "progression": s.progression,
-                    "chords": s.chords,
-                    "energy": s.energy,
-                    "notes": s.notes,
-                }
-                for s in self.sections
-            ],
-        }
-    
-    def __str__(self) -> str:
-        lines = [
-            f"=== {self.title} ===",
-            f"Key: {self.key} {self.mode} | Tempo: {self.tempo_bpm} BPM | Genre: {self.genre}",
-            f"Duration: ~{self.duration_estimate_seconds:.0f}s ({self.total_bars} bars)",
-            "",
-        ]
-        
-        for section in self.sections:
-            lines.append(f"[{section.name.upper()}] ({section.bars} bars, energy: {section.energy:.1f})")
-            lines.append(f"  {' | '.join(section.chords)}")
-            if section.notes:
-                lines.append(f"  → {section.notes}")
-            lines.append("")
-        
-        return "\n".join(lines)
+    def __post_init__(self):
+        self.total_bars = sum(s.bars for s in self.sections)
+
+
+# Common song arrangements by genre
+SONG_TEMPLATES = {
+    'pop': [
+        ('intro', 4, 0.3),
+        ('verse', 8, 0.5),
+        ('prechorus', 4, 0.6),
+        ('chorus', 8, 0.9),
+        ('verse', 8, 0.5),
+        ('prechorus', 4, 0.6),
+        ('chorus', 8, 0.9),
+        ('bridge', 8, 0.4),
+        ('chorus', 8, 1.0),
+        ('outro', 4, 0.3),
+    ],
+    'rock': [
+        ('intro', 4, 0.6),
+        ('verse', 8, 0.6),
+        ('chorus', 8, 0.9),
+        ('verse', 8, 0.6),
+        ('chorus', 8, 0.9),
+        ('solo', 8, 0.8),
+        ('chorus', 8, 1.0),
+        ('outro', 4, 0.5),
+    ],
+    'hiphop': [
+        ('intro', 4, 0.4),
+        ('verse', 16, 0.6),
+        ('hook', 8, 0.8),
+        ('verse', 16, 0.6),
+        ('hook', 8, 0.8),
+        ('bridge', 8, 0.5),
+        ('hook', 8, 0.9),
+        ('outro', 4, 0.3),
+    ],
+    'jazz': [
+        ('head', 8, 0.6),
+        ('solo_a', 8, 0.7),
+        ('solo_b', 8, 0.8),
+        ('solo_c', 8, 0.7),
+        ('head', 8, 0.6),
+        ('outro', 4, 0.4),
+    ],
+    'electronic': [
+        ('intro', 8, 0.3),
+        ('buildup', 8, 0.5),
+        ('drop', 8, 0.9),
+        ('breakdown', 8, 0.4),
+        ('buildup', 8, 0.6),
+        ('drop', 8, 1.0),
+        ('outro', 8, 0.3),
+    ],
+    'lofi': [
+        ('intro', 4, 0.4),
+        ('a', 8, 0.5),
+        ('b', 8, 0.6),
+        ('a', 8, 0.5),
+        ('b', 8, 0.6),
+        ('outro', 4, 0.3),
+    ],
+}
+
+# Progressions by section type
+SECTION_PROGRESSIONS = {
+    'intro': ['I-IV', 'I-V', 'vi-IV'],
+    'verse': ['I-V-vi-IV', 'I-vi-IV-V', 'I-IV-V-I', 'vi-IV-I-V'],
+    'prechorus': ['IV-V', 'ii-V', 'vi-V'],
+    'chorus': ['I-V-vi-IV', 'I-IV-vi-V', 'vi-IV-I-V'],
+    'hook': ['I-V-vi-IV', 'vi-IV-I-V'],
+    'bridge': ['IV-I-V-vi', 'ii-V-I', 'vi-ii-V-I'],
+    'breakdown': ['vi-IV', 'I-V'],
+    'buildup': ['vi-IV-I-V'],
+    'drop': ['I-V-vi-IV', 'vi-IV-I-V'],
+    'head': ['ii-V-I', 'I-vi-ii-V'],
+    'solo_a': ['ii-V-I', 'I-vi-ii-V'],
+    'solo_b': ['ii-V-I'],
+    'solo_c': ['ii-V-I'],
+    'solo': ['I-IV-V-I', 'I-V-vi-IV'],
+    'outro': ['IV-I', 'V-I', 'I'],
+    'a': ['I-V-vi-IV', 'ii-V-I'],
+    'b': ['vi-IV-I-V', 'IV-V-I'],
+}
+
+# Degree name to semitone mapping
+DEGREE_TO_SEMITONE = {
+    'I': 0, 'i': 0,
+    'bII': 1, 'II': 2, 'ii': 2,
+    'bIII': 3, 'III': 4, 'iii': 4,
+    'IV': 5, 'iv': 5,
+    'bV': 6, 'V': 7, 'v': 7,
+    'bVI': 8, 'VI': 9, 'vi': 9,
+    'bVII': 10, 'VII': 11, 'vii': 11,
+}
 
 
 class SongGenerator:
-    """
-    Generate song structures, progressions, and arrangements.
+    """Generate song structures and MIDI."""
     
-    Usage:
-        gen = SongGenerator()
-        song = gen.generate(key="F", mood="bittersweet", genre="lo_fi_bedroom")
-        print(song)
-    """
+    def __init__(self, ppq: int = STANDARD_PPQ):
+        self.ppq = ppq
+        self.ticks_per_bar = ppq * 4  # Assuming 4/4
     
-    def __init__(self):
-        self.progression_templates = PROGRESSION_TEMPLATES
-        self.genre_templates = GENRE_TEMPLATES
-        self.structure_templates = STRUCTURE_TEMPLATES
-    
-    def generate(
+    def generate_structure(
         self,
-        key: str = "C",
-        mode: str = "major",
-        mood: Optional[str] = None,
-        genre: Optional[str] = None,
-        structure: Optional[str] = None,
-        tempo: Optional[float] = None,
-    ) -> GeneratedSong:
+        genre: str = 'pop',
+        key: int = 0,
+        bpm: Optional[int] = None,
+        title: Optional[str] = None
+    ) -> SongStructure:
         """
-        Generate a complete song structure.
+        Generate a song structure.
         
         Args:
-            key: Musical key (C, F#, Bb, etc.)
-            mode: major or minor
-            mood: Emotional mood (hopeful, melancholy, bittersweet, etc.)
-            genre: Genre template (lo_fi_bedroom, emo_confessional, etc.)
-            structure: Structure template name or None for random
-            tempo: BPM or None for genre-appropriate default
+            genre: Genre name
+            key: Key root (0=C, 7=G, etc.)
+            bpm: Tempo (or auto from genre)
+            title: Song title (or auto-generated)
         
         Returns:
-            GeneratedSong with complete structure
+            SongStructure object
         """
-        # Determine tempo
-        if tempo is None:
-            if genre and genre in self.genre_templates:
-                tempo_range = self.genre_templates[genre]["tempo_range"]
-                tempo = random.uniform(tempo_range[0], tempo_range[1])
-            else:
-                tempo = random.uniform(90, 130)
+        # Get genre pocket for BPM range
+        pocket = get_pocket(genre) if genre in GENRE_POCKETS else GENRE_POCKETS.get('pop')
         
-        # Choose structure
-        if structure is None:
-            structure = random.choice(list(self.structure_templates.keys()))
+        # Auto BPM from genre range
+        if bpm is None:
+            bpm_range = pocket.get('bpm_range', (100, 120))
+            bpm = random.randint(bpm_range[0], bpm_range[1])
         
-        structure_sections = self.structure_templates.get(structure, self.structure_templates["standard"])
+        # Auto title
+        if title is None:
+            adjectives = ['Midnight', 'Golden', 'Electric', 'Velvet', 'Neon', 'Crystal', 'Shadow', 'Cosmic']
+            nouns = ['Dreams', 'Waves', 'Echoes', 'Hearts', 'Lights', 'Streets', 'Skies', 'Memories']
+            title = f"{random.choice(adjectives)} {random.choice(nouns)}"
         
-        # Get base progression for mood
-        base_progression = self._get_progression_for_mood(mood)
+        # Get song template
+        template = SONG_TEMPLATES.get(genre, SONG_TEMPLATES['pop'])
         
-        # Generate sections
+        # Build sections
         sections = []
-        key_num = NOTE_NAMES.index(key.replace('b', '').replace('#', ''))
-        if 'b' in key:
-            key_num = (key_num - 1) % 12
-        elif '#' in key:
-            key_num = (key_num + 1) % 12
-        
-        section_counts = {}
-        for section_name in structure_sections:
-            section_counts[section_name] = section_counts.get(section_name, 0) + 1
-            count = section_counts[section_name]
-            
+        for section_name, bars, energy in template:
             # Get progression for this section type
-            progression = self._get_section_progression(section_name, base_progression, mood)
+            prog_options = SECTION_PROGRESSIONS.get(section_name, ['I-IV-V-I'])
+            prog_str = random.choice(prog_options)
             
-            # Convert to actual chords
-            chords = self._numerals_to_chords(progression, key_num, mode)
+            # Parse progression string to degrees
+            degrees = self._parse_progression(prog_str)
             
-            # Determine section characteristics
-            bars = self._get_section_bars(section_name)
-            energy = self._get_section_energy(section_name)
-            notes = self._get_section_notes(section_name, genre)
+            # Determine what plays in this section
+            has_drums = energy > 0.2
+            has_bass = energy > 0.3
+            has_chords = True
             
-            display_name = section_name if count == 1 else f"{section_name} {count}"
+            # Intro/outro might be sparse
+            if section_name in ('intro', 'outro'):
+                has_drums = random.random() < 0.5
             
-            sections.append(GeneratedSection(
-                name=display_name,
+            section = SongSection(
+                name=section_name,
                 bars=bars,
-                progression=progression,
-                chords=chords,
+                progression=degrees,
                 energy=energy,
-                notes=notes,
-            ))
+                has_drums=has_drums,
+                has_bass=has_bass,
+                has_chords=has_chords
+            )
+            sections.append(section)
         
-        # Calculate totals
-        total_bars = sum(s.bars for s in sections)
-        beats_per_bar = 4  # Assuming 4/4
-        duration_seconds = (total_bars * beats_per_bar * 60) / tempo
-        
-        return GeneratedSong(
-            title=self._generate_title(mood, genre),
+        return SongStructure(
+            title=title,
+            genre=genre,
             key=key,
-            mode=mode,
-            tempo_bpm=round(tempo, 1),
-            sections=sections,
-            genre=genre or "general",
-            mood=mood or "neutral",
-            total_bars=total_bars,
-            duration_estimate_seconds=duration_seconds,
+            bpm=bpm,
+            time_sig=(4, 4),
+            sections=sections
         )
     
-    def _get_progression_for_mood(self, mood: Optional[str]) -> List[str]:
-        """Get a progression template for the given mood."""
-        if mood and mood in self.progression_templates:
-            templates = self.progression_templates[mood]
-            if isinstance(templates[0], list):
-                return random.choice(templates)
-            return templates
+    def _parse_progression(self, prog_str: str) -> List[int]:
+        """Parse progression string like 'I-V-vi-IV' to semitone list."""
+        parts = prog_str.replace(' ', '').split('-')
+        degrees = []
         
-        # Default progression
-        return ["I", "V", "vi", "IV"]
-    
-    def _get_section_progression(
-        self,
-        section_name: str,
-        base_progression: List[str],
-        mood: Optional[str],
-    ) -> List[str]:
-        """Get progression for a specific section type."""
-        
-        if section_name == "intro":
-            # Simpler version, often just I or I-IV
-            return base_progression[:2] if len(base_progression) >= 2 else ["I"]
-        
-        elif section_name == "verse":
-            return base_progression
-        
-        elif section_name == "prechorus":
-            # Build tension
-            return ["IV", "V", "vi", "V"]
-        
-        elif section_name == "chorus":
-            # Higher energy version or slight variation
-            if mood == "grief_reveal" and len(base_progression) > 1:
-                # Use the gut-punch progression
-                return self.progression_templates["grief_reveal"][1]
-            return base_progression
-        
-        elif section_name == "bridge":
-            # Contrast - different progression
-            if mood in ["melancholy", "grief_reveal"]:
-                return ["bVI", "bVII", "I", "I"]
-            return ["vi", "IV", "I", "V"]
-        
-        elif section_name == "outro":
-            # Wind down, often repeating I or IV-I
-            return ["IV", "I", "IV", "I"]
-        
-        return base_progression
-    
-    def _numerals_to_chords(
-        self,
-        progression: List[str],
-        key_num: int,
-        mode: str,
-    ) -> List[str]:
-        """Convert Roman numerals to actual chord names."""
-        chords = []
-        
-        for numeral in progression:
-            # Get semitone offset
-            clean_numeral = numeral.replace("7", "").replace("maj", "").replace("dim", "")
-            offset = NUMERAL_TO_SEMITONE.get(clean_numeral, 0)
-            
-            root_num = (key_num + offset) % 12
-            root_name = NOTE_NAMES[root_num]
-            
-            # Determine quality
-            if numeral.islower() or numeral.startswith("b") and numeral[1:].islower():
-                quality = "m"
-            elif "dim" in numeral:
-                quality = "dim"
+        for part in parts:
+            # Strip any chord type suffix for now
+            degree = part.rstrip('7').rstrip('maj').rstrip('min').rstrip('dim')
+            if degree in DEGREE_TO_SEMITONE:
+                degrees.append(DEGREE_TO_SEMITONE[degree])
             else:
-                quality = ""
-            
-            # Add extensions
-            if "7" in numeral:
-                if "maj7" in numeral:
-                    quality += "maj7"
-                else:
-                    quality += "7"
-            
-            chords.append(f"{root_name}{quality}")
+                degrees.append(0)  # Default to I
         
-        return chords
+        return degrees
     
-    def _get_section_bars(self, section_name: str) -> int:
-        """Get typical bar count for section type."""
-        defaults = {
-            "intro": 4,
-            "verse": 8,
-            "prechorus": 4,
-            "chorus": 8,
-            "bridge": 8,
-            "outro": 4,
-        }
-        return defaults.get(section_name, 8)
-    
-    def _get_section_energy(self, section_name: str) -> float:
-        """Get typical energy level for section type."""
-        defaults = {
-            "intro": 0.3,
-            "verse": 0.5,
-            "prechorus": 0.7,
-            "chorus": 0.9,
-            "bridge": 0.6,
-            "outro": 0.4,
-        }
-        return defaults.get(section_name, 0.5)
-    
-    def _get_section_notes(self, section_name: str, genre: Optional[str]) -> str:
-        """Get production/performance notes for section."""
-        genre_notes = {
-            "lo_fi_bedroom": {
-                "intro": "Sparse, maybe just guitar or keys with room sound",
-                "verse": "Intimate, close mic'd vocals, minimal arrangement",
-                "chorus": "Add subtle layers, keep it restrained",
-                "bridge": "Strip back or add unexpected texture",
-                "outro": "Let it breathe, fade naturally",
-            },
-            "emo_confessional": {
-                "intro": "Set the scene - acoustic, vulnerable",
-                "verse": "Build intensity through dynamics, not layers",
-                "chorus": "Let it explode - full band, register breaks",
-                "bridge": "The quiet before the final storm",
-                "outro": "Catharsis or devastation, your choice",
-            },
-        }
-        
-        if genre and genre in genre_notes:
-            return genre_notes[genre].get(section_name, "")
-        
-        return ""
-    
-    def _generate_title(self, mood: Optional[str], genre: Optional[str]) -> str:
-        """Generate a placeholder title."""
-        titles = {
-            "grief_reveal": ["The Weight of Silence", "What I Found", "Still Frame"],
-            "bittersweet": ["Golden Hour", "Almost Home", "Paper Hearts"],
-            "melancholy": ["Empty Rooms", "Winter Light", "Fading"],
-            "hopeful": ["New Dawn", "Rising", "Open Sky"],
-        }
-        
-        if mood and mood in titles:
-            return random.choice(titles[mood])
-        
-        return "Untitled"
-    
-    def suggest_progression(
+    def generate_midi(
         self,
-        mood: str,
-        key: str = "C",
-        mode: str = "major",
-        bars: int = 4,
-    ) -> Dict:
+        structure: SongStructure,
+        output_path: str,
+        humanize: bool = True
+    ) -> str:
         """
-        Suggest a chord progression for a given mood.
+        Generate MIDI file from song structure.
         
         Args:
-            mood: Target mood
-            key: Musical key
-            mode: major or minor
-            bars: Number of bars
+            structure: SongStructure object
+            output_path: Path to save MIDI
+            humanize: Apply genre-appropriate humanization
         
         Returns:
-            Dict with progression info
+            Path to generated MIDI file
         """
-        progression = self._get_progression_for_mood(mood)
+        if not HAS_MIDO:
+            raise ImportError("mido required for MIDI generation")
         
-        # Adjust length
-        while len(progression) < bars:
-            progression = progression + progression
-        progression = progression[:bars]
+        mid = mido.MidiFile(ticks_per_beat=self.ppq)
         
-        key_num = NOTE_NAMES.index(key) if key in NOTE_NAMES else 0
-        chords = self._numerals_to_chords(progression, key_num, mode)
+        # Create tracks
+        drum_track = mido.MidiTrack()
+        bass_track = mido.MidiTrack()
+        chord_track = mido.MidiTrack()
         
-        return {
-            "mood": mood,
-            "key": key,
-            "mode": mode,
-            "numerals": progression,
-            "chords": chords,
-            "bars": bars,
-        }
+        drum_track.name = 'Drums'
+        bass_track.name = 'Bass'
+        chord_track.name = 'Chords'
+        
+        mid.tracks.append(drum_track)
+        mid.tracks.append(bass_track)
+        mid.tracks.append(chord_track)
+        
+        # Add tempo
+        tempo = mido.bpm2tempo(structure.bpm)
+        drum_track.append(mido.MetaMessage('set_tempo', tempo=tempo, time=0))
+        
+        # Get genre pocket for humanization
+        pocket = get_pocket(structure.genre)
+        swing = pocket.get('swing', 0.5) if humanize else 0.5
+        push_pull = pocket.get('push_pull', {}) if humanize else {}
+        
+        # Generate each section
+        current_tick = 0
+        
+        for section in structure.sections:
+            current_tick = self._generate_section(
+                section, structure,
+                drum_track, bass_track, chord_track,
+                current_tick, swing, push_pull, humanize
+            )
+        
+        # Save
+        output_path = Path(output_path)
+        mid.save(str(output_path))
+        
+        return str(output_path)
+    
+    def _generate_section(
+        self,
+        section: SongSection,
+        structure: SongStructure,
+        drum_track: mido.MidiTrack,
+        bass_track: mido.MidiTrack,
+        chord_track: mido.MidiTrack,
+        start_tick: int,
+        swing: float,
+        push_pull: dict,
+        humanize: bool
+    ) -> int:
+        """Generate MIDI for one section. Returns end tick."""
+        
+        bars = section.bars
+        progression = section.progression
+        energy = section.energy
+        key = structure.key
+        
+        # Velocity based on energy
+        base_vel = int(60 + energy * 50)
+        
+        current_tick = start_tick
+        
+        for bar in range(bars):
+            # Get chord for this bar (cycle through progression)
+            chord_degree = progression[bar % len(progression)]
+            chord_root = (key + chord_degree) % 12
+            
+            # Generate drums for this bar
+            if section.has_drums:
+                self._generate_drum_bar(
+                    drum_track, current_tick, energy, swing, push_pull, humanize
+                )
+            
+            # Generate bass for this bar
+            if section.has_bass:
+                self._generate_bass_bar(
+                    bass_track, current_tick, chord_root, energy, push_pull, humanize
+                )
+            
+            # Generate chords for this bar
+            if section.has_chords:
+                self._generate_chord_bar(
+                    chord_track, current_tick, chord_root, energy, push_pull, humanize
+                )
+            
+            current_tick += self.ticks_per_bar
+        
+        return current_tick
+    
+    def _generate_drum_bar(
+        self,
+        track: mido.MidiTrack,
+        bar_start: int,
+        energy: float,
+        swing: float,
+        push_pull: dict,
+        humanize: bool
+    ):
+        """Generate one bar of drums."""
+        ppq = self.ppq
+        
+        # Basic pattern: kick on 1 and 3, snare on 2 and 4
+        # Hi-hat on 8ths or 16ths based on energy
+        
+        kick_times = [0, ppq * 2]  # Beats 1 and 3
+        snare_times = [ppq, ppq * 3]  # Beats 2 and 4
+        
+        # Hi-hat pattern
+        if energy > 0.7:
+            # 16th notes
+            hihat_times = [ppq * i // 4 for i in range(16)]
+        else:
+            # 8th notes
+            hihat_times = [ppq * i // 2 for i in range(8)]
+        
+        # Apply swing to off-beat hi-hats
+        if swing > 0.5:
+            swing_amount = int((swing - 0.5) * ppq)
+            hihat_times = [
+                t + swing_amount if (i % 2 == 1) else t
+                for i, t in enumerate(hihat_times)
+            ]
+        
+        # Get push/pull offsets
+        kick_offset = push_pull.get('kick', 0) if humanize else 0
+        snare_offset = push_pull.get('snare', 0) if humanize else 0
+        hihat_offset = push_pull.get('hihat', 0) if humanize else 0
+        
+        # Velocity
+        base_vel = int(80 + energy * 30)
+        
+        # Collect all events with absolute times
+        events = []
+        
+        # Kicks (note 36)
+        for t in kick_times:
+            abs_t = bar_start + t + kick_offset
+            vel = base_vel + random.randint(-5, 5) if humanize else base_vel
+            events.append((abs_t, 'note_on', 36, vel, 9))
+            events.append((abs_t + ppq // 4, 'note_off', 36, 0, 9))
+        
+        # Snares (note 38)
+        for t in snare_times:
+            abs_t = bar_start + t + snare_offset
+            vel = base_vel + random.randint(-5, 5) if humanize else base_vel
+            events.append((abs_t, 'note_on', 38, vel, 9))
+            events.append((abs_t + ppq // 4, 'note_off', 38, 0, 9))
+        
+        # Hi-hats (note 42)
+        for i, t in enumerate(hihat_times):
+            abs_t = bar_start + t + hihat_offset
+            # Accent on downbeats
+            accent = 15 if i % 4 == 0 else 0
+            vel = int(base_vel * 0.7) + accent + (random.randint(-8, 8) if humanize else 0)
+            vel = max(1, min(127, vel))
+            events.append((abs_t, 'note_on', 42, vel, 9))
+            events.append((abs_t + ppq // 8, 'note_off', 42, 0, 9))
+        
+        # Sort by time and add to track
+        events.sort(key=lambda x: x[0])
+        
+        for abs_t, msg_type, note, vel, ch in events:
+            if msg_type == 'note_on':
+                track.append(mido.Message('note_on', note=note, velocity=vel, channel=ch, time=0))
+            else:
+                track.append(mido.Message('note_off', note=note, velocity=0, channel=ch, time=0))
+    
+    def _generate_bass_bar(
+        self,
+        track: mido.MidiTrack,
+        bar_start: int,
+        root: int,
+        energy: float,
+        push_pull: dict,
+        humanize: bool
+    ):
+        """Generate one bar of bass."""
+        ppq = self.ppq
+        
+        # Bass note (octave 2 = MIDI 36-47)
+        bass_note = 36 + root
+        
+        # Simple pattern: root on 1 and 3, with variations
+        if energy > 0.6:
+            # More active pattern
+            times = [0, ppq, ppq * 2, ppq * 3]
+            notes = [bass_note, bass_note + 7, bass_note, bass_note + 5]  # Root, 5th, root, 4th
+        else:
+            # Simple pattern
+            times = [0, ppq * 2]
+            notes = [bass_note, bass_note]
+        
+        bass_offset = push_pull.get('bass', 0) if humanize else 0
+        base_vel = int(70 + energy * 30)
+        
+        for t, note in zip(times, notes):
+            abs_t = bar_start + t + bass_offset
+            vel = base_vel + (random.randint(-5, 5) if humanize else 0)
+            vel = max(1, min(127, vel))
+            
+            track.append(mido.Message('note_on', note=note, velocity=vel, channel=1, time=0))
+            track.append(mido.Message('note_off', note=note, velocity=0, channel=1, time=0))
+    
+    def _generate_chord_bar(
+        self,
+        track: mido.MidiTrack,
+        bar_start: int,
+        root: int,
+        energy: float,
+        push_pull: dict,
+        humanize: bool
+    ):
+        """Generate one bar of chords."""
+        ppq = self.ppq
+        
+        # Chord notes (major triad in octave 4 = MIDI 60-71)
+        chord_notes = [60 + root, 60 + root + 4, 60 + root + 7]  # Root, 3rd, 5th
+        
+        # Play chord on beat 1 (whole note or half notes)
+        if energy > 0.5:
+            times = [0, ppq * 2]  # Half notes
+            duration = ppq * 2 - 10
+        else:
+            times = [0]  # Whole note
+            duration = ppq * 4 - 10
+        
+        keys_offset = push_pull.get('keys', 0) if humanize else 0
+        base_vel = int(50 + energy * 40)
+        
+        for t in times:
+            abs_t = bar_start + t + keys_offset
+            
+            for note in chord_notes:
+                vel = base_vel + (random.randint(-5, 5) if humanize else 0)
+                vel = max(1, min(127, vel))
+                
+                track.append(mido.Message('note_on', note=note, velocity=vel, channel=0, time=0))
+            
+            # Note offs
+            for note in chord_notes:
+                track.append(mido.Message('note_off', note=note, velocity=0, channel=0, time=0))
+
+
+def generate_song(
+    genre: str = 'pop',
+    output_path: Optional[str] = None,
+    key: int = 0,
+    bpm: Optional[int] = None,
+    title: Optional[str] = None,
+    humanize: bool = True
+) -> Tuple[SongStructure, str]:
+    """
+    Convenience function to generate a complete song.
+    
+    Args:
+        genre: Genre name
+        output_path: Output MIDI path (auto-generated if None)
+        key: Key root (0=C)
+        bpm: Tempo (auto from genre if None)
+        title: Song title (auto-generated if None)
+        humanize: Apply genre humanization
+    
+    Returns:
+        (SongStructure, midi_path)
+    """
+    generator = SongGenerator()
+    
+    structure = generator.generate_structure(
+        genre=genre,
+        key=key,
+        bpm=bpm,
+        title=title
+    )
+    
+    if output_path is None:
+        safe_title = structure.title.lower().replace(' ', '_')
+        output_path = f"{safe_title}_{structure.genre}_{structure.bpm}bpm.mid"
+    
+    midi_path = generator.generate_midi(structure, output_path, humanize=humanize)
+    
+    return structure, midi_path

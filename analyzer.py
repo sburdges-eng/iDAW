@@ -1,267 +1,440 @@
 """
-High-level audio analysis utilities.
+Audio Feel Analysis
+
+Extracts rhythmic and timbral characteristics from audio files.
+
+Features:
+- Onset detection with multiple algorithms
+- Spectral features (brightness, bandwidth, rolloff)
+- Rhythmic density and tempo estimation
+- Dynamic range analysis
+- Proper error handling for all edge cases
 """
 
-from __future__ import annotations
-
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple
-import wave
-
+import os
+from typing import Dict, Any, Optional, Tuple, List
+from dataclasses import dataclass
 import numpy as np
 
-try:  # Optional dependency
-    import librosa  # type: ignore
-except ImportError:  # pragma: no cover - handled at runtime
-    librosa = None
+# Lazy import for optional dependency
+_librosa = None
 
-from music_brain.audio.chord_detection import ChordDetector, DetectedChord
-from music_brain.audio.frequency import FrequencyAnalyzer, frequency_to_note_name
-
-
-@dataclass
-class RhythmAnalysis:
-    bpm: float
-    confidence: float
-
-
-@dataclass
-class SpectralAnalysis:
-    energy: float
-    spectral_centroid: float
-    harmonic_content: Dict[str, float]
+def _get_librosa():
+    """Lazy load librosa to avoid import overhead."""
+    global _librosa
+    if _librosa is None:
+        try:
+            import librosa
+            _librosa = librosa
+        except ImportError:
+            raise ImportError(
+                "librosa is required for audio analysis. "
+                "Install with: pip install librosa"
+            )
+    return _librosa
 
 
 @dataclass
-class KeyDetectionResult:
-    root: str
-    mode: str
-    confidence: float
-    correlations: Dict[str, float]
+class OnsetInfo:
+    """Onset detection results."""
+    onset_times: List[float]      # Seconds
+    onset_strength: List[float]   # Envelope values
+    sample_rate: int
+    num_onsets: int
+    onset_density: float          # Onsets per second
 
 
 @dataclass
-class AudioAnalysis:
-    bpm: float
-    key: str
-    mode: str
-    rhythm: RhythmAnalysis
-    spectral: SpectralAnalysis
-    chords: List[str]
-    key_confidence: float = 0.0
-
-    def to_dict(self) -> Dict[str, object]:
-        return {
-            "bpm": self.bpm,
-            "key": self.key,
-            "mode": self.mode,
-            "key_confidence": self.key_confidence,
-            "rhythm": asdict(self.rhythm),
-            "spectral": {
-                **asdict(self.spectral),
-            },
-            "chords": self.chords,
-        }
+class SpectralInfo:
+    """Spectral feature results."""
+    times: List[float]
+    centroid_mean: float          # Average brightness (Hz)
+    centroid_std: float           # Brightness variation
+    bandwidth_mean: float         # Spectral spread (Hz)
+    rolloff_mean: float           # High-frequency cutoff (Hz)
+    flatness_mean: float          # Noisiness (0=tonal, 1=noisy)
 
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
-MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+@dataclass
+class DynamicInfo:
+    """Dynamics analysis results."""
+    rms_mean: float               # Average loudness
+    rms_std: float                # Loudness variation
+    dynamic_range_db: float       # Difference between loud and quiet
+    peak_to_average: float        # Crest factor
+    compression_estimate: float   # 0=dynamic, 1=compressed
+
+
+@dataclass
+class RhythmInfo:
+    """Rhythm analysis results."""
+    tempo_bpm: float
+    tempo_confidence: float       # 0-1
+    beat_times: List[float]
+    downbeat_times: List[float]
+    beat_regularity: float        # How consistent the beat is
+
+
+@dataclass
+class AudioFeel:
+    """Complete audio feel analysis."""
+    duration_seconds: float
+    sample_rate: int
+    
+    # Components
+    onsets: OnsetInfo
+    spectral: SpectralInfo
+    dynamics: DynamicInfo
+    rhythm: RhythmInfo
+    
+    # Derived descriptors
+    energy_level: str             # "low", "medium", "high"
+    brightness_level: str         # "dark", "neutral", "bright"
+    texture: str                  # "sparse", "medium", "dense"
+    feel_description: str         # Human-readable summary
 
 
 class AudioAnalyzer:
     """
-    Provide tempo, key, and chord insights for an audio file or waveform.
+    Analyze audio files for feel characteristics.
+    
+    Handles edge cases:
+    - Very short files
+    - Silent files
+    - Files with no clear beat
+    - Various sample rates
     """
-
-    def __init__(self, sample_rate: Optional[int] = None) -> None:
-        self.sample_rate = sample_rate
-        self.freq_analyzer = FrequencyAnalyzer()
-        self.chord_detector = ChordDetector()
-
-    def analyze_file(self, filepath: str) -> AudioAnalysis:
-        data, sr = self._load_audio(filepath)
-        return self.analyze_waveform(data, sr)
-
-    def analyze_waveform(self, audio_data: np.ndarray, sample_rate: int) -> AudioAnalysis:
-        bpm, bpm_conf = self.detect_bpm(audio_data, sample_rate)
-        key_result = self.detect_key_details(audio_data, sample_rate)
-        spectral = self._spectral_analysis(audio_data, sample_rate)
-        chords = self.chord_detector.summarize_progression(
-            self.chord_detector.detect_chords(audio_data, sample_rate)
-        )
-        rhythm = RhythmAnalysis(bpm=bpm, confidence=bpm_conf)
-        return AudioAnalysis(
-            bpm=bpm,
-            key=key_result.root,
-            mode=key_result.mode,
-            rhythm=rhythm,
-            spectral=spectral,
-            chords=chords,
-            key_confidence=key_result.confidence,
-        )
-
-    def detect_bpm(self, audio_data: np.ndarray, sample_rate: int) -> Tuple[float, float]:
-        if librosa:
-            tempo, beats = librosa.beat.beat_track(y=audio_data, sr=sample_rate)
-            confidence = float(len(beats) / (audio_data.size / sample_rate) if beats.size else 0.0)
-            return float(tempo), confidence
-
-        autocorr = np.correlate(audio_data, audio_data, mode="full")[audio_data.size - 1 :]
-        autocorr[: sample_rate // 2] = 0
-        peak_index = int(np.argmax(autocorr[: sample_rate * 2]) or 1)
-        tempo_seconds = peak_index / sample_rate
-        bpm = 60.0 / tempo_seconds if tempo_seconds else 60.0
-        return bpm, 0.3
-
-    def detect_key(self, audio_data: np.ndarray, sample_rate: int) -> Tuple[str, str]:
-        result = self.detect_key_details(audio_data, sample_rate)
-        return result.root, result.mode
-
-    def detect_key_details(self, audio_data: np.ndarray, sample_rate: int) -> KeyDetectionResult:
-        if librosa:
-            chroma = librosa.feature.chroma_cqt(y=audio_data, sr=sample_rate)
-            if chroma.size == 0:
-                return KeyDetectionResult("C", "major", 0.0, {})
-            avg = np.mean(chroma, axis=1)
-            if np.allclose(avg, 0):
-                return KeyDetectionResult("C", "major", 0.0, {})
-            avg = avg / (np.sum(avg) + 1e-12)
-            correlations: Dict[str, float] = {}
-            best_root = "C"
-            best_mode = "major"
-            best_corr = -1.0
-
-            for root in range(12):
-                for mode_name, profile in (("major", MAJOR_PROFILE), ("minor", MINOR_PROFILE)):
-                    rotated = np.roll(profile, root)
-                    rotated = rotated / (np.sum(rotated) + 1e-12)
-                    corr = self._safe_correlation(avg, rotated)
-                    key = f"{NOTE_NAMES[root]}_{mode_name}"
-                    correlations[key] = corr
-                    if np.isfinite(corr) and corr > best_corr:
-                        best_corr = corr
-                        best_root = NOTE_NAMES[root]
-                        best_mode = mode_name
-
-            confidence = self._confidence_from_correlations(list(correlations.values()), best_corr)
-            return KeyDetectionResult(best_root, best_mode, confidence, correlations)
-
-        frequency = self.freq_analyzer.pitch_detection(audio_data, sample_rate)
-        note = frequency_to_note_name(frequency)
-        return KeyDetectionResult(note, "major", 0.2, {})
-
-    def _spectral_analysis(self, audio_data: np.ndarray, sample_rate: int) -> SpectralAnalysis:
-        energy = float(np.sqrt(np.mean(np.square(audio_data))))
-        spectrum = self.freq_analyzer.fft_analysis(audio_data, sample_rate)
-        denom = float(np.sum(spectrum.magnitudes))
-        if denom <= 0:
-            denom = 1e-9
-        centroid = float(np.sum(spectrum.frequencies * spectrum.magnitudes) / denom)
-        harmonic = self.freq_analyzer.harmonic_content(audio_data, sample_rate)
-        return SpectralAnalysis(
-            energy=energy,
-            spectral_centroid=centroid,
-            harmonic_content=harmonic,
-        )
-
-    @staticmethod
-    def _safe_correlation(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-        if vec_a.size == 0 or vec_b.size == 0:
-            return 0.0
-        if np.allclose(vec_a, vec_a[0]) or np.allclose(vec_b, vec_b[0]):
-            return 0.0
-        corr = np.corrcoef(vec_a, vec_b)[0, 1]
-        if not np.isfinite(corr):
-            return 0.0
-        return float(corr)
-
-    @staticmethod
-    def _confidence_from_correlations(corrs: List[float], best_corr: float) -> float:
-        valid = [c for c in corrs if np.isfinite(c)]
-        if not valid:
-            return 0.0
-        if len(valid) == 1:
-            return float(np.clip((valid[0] + 1.0) / 2.0, 0.0, 1.0))
-        baseline = np.percentile(valid, 85)
-        if not np.isfinite(baseline):
-            baseline = float(np.nanmean(valid)) if np.any(np.isfinite(valid)) else 0.0
-        denom = max(1e-3, 1.0 - baseline)
-        confidence = (best_corr - baseline) / denom
-        return float(np.clip(confidence, 0.0, 1.0))
-
-    def _load_audio(self, filepath: str) -> Tuple[np.ndarray, int]:
-        if librosa:
-            data, sr = librosa.load(filepath, sr=self.sample_rate)
-            return data, int(sr)
-
-        with wave.open(filepath, "rb") as wav_file:
-            sr = wav_file.getframerate()
-            frames = wav_file.readframes(wav_file.getnframes())
-            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32)
-            audio /= np.iinfo(np.int16).max
-        return audio, sr
-
-
-def extract_features(
-    audio_data: np.ndarray,
-    sample_rate: int,
-    include_segments: bool = False,
-    segment_count: int = 8,
-) -> Dict[str, object]:
-    """
-    Extract high-level audio features for offline analysis.
-    """
-    analyzer = AudioAnalyzer()
-    bpm, bpm_conf = analyzer.detect_bpm(audio_data, sample_rate)
-    key_result = analyzer.detect_key_details(audio_data, sample_rate)
-    spectral = analyzer._spectral_analysis(audio_data, sample_rate)
-
-    features: Dict[str, object] = {
-        "bpm": bpm,
-        "bpm_confidence": bpm_conf,
-        "key": key_result.root,
-        "mode": key_result.mode,
-        "key_confidence": key_result.confidence,
-        "spectral_centroid": spectral.spectral_centroid,
-        "energy": spectral.energy,
-        "harmonic_content": spectral.harmonic_content,
-    }
-
-    tempo_curve_tail: List[float] = []
-    if librosa:
+    
+    def __init__(
+        self,
+        target_sr: Optional[int] = None,
+        hop_length: int = 512,
+        n_fft: int = 2048
+    ):
+        """
+        Args:
+            target_sr: Resample to this rate (None = use original)
+            hop_length: STFT hop length
+            n_fft: FFT window size
+        """
+        self.target_sr = target_sr
+        self.hop_length = hop_length
+        self.n_fft = n_fft
+    
+    def analyze(self, audio_path: str) -> AudioFeel:
+        """
+        Complete audio analysis.
+        
+        Args:
+            audio_path: Path to audio file
+        
+        Returns:
+            AudioFeel with all analysis results
+        
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If file is too short or invalid
+        """
+        librosa = _get_librosa()
+        
+        # Validate file
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+        
+        # Load audio
         try:
-            tempo_curve = librosa.beat.tempo(y=audio_data, sr=sample_rate, aggregate=None)
-        except TypeError:
-            tempo_curve = librosa.beat.tempo(y=audio_data, sr=sample_rate)
+            y, sr = librosa.load(audio_path, sr=self.target_sr, mono=True)
+        except Exception as e:
+            raise ValueError(f"Failed to load audio: {e}")
+        
+        duration = len(y) / sr
+        
+        # Minimum duration check
+        if duration < 0.5:
+            raise ValueError(f"Audio too short ({duration:.2f}s). Need at least 0.5s.")
+        
+        # Check for silence
+        if np.max(np.abs(y)) < 1e-6:
+            raise ValueError("Audio appears to be silent.")
+        
+        # Run all analyses
+        onsets = self._analyze_onsets(y, sr)
+        spectral = self._analyze_spectral(y, sr)
+        dynamics = self._analyze_dynamics(y, sr)
+        rhythm = self._analyze_rhythm(y, sr)
+        
+        # Derive descriptors
+        energy = self._classify_energy(dynamics, onsets)
+        brightness = self._classify_brightness(spectral)
+        texture = self._classify_texture(onsets, spectral)
+        description = self._generate_description(energy, brightness, texture, rhythm)
+        
+        return AudioFeel(
+            duration_seconds=duration,
+            sample_rate=sr,
+            onsets=onsets,
+            spectral=spectral,
+            dynamics=dynamics,
+            rhythm=rhythm,
+            energy_level=energy,
+            brightness_level=brightness,
+            texture=texture,
+            feel_description=description
+        )
+    
+    def _analyze_onsets(self, y: np.ndarray, sr: int) -> OnsetInfo:
+        """Detect note onsets."""
+        librosa = _get_librosa()
+        
+        # Onset strength envelope
+        onset_env = librosa.onset.onset_strength(
+            y=y, sr=sr, hop_length=self.hop_length
+        )
+        
+        # Detect onset times
+        onset_frames = librosa.onset.onset_detect(
+            onset_envelope=onset_env,
+            sr=sr,
+            hop_length=self.hop_length
+        )
+        onset_times = librosa.frames_to_time(
+            onset_frames, sr=sr, hop_length=self.hop_length
+        )
+        
+        # Calculate density
+        duration = len(y) / sr
+        density = len(onset_times) / duration if duration > 0 else 0
+        
+        return OnsetInfo(
+            onset_times=onset_times.tolist(),
+            onset_strength=onset_env.tolist(),
+            sample_rate=sr,
+            num_onsets=len(onset_times),
+            onset_density=density
+        )
+    
+    def _analyze_spectral(self, y: np.ndarray, sr: int) -> SpectralInfo:
+        """Extract spectral features."""
+        librosa = _get_librosa()
+        
+        # Compute spectrogram
+        S = np.abs(librosa.stft(y, n_fft=self.n_fft, hop_length=self.hop_length))
+        
+        # Spectral centroid (brightness)
+        centroid = librosa.feature.spectral_centroid(
+            S=S, sr=sr, hop_length=self.hop_length
+        )[0]
+        
+        # Spectral bandwidth
+        bandwidth = librosa.feature.spectral_bandwidth(
+            S=S, sr=sr, hop_length=self.hop_length
+        )[0]
+        
+        # Spectral rolloff (high frequency cutoff)
+        rolloff = librosa.feature.spectral_rolloff(
+            S=S, sr=sr, hop_length=self.hop_length
+        )[0]
+        
+        # Spectral flatness (noisiness)
+        flatness = librosa.feature.spectral_flatness(S=S)[0]
+        
+        # Frame times
+        times = librosa.frames_to_time(
+            np.arange(len(centroid)), sr=sr, hop_length=self.hop_length
+        )
+        
+        return SpectralInfo(
+            times=times.tolist(),
+            centroid_mean=float(np.mean(centroid)),
+            centroid_std=float(np.std(centroid)),
+            bandwidth_mean=float(np.mean(bandwidth)),
+            rolloff_mean=float(np.mean(rolloff)),
+            flatness_mean=float(np.mean(flatness))
+        )
+    
+    def _analyze_dynamics(self, y: np.ndarray, sr: int) -> DynamicInfo:
+        """Analyze loudness dynamics."""
+        librosa = _get_librosa()
+        
+        # RMS energy
+        rms = librosa.feature.rms(
+            y=y, frame_length=self.n_fft, hop_length=self.hop_length
+        )[0]
+        
+        rms_mean = float(np.mean(rms))
+        rms_std = float(np.std(rms))
+        
+        # Dynamic range (90th percentile - 10th percentile in dB)
+        if len(rms) > 0 and rms_mean > 1e-10:
+            p90 = np.percentile(rms, 90)
+            p10 = max(np.percentile(rms, 10), 1e-10)  # Avoid log(0)
+            dynamic_range = 20 * np.log10(p90 / p10)
+        else:
+            dynamic_range = 0.0
+        
+        # Peak to average (crest factor)
+        peak = float(np.max(np.abs(y)))
+        rms_total = float(np.sqrt(np.mean(y ** 2)))
+        if rms_total > 1e-10:
+            crest = peak / rms_total
+        else:
+            crest = 1.0
+        
+        # Compression estimate (lower dynamic range = more compressed)
+        # Typical ranges: 6dB (very compressed) to 20dB+ (dynamic)
+        compression = max(0, 1 - (dynamic_range - 6) / 14)
+        compression = min(1, compression)
+        
+        return DynamicInfo(
+            rms_mean=rms_mean,
+            rms_std=rms_std,
+            dynamic_range_db=dynamic_range,
+            peak_to_average=crest,
+            compression_estimate=compression
+        )
+    
+    def _analyze_rhythm(self, y: np.ndarray, sr: int) -> RhythmInfo:
+        """Analyze tempo and beat structure."""
+        librosa = _get_librosa()
+        
+        # Beat tracking
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        
+        # Handle array tempo (newer librosa versions)
+        if hasattr(tempo, '__len__'):
+            tempo = float(tempo[0]) if len(tempo) > 0 else 0.0
+        else:
+            tempo = float(tempo)
+        
+        # Beat times
+        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        
+        # Downbeat estimation (every 4 beats for 4/4)
+        downbeat_times = beat_times[::4] if len(beat_times) >= 4 else beat_times
+        
+        # Beat regularity (consistency of inter-beat intervals)
+        if len(beat_times) > 2:
+            ibis = np.diff(beat_times)  # Inter-beat intervals
+            regularity = 1 - (np.std(ibis) / np.mean(ibis)) if np.mean(ibis) > 0 else 0
+            regularity = max(0, min(1, regularity))
+        else:
+            regularity = 0.0
+        
+        # Tempo confidence based on beat regularity and onset alignment
+        confidence = regularity * 0.8 + 0.2  # Base confidence
+        
+        return RhythmInfo(
+            tempo_bpm=tempo,
+            tempo_confidence=confidence,
+            beat_times=beat_times.tolist(),
+            downbeat_times=downbeat_times.tolist(),
+            beat_regularity=regularity
+        )
+    
+    def _classify_energy(self, dynamics: DynamicInfo, onsets: OnsetInfo) -> str:
+        """Classify overall energy level."""
+        # Combine RMS and onset density
+        score = dynamics.rms_mean * 5 + onsets.onset_density / 10
+        
+        if score < 0.3:
+            return "low"
+        elif score < 0.6:
+            return "medium"
+        else:
+            return "high"
+    
+    def _classify_brightness(self, spectral: SpectralInfo) -> str:
+        """Classify timbral brightness."""
+        # Based on spectral centroid
+        centroid = spectral.centroid_mean
+        
+        if centroid < 1500:
+            return "dark"
+        elif centroid < 3500:
+            return "neutral"
+        else:
+            return "bright"
+    
+    def _classify_texture(self, onsets: OnsetInfo, spectral: SpectralInfo) -> str:
+        """Classify rhythmic/textural density."""
+        density = onsets.onset_density
+        flatness = spectral.flatness_mean
+        
+        score = density / 8 + flatness
+        
+        if score < 0.4:
+            return "sparse"
+        elif score < 0.7:
+            return "medium"
+        else:
+            return "dense"
+    
+    def _generate_description(
+        self,
+        energy: str,
+        brightness: str,
+        texture: str,
+        rhythm: RhythmInfo
+    ) -> str:
+        """Generate human-readable feel description."""
+        tempo = rhythm.tempo_bpm
+        
+        # Tempo description
+        if tempo < 80:
+            tempo_desc = "slow"
+        elif tempo < 120:
+            tempo_desc = "mid-tempo"
+        elif tempo < 150:
+            tempo_desc = "upbeat"
+        else:
+            tempo_desc = "fast"
+        
+        # Combine
+        parts = []
+        
+        if energy == "high":
+            parts.append("energetic")
+        elif energy == "low":
+            parts.append("mellow")
+        
+        parts.append(tempo_desc)
+        
+        if brightness == "bright":
+            parts.append("with bright tones")
+        elif brightness == "dark":
+            parts.append("with warm, dark tones")
+        
+        if texture == "dense":
+            parts.append("and dense arrangement")
+        elif texture == "sparse":
+            parts.append("and spacious arrangement")
+        
+        return " ".join(parts).capitalize()
 
-        tempo_array = np.atleast_1d(np.asarray(tempo_curve, dtype=float))
-        tempo_array = tempo_array[np.isfinite(tempo_array)]
-        tempo_curve_tail = tempo_array[-5:].tolist() if tempo_array.size else []
-        features["tempo_curve"] = tempo_array.tolist()
-    else:
-        features["tempo_curve"] = []
 
-    features["tempo_curve_tail"] = tempo_curve_tail
-
-    if include_segments and librosa:
-        segments = np.array_split(audio_data, max(1, segment_count))
-        features["segments"] = [
-            {
-                "index": idx,
-                "energy": float(np.sqrt(np.mean(np.square(seg)))) if seg.size else 0.0,
-            }
-            for idx, seg in enumerate(segments)
-        ]
-    return features
+# Convenience function
+def analyze_audio_feel(audio_path: str) -> AudioFeel:
+    """Analyze audio file feel characteristics."""
+    analyzer = AudioAnalyzer()
+    return analyzer.analyze(audio_path)
 
 
-__all__ = [
-    "AudioAnalyzer",
-    "AudioAnalysis",
-    "RhythmAnalysis",
-    "SpectralAnalysis",
-    "KeyDetectionResult",
-    "extract_features",
-]
-
+# Quick analysis (returns dict instead of dataclass)
+def quick_analyze(audio_path: str) -> Dict[str, Any]:
+    """Quick audio analysis returning dict."""
+    feel = analyze_audio_feel(audio_path)
+    
+    return {
+        "duration": feel.duration_seconds,
+        "tempo_bpm": feel.rhythm.tempo_bpm,
+        "tempo_confidence": feel.rhythm.tempo_confidence,
+        "beat_regularity": feel.rhythm.beat_regularity,
+        "onset_density": feel.onsets.onset_density,
+        "brightness_hz": feel.spectral.centroid_mean,
+        "dynamic_range_db": feel.dynamics.dynamic_range_db,
+        "compression": feel.dynamics.compression_estimate,
+        "energy": feel.energy_level,
+        "brightness": feel.brightness_level,
+        "texture": feel.texture,
+        "description": feel.feel_description,
+    }
