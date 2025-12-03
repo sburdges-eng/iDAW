@@ -1,0 +1,3 @@
+# Sprint 2 – Core Integration
+- Validate orchestrator
+...
