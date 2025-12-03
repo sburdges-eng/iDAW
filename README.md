@@ -1,206 +1,226 @@
-# Music Brain
+# DAiW - Digital Audio Intelligent Workstation
 
-A complete music production analysis toolkit for MIDI and audio.
+> A Python toolkit for music production intelligence: groove extraction, chord analysis, arrangement generation, and AI-assisted songwriting.
+> 
+> **Philosophy: "Interrogate Before Generate"** — The tool shouldn't finish art for people. It should make them braver.
 
-## Features
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-### Groove Analysis & Application
-- **Extract groove** from any MIDI file — timing offsets, swing, velocity curves
-- **13 pre-built genre pockets** — hip-hop, trap, R&B, funk, jazz, rock, metal, reggae, house, techno, lo-fi, gospel, country
-- **Per-instrument timing** — kick stays on grid, snare behind, hihat ahead
-- **Track-safe MIDI modification** — preserves structure, doesn't flatten
+## Overview
 
-### Structure Analysis
-- **Chord detection** — major, minor, 7th, extended chords
-- **Progression matching** — I-V-vi-IV, ii-V-I, 12-bar blues, etc.
-- **Section detection** — intro, verse, chorus, bridge, outro
-- **Pattern recognition** — find recurring progressions
-
-### Audio Analysis
-- **Transient drift** — timing looseness measurement
-- **RMS swing** — dynamic groove
-- **Frequency balance** — mix fingerprint by band
-- **Genre matching** — compare against 14 genre templates
+DAiW (Digital Audio intelligent Workstation) combines:
+- **Music Brain** - Python analysis engine for MIDI/audio
+- **Intent Schema** - Three-phase deep interrogation for songwriting
+- **Rule-Breaking Engine** - Intentional theory violations for emotional impact
+- **Vault** - Knowledge base of songwriting guides and theory references
+- **CLI** - Command-line tools for groove extraction, chord analysis, and AI-assisted composition
 
 ## Installation
 
 ```bash
-# Basic (MIDI only)
-pip install mido
+# Clone the repository
+git clone https://github.com/yourusername/DAiW-Music-Brain.git
+cd DAiW-Music-Brain
 
-# Full (with audio analysis)
-pip install mido librosa numpy soundfile
-
-# Install package
-cd music_brain
-pip install .
+# Install as package
+pip install -e .
 ```
 
 ## Quick Start
 
-### Command Line
+### Intent-Based Song Generation (New!)
 
 ```bash
-# === GROOVE ===
-# Extract groove from MIDI
-music-brain groove extract drums.mid --genre hiphop --save
+# Create a new song intent template
+daiw intent new --title "My Song" --output my_intent.json
 
-# Apply hip-hop pocket to your beat
-music-brain groove apply my_drums.mid hiphop --intensity 0.8
+# Edit the JSON to fill in your emotional intent...
 
-# Basic humanization
-music-brain groove humanize quantized.mid --timing 10 --velocity 15
+# Process intent to generate musical elements
+daiw intent process my_intent.json
 
-# List available genres
-music-brain groove genres
+# Get suggestions for rules to break
+daiw intent suggest grief
 
-# === STRUCTURE ===
-# Analyze chords
-music-brain structure analyze song.mid
+# List all rule-breaking options
+daiw intent list
+```
 
-# Show progressions for a genre
-music-brain structure progressions jazz
+### Command Line Interface
 
-# Detect sections
-music-brain sections song.mid
+```bash
+# Extract groove from a MIDI file
+daiw extract drums.mid
 
-# === GENERATE ===
-# Generate a new song!
-music-brain new-song --genre hiphop --bpm 92 --key Am --title "Midnight Dreams"
+# Apply genre groove template
+daiw apply --genre funk track.mid
 
-# === DAW ===
-# Create Logic Pro session setup
-music-brain daw setup hiphop "My New Track" --bpm 92 --script setup.scpt
+# Analyze chord progression
+daiw analyze --chords song.mid
 
-# Show track templates for a genre
-music-brain daw tracks rock
+# Diagnose harmonic issues
+daiw diagnose "F-C-Am-Dm"
 
-# === INFO ===
-# Show MIDI info
-music-brain info song.mid
+# Generate reharmonizations
+daiw reharm "F-C-Am-Dm" --style jazz
+
+# Interactive teaching mode
+daiw teach rulebreaking
 ```
 
 ### Python API
 
 ```python
-from music_brain import (
-    # Groove
-    extract_groove, apply_groove, GENRE_POCKETS,
-    # Structure
-    load_midi, analyze_chords, detect_sections,
-    # Generate
-    generate_song,
-    # DAW
-    create_logic_session
+from music_brain.groove import extract_groove, apply_groove
+from music_brain.structure import analyze_chords
+from music_brain.session import (
+    CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints,
+    suggest_rule_break
+)
+from music_brain.session.intent_processor import process_intent
+
+# Create song intent
+intent = CompleteSongIntent(
+    song_root=SongRoot(
+        core_event="Finding someone I loved after they chose to leave",
+        core_resistance="Fear of making it about me",
+        core_longing="To process without exploiting the loss",
+    ),
+    song_intent=SongIntent(
+        mood_primary="Grief",
+        mood_secondary_tension=0.3,
+        vulnerability_scale="High",
+        narrative_arc="Slow Reveal",
+    ),
+    technical_constraints=TechnicalConstraints(
+        technical_key="F",
+        technical_mode="major",
+        technical_rule_to_break="HARMONY_ModalInterchange",
+        rule_breaking_justification="Bbm makes hope feel earned and bittersweet",
+    ),
 )
 
-# === EXTRACT GROOVE ===
-template = extract_groove('drums.mid', genre='hiphop')
-print(f"Swing: {template.swing}")
-print(f"Push/pull: {template.push_pull}")
-
-# === APPLY GENRE POCKET ===
-apply_groove('my_drums.mid', 'output.mid', 'hiphop', intensity=0.8)
-
-# === ANALYZE STRUCTURE ===
-data = load_midi('song.mid')
-chords = analyze_chords(data.all_notes, ppq=data.ppq)
-sections = detect_sections(data)
-
-# === GENERATE A SONG ===
-structure, midi_path = generate_song(
-    genre='lofi',
-    bpm=75,
-    key=9,  # A
-    title='Rainy Night',
-    humanize=True
-)
-print(f"Generated: {midi_path}")
-print(f"Structure: {[s.name for s in structure.sections]}")
-
-# === DAW SETUP ===
-session = create_logic_session(
-    genre='hiphop',
-    name='My Beat',
-    bpm=92,
-    output_script='setup.scpt'
-)
-
-# === GET GENRE POCKET ===
-pocket = GENRE_POCKETS['jazz']
-print(f"Jazz swing: {pocket['swing']}")  # 0.66 (triplet)
+# Process intent to generate elements
+result = process_intent(intent)
+print(result['harmony'].chords)  # ['F', 'C', 'Bbm', 'F']
 ```
 
-## Genre Pockets
+## The Intent Schema
 
-| Genre | Swing | Snare | Hihat | Feel |
-|-------|-------|-------|-------|------|
-| hiphop | 58% | +15 behind | -5 ahead | Laid-back pocket |
-| trap | 52% | +5 | 0 | Tight, hard |
-| rnb | 62% | +20 | +5 | Deep pocket |
-| funk | 54% | 0 grid | -5 ahead | Tight, driving |
-| jazz | 66% | +8 | +3 | Floating, loose |
-| rock | 50% | 0 | -3 | Straight, powerful |
-| metal | 50% | 0 | 0 | Machine-tight |
-| lofi | 62% | +20 | +10 | Lazy, behind |
+### Three-Phase Deep Interrogation
 
-## Architecture
+**Phase 0: Core Wound/Desire**
+- `core_event` — What happened?
+- `core_resistance` — What holds you back from saying it?
+- `core_longing` — What do you want to feel?
+- `core_stakes` — What's at risk?
+- `core_transformation` — How should you feel when done?
+
+**Phase 1: Emotional Intent**
+- `mood_primary` — Dominant emotion
+- `mood_secondary_tension` — Internal conflict (0.0-1.0)
+- `imagery_texture` — Visual/tactile quality
+- `vulnerability_scale` — Emotional exposure level
+- `narrative_arc` — Structural emotion pattern
+
+**Phase 2: Technical Implementation**
+- `technical_genre` — Genre/style
+- `technical_key` — Musical key
+- `technical_rule_to_break` — Intentional rule violation
+- `rule_breaking_justification` — WHY break this rule
+
+## Rule-Breaking Categories
+
+### Harmony
+| Rule | Effect | Use When |
+|------|--------|----------|
+| `HARMONY_AvoidTonicResolution` | Unresolved yearning | Grief, longing |
+| `HARMONY_ModalInterchange` | Bittersweet color | Making hope feel earned |
+| `HARMONY_ParallelMotion` | Power, defiance | Anger, punk energy |
+
+### Rhythm
+| Rule | Effect | Use When |
+|------|--------|----------|
+| `RHYTHM_ConstantDisplacement` | Off-kilter anxiety | Before a dramatic shift |
+| `RHYTHM_TempoFluctuation` | Organic breathing | Intimacy, vulnerability |
+
+### Production
+| Rule | Effect | Use When |
+|------|--------|----------|
+| `PRODUCTION_BuriedVocals` | Dissociation, texture | Dreams, distance |
+| `PRODUCTION_PitchImperfection` | Emotional honesty | Raw vulnerability |
+
+## Project Structure
 
 ```
-music_brain/
-├── groove/
-│   ├── extractor.py      # Multi-bar histogram, swing detection
-│   ├── applicator.py     # Track-safe, beat-aware application
-│   ├── templates.py      # Storage, versioning, merging
-│   └── pocket_rules.py   # 13 genre pocket maps
-├── structure/
-│   ├── chord.py          # Chord detection
-│   ├── progression.py    # Pattern matching (30+ progressions)
-│   └── sections.py       # Section boundary detection
-├── session/
-│   └── generator.py      # Auto song generation
-├── daw/
-│   └── logic_pro.py      # Logic Pro AppleScript automation
-├── audio/
-│   └── feel.py           # Audio analysis (librosa)
-├── utils/
-│   ├── midi_io.py        # Track-safe MIDI I/O
-│   ├── ppq.py            # PPQ normalization & scaling
-│   └── instruments.py    # GM instrument classification
-└── cli.py                # Unified command line
+DAiW-Music-Brain/
+├── music_brain/              # Python analysis package
+│   ├── groove/               # Groove extraction & application
+│   ├── structure/            # Chord, section, progression analysis
+│   ├── audio/                # Audio feel analysis
+│   ├── session/              # Intent schema, teaching, interrogator
+│   │   ├── intent_schema.py  # Three-phase intent system
+│   │   ├── intent_processor.py # Rule-breaking execution
+│   │   ├── teaching.py       # Interactive lessons
+│   │   └── interrogator.py   # Song interrogation
+│   ├── utils/                # MIDI I/O, instruments, PPQ
+│   ├── daw/                  # DAW integration
+│   └── data/                 # JSON datasets
+│       ├── song_intent_schema.yaml
+│       ├── song_intent_examples.json
+│       └── genre_pocket_maps.json
+│
+├── vault/                    # Knowledge base (Obsidian-compatible)
+│   └── Songwriting_Guides/
+│       ├── song_intent_schema.md
+│       ├── rule_breaking_practical.md
+│       └── rule_breaking_masterpieces.md
+│
+└── tests/                    # Test suite
 ```
 
-## Key Technical Features
+## Features
 
-### Track-Safe MIDI Modification
-Unlike naive implementations that flatten all tracks into soup, Music Brain:
-- Preserves per-track event boundaries
-- Maintains controller curves, pitch bends, meta events
-- Rebuilds delta-time correctly after modification
-- Sorts by absolute time, then re-deltas
+### Intent-Based Generation
+- Deep interrogation before technical decisions
+- Emotion-to-music mapping
+- Intentional rule-breaking with justification
+- Phase validation for completeness
 
-### PPQ Normalization
-- Normalizes all input to 480 PPQ standard
-- Scales timing values when applying to different PPQ files
-- Templates are portable across DAWs and files
+### Groove Analysis
+- Extract timing deviations (swing, push/pull)
+- Velocity contours and accent patterns
+- Genre-specific templates
+- Cross-DAW PPQ normalization
 
-### Beat-Position-Aware Application
-- Applies correct offset for each grid position
-- Doesn't randomly pick indices
-- Snare on beat 2 gets different treatment than hihat on beat 1
+### Chord & Harmony
+- Roman numeral analysis
+- Borrowed chord detection
+- Modal interchange identification
+- Reharmonization suggestions
 
-### Real Swing Extraction
-- Actually measures on-beat to off-beat ratios
-- Doesn't hardcode 0.0
-- Detects triplet feel vs. straight vs. shuffle
+### Teaching Module
+- Interactive lessons on rule-breaking
+- Emotion-specific technique suggestions
+- Production philosophy guidance
 
-## Credits
+## Requirements
 
-Built by merging the best ideas from multiple AI systems:
-- Claude: Genre pocket maps, per-instrument offsets, chord analysis
-- ChatGPT: Multi-bar histograms, template versioning, CLI structure
-- Final integration: This unified package
+- Python 3.9+
+- mido (MIDI I/O)
+- numpy (numerical analysis)
+
+Optional:
+- librosa (audio analysis)
+- music21 (advanced theory)
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+- Built for musicians who think in sound, not spreadsheets
+- Inspired by the lo-fi bedroom recording philosophy
+- **"The wrong note played with conviction is the right note."**

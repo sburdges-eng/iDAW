@@ -3,1049 +3,535 @@ iDAW - intelligent Digital Audio Workspace
 ===========================================
 Ableton-Style Interface
 
-Version: 1.0.02
+Version: 1.0.04
 
-Integrates with:
-- Logic Pro X
-- MeldaProduction  
-- Vital
-- User Sample Library (Google Drive)
+Changes:
+- Preview mode vs Generate mode
+- Working transport controls
+- Better library detection
+- Interactive device chain
 
 Run with: streamlit run idaw_ableton_ui.py
-
-Requirements:
-    pip install streamlit music21 mido numpy
 """
 
 import streamlit as st
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-import json
+from typing import Dict, Any, Optional
 
 # Version
-VERSION = "1.0.02"
+VERSION = "1.0.04"
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Try to import library integration
-try:
-    from idaw_library_integration import (
-        iDAWLibraryIntegration,
-        LibraryScanner,
-        InstrumentSelector,
-        EMOTION_TO_INSTRUMENTS,
-    )
-    LIBRARY_INTEGRATION_AVAILABLE = True
-except ImportError:
-    LIBRARY_INTEGRATION_AVAILABLE = False
+# ============================================================================
+# LIBRARY DETECTION - Search actual Mac paths
+# ============================================================================
 
+def find_sound_libraries() -> Dict[str, Dict[str, Any]]:
+    """Search for sound libraries on Mac."""
+    libraries = {}
+    
+    # =========== LOGIC PRO X ===========
+    logic_paths = {
+        "app": Path("/Applications/Logic Pro X.app"),
+        "app_alt": Path("/Applications/Logic Pro.app"),
+        "loops_user": Path.home() / "Library/Audio/Apple Loops",
+        "loops_system": Path("/Library/Audio/Apple Loops"),
+        "apple_loops": Path("/Library/Audio/Apple Loops/Apple"),
+    }
+    
+    logic_found = logic_paths["app"].exists() or logic_paths["app_alt"].exists()
+    logic_count = 0
+    
+    for key, path in logic_paths.items():
+        if path.exists() and "loop" in key.lower():
+            try:
+                logic_count += len(list(path.rglob("*.caf"))[:100])
+                logic_count += len(list(path.rglob("*.aif"))[:100])
+            except:
+                pass
+    
+    libraries["logic_pro"] = {
+        "name": "Logic Pro X",
+        "installed": logic_found,
+        "count": logic_count
+    }
+    
+    # =========== VITAL ===========
+    vital_paths = [
+        Path("/Applications/Vital.app"),
+        Path("/Library/Audio/Plug-Ins/VST3/Vital.vst3"),
+        Path("/Library/Audio/Plug-Ins/Components/Vital.component"),
+        Path.home() / "Library/Audio/Plug-Ins/Components/Vital.component",
+    ]
+    
+    vital_found = any(p.exists() for p in vital_paths)
+    vital_count = 0
+    
+    preset_paths = [
+        Path.home() / "Documents/Vital",
+        Path.home() / "Library/Application Support/Vital",
+    ]
+    for p in preset_paths:
+        if p.exists():
+            try:
+                vital_count += len(list(p.rglob("*.vital"))[:100])
+            except:
+                pass
+    
+    libraries["vital"] = {
+        "name": "Vital",
+        "installed": vital_found,
+        "count": vital_count
+    }
+    
+    # =========== MELDAPRODUCTION ===========
+    melda_au = Path("/Library/Audio/Plug-Ins/Components")
+    melda_found = False
+    if melda_au.exists():
+        melda_found = len(list(melda_au.glob("M*.component"))) > 0
+    
+    melda_count = 0
+    melda_presets = Path.home() / "Library/Audio/Presets/MeldaProduction"
+    if melda_presets.exists():
+        try:
+            melda_count = len(list(melda_presets.rglob("*.mpreset"))[:100])
+        except:
+            pass
+    
+    libraries["melda"] = {
+        "name": "MeldaProduction",
+        "installed": melda_found,
+        "count": melda_count
+    }
+    
+    # =========== USER SAMPLES ===========
+    gdrive_paths = [
+        Path.home() / "Google Drive/My Drive",
+        Path.home() / "Google Drive",
+        Path.home() / "Library/CloudStorage",
+    ]
+    
+    user_count = 0
+    for base in gdrive_paths + [Path.home() / "Music"]:
+        if base.exists():
+            try:
+                for ext in ["*.wav", "*.aif", "*.mp3"]:
+                    user_count += len(list(base.rglob(ext))[:50])
+            except:
+                pass
+    
+    libraries["user_samples"] = {
+        "name": "Your Samples",
+        "installed": user_count > 0,
+        "count": user_count
+    }
+    
+    # =========== GARAGEBAND ===========
+    libraries["garageband"] = {
+        "name": "GarageBand",
+        "installed": Path("/Applications/GarageBand.app").exists(),
+        "count": 0
+    }
+    
+    return libraries
+
+
+def generate_preview_tone(frequency: float = 440, duration: float = 0.5) -> Optional[bytes]:
+    """Generate a simple preview tone."""
+    try:
+        import numpy as np
+        import wave
+        import io
+        
+        sample_rate = 44100
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        tone = np.sin(frequency * 2 * np.pi * t) * 0.3
+        
+        # Envelope
+        attack = int(0.01 * sample_rate)
+        release = int(0.1 * sample_rate)
+        envelope = np.ones_like(tone)
+        envelope[:attack] = np.linspace(0, 1, attack)
+        envelope[-release:] = np.linspace(1, 0, release)
+        tone = tone * envelope
+        
+        audio = (tone * 32767).astype(np.int16)
+        
+        buffer = io.BytesIO()
+        with wave.open(buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            wf.writeframes(audio.tobytes())
+        
+        return buffer.getvalue()
+    except:
+        return None
+
+
+def get_freq(key: str) -> float:
+    """Get frequency for a key."""
+    freqs = {"C": 261.63, "C#": 277.18, "D": 293.66, "Eb": 311.13,
+             "E": 329.63, "F": 349.23, "F#": 369.99, "G": 392.00,
+             "Ab": 415.30, "A": 440.00, "Bb": 466.16, "B": 493.88}
+    return freqs.get(key, 440.0)
+
+
+# ============================================================================
+# IMPORT PIPELINE
+# ============================================================================
 try:
     from idaw_complete_pipeline import (
-        InterrogationEngine, 
-        get_parameters_for_state,
-        StructureGenerator,
-        HarmonyEngine,
-        MelodyEngine,
-        GrooveEngine,
-        MIDIBuilder,
-        PostProcessor,
-        EMOTIONAL_PRESETS,
-        EmotionalState,
-        MusicalParameters,
-        TimingFeel,
-        RuleBreakCode,
-        Mode,
-        SongSection,
+        InterrogationEngine, get_parameters_for_state, StructureGenerator,
+        HarmonyEngine, MelodyEngine, GrooveEngine, MIDIBuilder,
+        EMOTIONAL_PRESETS, TimingFeel, RuleBreakCode,
     )
-    PIPELINE_AVAILABLE = True
-except ImportError:
-    PIPELINE_AVAILABLE = False
+    PIPELINE_OK = True
+except ImportError as e:
+    PIPELINE_OK = False
+    PIPELINE_ERR = str(e)
+
 
 # ============================================================================
-# PAGE CONFIG - Dark Theme Like Ableton
+# PAGE CONFIG & CSS
 # ============================================================================
-st.set_page_config(
-    page_title=f"iDAW v{VERSION}", 
-    page_icon="🎹", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title=f"iDAW v{VERSION}", page_icon="🎹", layout="wide", initial_sidebar_state="collapsed")
 
-# ============================================================================
-# ABLETON-STYLE CSS
-# ============================================================================
 st.markdown("""
 <style>
-    /* Dark theme base */
-    .stApp {
-        background-color: #1e1e1e;
-    }
-    
-    /* Hide default streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Top toolbar */
-    .toolbar {
-        background: linear-gradient(180deg, #3d3d3d 0%, #2d2d2d 100%);
-        border-bottom: 1px solid #1a1a1a;
-        padding: 8px 15px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1000;
-        height: 45px;
-    }
-    
-    .toolbar-logo {
-        font-size: 18px;
-        font-weight: bold;
-        color: #ff9500;
-        letter-spacing: 2px;
-    }
-    
-    .toolbar-version {
-        font-size: 10px;
-        color: #888;
-    }
-    
-    /* Transport controls */
-    .transport {
-        display: flex;
-        gap: 5px;
-        align-items: center;
-    }
-    
-    .transport-btn {
-        background: #4a4a4a;
-        border: none;
-        border-radius: 3px;
-        color: #ccc;
-        padding: 5px 12px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-    
-    .transport-btn:hover {
-        background: #5a5a5a;
-    }
-    
-    .transport-btn.active {
-        background: #ff9500;
-        color: #000;
-    }
-    
-    /* BPM/Key display */
-    .tempo-display {
-        background: #2a2a2a;
-        border: 1px solid #3a3a3a;
-        border-radius: 3px;
-        padding: 4px 10px;
-        color: #ff9500;
-        font-family: 'Courier New', monospace;
-        font-size: 14px;
-        font-weight: bold;
-    }
-    
-    /* Track headers (left sidebar) */
-    .track-header {
-        background: linear-gradient(90deg, #2d2d2d 0%, #252525 100%);
-        border-bottom: 1px solid #1a1a1a;
-        padding: 8px 10px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        height: 60px;
-    }
-    
-    .track-color {
-        width: 4px;
-        height: 40px;
-        border-radius: 2px;
-    }
-    
-    .track-name {
-        color: #ffffff;
-        font-size: 13px;
-        font-weight: 600;
-    }
-    
-    .track-arm {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: #3a3a3a;
-        border: 1px solid #4a4a4a;
-    }
-    
-    .track-arm.armed {
-        background: #ff3b30;
-        border-color: #ff3b30;
-    }
-    
-    /* Clip grid / Arrangement view */
-    .arrangement {
-        background: #1a1a1a;
-        min-height: 400px;
-        position: relative;
-        overflow-x: auto;
-    }
-    
-    /* HIGH CONTRAST TEXT FIXES */
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-    }
-    
-    .stMarkdown h3 {
-        color: #ff9500 !important;
-        font-weight: bold !important;
-    }
-    
-    .stMarkdown p, .stMarkdown li, .stMarkdown span {
-        color: #e0e0e0 !important;
-    }
-    
-    label, .stSelectbox label, .stSlider label, .stTextInput label, .stTextArea label {
-        color: #cccccc !important;
-    }
-    
-    /* Section headers */
-    .stMarkdown h3::before {
-        color: #ff9500;
-    }
-    
-    .clip {
-        background: linear-gradient(180deg, #5a7a5a 0%, #4a6a4a 100%);
-        border-radius: 3px;
-        padding: 4px 8px;
-        margin: 2px;
-        color: #fff;
-        font-size: 11px;
-        display: inline-block;
-        cursor: pointer;
-        border-left: 3px solid #7a9a7a;
-    }
-    
-    .clip.drums {
-        background: linear-gradient(180deg, #7a5a5a 0%, #6a4a4a 100%);
-        border-left-color: #9a7a7a;
-    }
-    
-    .clip.bass {
-        background: linear-gradient(180deg, #5a5a7a 0%, #4a4a6a 100%);
-        border-left-color: #7a7a9a;
-    }
-    
-    .clip.melody {
-        background: linear-gradient(180deg, #7a7a5a 0%, #6a6a4a 100%);
-        border-left-color: #9a9a7a;
-    }
-    
-    .clip.pad {
-        background: linear-gradient(180deg, #5a7a7a 0%, #4a6a6a 100%);
-        border-left-color: #7a9a9a;
-    }
-    
-    /* Timeline ruler */
-    .timeline {
-        background: #252525;
-        height: 25px;
-        border-bottom: 1px solid #1a1a1a;
-        display: flex;
-        align-items: center;
-        padding-left: 200px;
-    }
-    
-    .bar-marker {
-        color: #aaaaaa;
-        font-size: 11px;
-        width: 80px;
-        text-align: center;
-    }
-    
-    /* Browser panel (right side) */
-    .browser {
-        background: #252525;
-        border-left: 1px solid #1a1a1a;
-        padding: 10px;
-        height: 100%;
-    }
+    .stApp { background-color: #1e1e1e; }
+    #MainMenu, footer, header { visibility: hidden; }
+    h1,h2,h3,h4,h5,h6 { color: #ffffff !important; }
+    .stMarkdown h3 { color: #ff9500 !important; }
+    .stMarkdown p, label { color: #e0e0e0 !important; }
     
     .browser-header {
-        color: #ff9500 !important;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 10px;
-        font-weight: bold;
+        color: #ff9500 !important; font-size: 12px; text-transform: uppercase;
+        letter-spacing: 1px; margin-bottom: 10px; font-weight: bold;
     }
     
-    .browser-item {
-        color: #e0e0e0;
-        font-size: 12px;
-        padding: 5px 8px;
-        cursor: pointer;
-        border-radius: 3px;
+    .official-box {
+        background: linear-gradient(180deg, #3d3d3d, #2d2d2d);
+        border: 1px solid #4a4a4a; border-radius: 5px; padding: 12px; text-align: center;
     }
+    .official-value { color: #ff9500; font-size: 24px; font-weight: bold; font-family: monospace; }
+    .official-label { color: #888; font-size: 10px; text-transform: uppercase; }
     
-    .browser-item:hover {
-        background: #3a3a3a;
+    .preview-box {
+        background: #2a2a2a; border: 1px dashed #555; border-radius: 5px; padding: 10px;
     }
+    .preview-value { color: #30d158; font-size: 18px; font-weight: bold; }
+    .preview-label { color: #666; font-size: 10px; text-transform: uppercase; }
     
-    .browser-item.selected {
-        background: #ff9500;
-        color: #000;
+    .clip {
+        background: linear-gradient(180deg, #5a7a5a, #4a6a4a);
+        border-radius: 3px; padding: 4px 8px; margin: 2px; color: #fff;
+        font-size: 11px; display: inline-block; border-left: 3px solid #7a9a7a;
     }
+    .clip.drums { background: linear-gradient(180deg, #7a5a5a, #6a4a4a); border-left-color: #9a7a7a; }
+    .clip.melody { background: linear-gradient(180deg, #5a5a7a, #4a4a6a); border-left-color: #7a7a9a; }
     
-    /* Device chain / Detail view (bottom) */
-    .device-chain {
-        background: linear-gradient(180deg, #2d2d2d 0%, #252525 100%);
-        border-top: 1px solid #3a3a3a;
-        padding: 15px;
-        min-height: 200px;
+    .device-box {
+        background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 5px;
+        padding: 12px; text-align: center;
     }
+    .device-title { color: #ff9500; font-size: 10px; text-transform: uppercase; margin-bottom: 5px; }
+    .device-value { color: #fff; font-size: 16px; font-weight: bold; }
     
-    .device {
-        background: #1e1e1e;
-        border: 1px solid #3a3a3a;
-        border-radius: 5px;
-        padding: 10px;
-        display: inline-block;
-        margin-right: 10px;
-        min-width: 150px;
-    }
-    
-    .device-title {
-        color: #ff9500;
-        font-size: 11px;
-        font-weight: bold;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-    }
-    
-    .knob-row {
-        display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-    
-    .knob {
-        text-align: center;
-    }
-    
-    .knob-dial {
-        width: 40px;
-        height: 40px;
-        background: radial-gradient(circle, #4a4a4a 0%, #2a2a2a 100%);
-        border-radius: 50%;
-        border: 2px solid #5a5a5a;
-        margin: 0 auto 5px;
-        position: relative;
-    }
-    
-    .knob-dial::after {
-        content: '';
-        position: absolute;
-        width: 2px;
-        height: 12px;
-        background: #ff9500;
-        top: 5px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-radius: 1px;
-    }
-    
-    .knob-label {
-        color: #bbbbbb;
-        font-size: 10px;
-        text-transform: uppercase;
-    }
-    
-    .knob-value {
-        color: #ffffff;
-        font-size: 11px;
-        font-family: 'Courier New', monospace;
-    }
-    
-    /* Meter */
-    .meter {
-        width: 8px;
-        height: 100px;
-        background: #1a1a1a;
-        border-radius: 2px;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .meter-fill {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(180deg, #ff3b30 0%, #ff9500 20%, #30d158 50%);
-        border-radius: 2px;
-    }
-    
-    /* Emotional state display */
-    .emotion-display {
-        background: #1e1e1e;
-        border: 1px solid #3a3a3a;
-        border-radius: 5px;
-        padding: 15px;
-        margin: 10px 0;
-    }
-    
-    .emotion-primary {
-        color: #ff9500;
-        font-size: 24px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-    }
-    
-    .emotion-secondary {
-        color: #bbbbbb;
-        font-size: 13px;
-        margin-top: 5px;
-    }
-    
-    /* Section markers */
     .section-marker {
-        background: #ff9500;
-        color: #000;
-        font-size: 10px;
-        font-weight: bold;
-        padding: 2px 8px;
-        border-radius: 2px;
-        display: inline-block;
-        margin-right: 5px;
+        background: #ff9500; color: #000; font-size: 10px; font-weight: bold;
+        padding: 2px 8px; border-radius: 2px; margin: 2px; display: inline-block;
     }
     
-    /* Custom button styles */
-    .stButton > button {
-        background: #4a4a4a !important;
-        color: #ccc !important;
-        border: 1px solid #5a5a5a !important;
-        border-radius: 3px !important;
-    }
-    
-    .stButton > button:hover {
-        background: #5a5a5a !important;
-        border-color: #6a6a6a !important;
-    }
-    
-    /* Primary action button */
-    .generate-btn > button {
-        background: #ff9500 !important;
-        color: #000 !important;
-        border: none !important;
-        font-weight: bold !important;
-    }
-    
-    /* Slider styling */
-    .stSlider > div > div > div {
-        background: #ff9500 !important;
-    }
-    
-    /* Input styling */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div > div {
-        background: #2a2a2a !important;
-        color: #ccc !important;
-        border: 1px solid #3a3a3a !important;
-    }
-    
-    /* Metric styling */
-    .stMetric {
-        background: #2a2a2a;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #3a3a3a;
-    }
-    
-    .stMetric label {
-        color: #888 !important;
-    }
-    
-    .stMetric > div {
-        color: #ff9500 !important;
-    }
+    .lib-ok { color: #30d158; }
+    .lib-no { color: #666; }
 </style>
 """, unsafe_allow_html=True)
+
 
 # ============================================================================
 # SESSION STATE
 # ============================================================================
-if 'playing' not in st.session_state:
-    st.session_state.playing = False
-if 'recording' not in st.session_state:
-    st.session_state.recording = False
-if 'bpm' not in st.session_state:
-    st.session_state.bpm = 82
-if 'key' not in st.session_state:
-    st.session_state.key = "F"
-if 'tracks' not in st.session_state:
-    st.session_state.tracks = []
-if 'emotion' not in st.session_state:
-    st.session_state.emotion = "neutral"
-if 'generated' not in st.session_state:
-    st.session_state.generated = False
+defaults = {
+    'official_bpm': 82, 'official_key': 'F', 'official_emotion': 'grief',
+    'preview_bpm': 82, 'preview_key': 'F', 'preview_emotion': 'grief',
+    'humanize': 0.2, 'dissonance': 0.3, 'lofi': 0.3, 'pocket': 'behind',
+    'generated': False, 'libraries_scanned': False, 'libraries': {}, 'tracks': []
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+EMOTION_REC = {
+    "grief": {"bpm": 72, "key": "F", "humanize": 0.3, "dissonance": 0.3, "pocket": "behind"},
+    "anxiety": {"bpm": 120, "key": "E", "humanize": 0.1, "dissonance": 0.6, "pocket": "ahead"},
+    "nostalgia": {"bpm": 78, "key": "G", "humanize": 0.25, "dissonance": 0.25, "pocket": "behind"},
+    "anger": {"bpm": 138, "key": "E", "humanize": 0.15, "dissonance": 0.5, "pocket": "ahead"},
+    "calm": {"bpm": 68, "key": "C", "humanize": 0.2, "dissonance": 0.1, "pocket": "behind"},
+    "hope": {"bpm": 92, "key": "G", "humanize": 0.2, "dissonance": 0.2, "pocket": "on"},
+    "intimacy": {"bpm": 64, "key": "D", "humanize": 0.35, "dissonance": 0.2, "pocket": "behind"},
+    "defiance": {"bpm": 115, "key": "A", "humanize": 0.15, "dissonance": 0.4, "pocket": "on"},
+}
+
 
 # ============================================================================
-# TOOLBAR
+# TOP BAR - OFFICIAL VALUES
 # ============================================================================
-st.markdown(f"""
-<div class="toolbar">
-    <span class="toolbar-logo">iDAW</span>
-    <span class="toolbar-version">v{VERSION}</span>
-    <div style="flex-grow: 1;"></div>
-    <div class="tempo-display">{st.session_state.bpm} BPM</div>
-    <div class="tempo-display">{st.session_state.key}</div>
-    <div style="flex-grow: 1;"></div>
-</div>
-<div style="height: 60px;"></div>
-""", unsafe_allow_html=True)
+st.markdown("## 🎹 iDAW")
+
+top = st.columns([1, 1, 1, 1, 2])
+
+with top[0]:
+    st.markdown(f'<div class="official-box"><div class="official-label">BPM</div><div class="official-value">{st.session_state.official_bpm}</div></div>', unsafe_allow_html=True)
+
+with top[1]:
+    st.markdown(f'<div class="official-box"><div class="official-label">KEY</div><div class="official-value">{st.session_state.official_key}</div></div>', unsafe_allow_html=True)
+
+with top[2]:
+    st.markdown(f'<div class="official-box"><div class="official-label">EMOTION</div><div class="official-value" style="font-size:16px">{st.session_state.official_emotion.upper()}</div></div>', unsafe_allow_html=True)
+
+with top[3]:
+    # Play official preview
+    if st.button("▶️ PLAY", key="play_official", use_container_width=True):
+        audio = generate_preview_tone(get_freq(st.session_state.official_key), 1.0)
+        if audio:
+            st.audio(audio, format="audio/wav")
+
+with top[4]:
+    st.markdown(f"<div style='text-align:right;color:#555;padding:15px'>v{VERSION}</div>", unsafe_allow_html=True)
+
+st.markdown("---")
+
 
 # ============================================================================
-# MAIN LAYOUT - Three columns like Ableton
+# MAIN LAYOUT
 # ============================================================================
-col_browser, col_main, col_detail = st.columns([1, 4, 1.5])
+col_left, col_main, col_right = st.columns([1.2, 3, 1.5])
+
 
 # ============================================================================
-# LEFT - BROWSER / PRESETS
+# LEFT - PRESETS & LIBRARIES
 # ============================================================================
-with col_browser:
-    st.markdown('<div class="browser-header">EMOTIONAL PRESETS</div>', unsafe_allow_html=True)
+with col_left:
+    st.markdown('<div class="browser-header">🎭 EMOTION</div>', unsafe_allow_html=True)
     
-    preset_options = ["(interrogate)", "grief", "anxiety", "nostalgia", "anger", "calm", "hope", "intimacy", "defiance"]
-    selected_preset = st.radio(
-        "Preset",
-        preset_options,
-        label_visibility="collapsed",
-        key="preset_select"
-    )
+    emotions = list(EMOTION_REC.keys())
+    sel_idx = emotions.index(st.session_state.preview_emotion) if st.session_state.preview_emotion in emotions else 0
     
-    if selected_preset != "(interrogate)":
-        st.session_state.emotion = selected_preset
+    selected_emotion = st.radio("Emotion", emotions, index=sel_idx, label_visibility="collapsed", key="emo_radio")
     
-    st.markdown('<div class="browser-header" style="margin-top:20px;">RULE BREAKS</div>', unsafe_allow_html=True)
+    if selected_emotion != st.session_state.preview_emotion:
+        st.session_state.preview_emotion = selected_emotion
+        rec = EMOTION_REC[selected_emotion]
+        st.session_state.preview_bpm = rec["bpm"]
+        st.session_state.preview_key = rec["key"]
+        st.session_state.humanize = rec["humanize"]
+        st.session_state.dissonance = rec["dissonance"]
+        st.session_state.pocket = rec["pocket"]
+        st.rerun()
     
-    rule_breaks = {
-        "Non-Resolution": st.checkbox("Non-Resolution", value=True, help="End unresolved (grief)"),
-        "Modal Interchange": st.checkbox("Modal Interchange", help="Bittersweet"),
-        "Parallel Motion": st.checkbox("Parallel Motion", help="Power/defiance"),
-        "Tempo Drift": st.checkbox("Tempo Drift", help="Intimacy/rubato"),
-    }
+    # Recommended
+    rec = EMOTION_REC[selected_emotion]
+    st.markdown(f'''<div class="preview-box">
+        <div class="preview-label">RECOMMENDED</div>
+        <div style="color:#aaa;font-size:11px">
+            {rec["bpm"]} BPM | {rec["key"]} | {rec["pocket"]}
+        </div>
+    </div>''', unsafe_allow_html=True)
     
-    st.markdown('<div class="browser-header" style="margin-top:20px;">GROOVE STYLE</div>', unsafe_allow_html=True)
+    st.markdown('<div class="browser-header" style="margin-top:15px">🎹 LIBRARIES</div>', unsafe_allow_html=True)
     
-    groove_style = st.selectbox(
-        "Pattern",
-        ["sparse", "basic", "boom_bap", "four_on_floor"],
-        label_visibility="collapsed"
-    )
+    if st.button("🔍 Scan", key="scan", use_container_width=True):
+        with st.spinner("Scanning..."):
+            st.session_state.libraries = find_sound_libraries()
+            st.session_state.libraries_scanned = True
+        st.rerun()
     
-    # ============================================================================
-    # INSTRUMENT LIBRARIES
-    # ============================================================================
-    st.markdown('<div class="browser-header" style="margin-top:20px;">🎹 INSTRUMENTS</div>', unsafe_allow_html=True)
+    if st.session_state.libraries_scanned:
+        for k, v in st.session_state.libraries.items():
+            icon = "✓" if v["installed"] else "✗"
+            css = "lib-ok" if v["installed"] else "lib-no"
+            cnt = f' ({v["count"]})' if v["count"] > 0 else ""
+            st.markdown(f'<span class="{css}">{icon} {v["name"]}{cnt}</span>', unsafe_allow_html=True)
     
-    if LIBRARY_INTEGRATION_AVAILABLE:
-        # Show scan button instead of auto-scanning
-        if 'libraries_scanned' not in st.session_state:
-            st.session_state.libraries_scanned = False
-            st.session_state.library_status = {}
-        
-        if not st.session_state.libraries_scanned:
-            if st.button("🔍 Scan Libraries", key="scan_libs"):
-                try:
-                    integration = iDAWLibraryIntegration()
-                    st.session_state.library_status = integration.get_available_libraries()
-                    st.session_state.libraries_scanned = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Scan failed: {e}")
-        else:
-            # Show library status
-            lib_status = st.session_state.library_status
-            
-            for lib_name, available in lib_status.items():
-                icon = "✓" if available else "✗"
-                color = "#30d158" if available else "#666"
-                display_name = {
-                    "logic_pro": "Logic Pro X",
-                    "melda": "MeldaProduction",
-                    "vital": "Vital",
-                    "user_samples": "Your Samples"
-                }.get(lib_name, lib_name)
-                st.markdown(f'<span style="color:{color}">{icon}</span> {display_name}', unsafe_allow_html=True)
-            
-            # Rescan button
-            if st.button("🔄 Rescan", key="rescan_libs"):
-                st.session_state.libraries_scanned = False
-                st.rerun()
-        
-        # Instrument source preference
-        st.markdown('<div class="browser-header" style="margin-top:15px;">SOURCE</div>', unsafe_allow_html=True)
-        instrument_source = st.selectbox(
-            "Prefer",
-            ["Auto", "Logic Pro", "Vital", "MeldaProduction", "User Samples"],
-            label_visibility="collapsed",
-            key="instrument_source"
-        )
-    else:
-        st.markdown('<span style="color:#666">Library integration not loaded</span>', unsafe_allow_html=True)
-        instrument_source = "Auto"
+    st.markdown('<div class="browser-header" style="margin-top:15px">🥁 GROOVE</div>', unsafe_allow_html=True)
+    groove = st.selectbox("Style", ["sparse", "basic", "boom_bap", "four_on_floor"], label_visibility="collapsed")
+
 
 # ============================================================================
-# CENTER - ARRANGEMENT VIEW
+# CENTER - PREVIEW & GENERATE
 # ============================================================================
 with col_main:
-    # Transport bar
-    transport_col1, transport_col2, transport_col3, transport_col4 = st.columns([1, 1, 1, 3])
+    st.markdown("### 🎛️ Preview Settings")
+    st.caption("Adjust and preview before generating")
     
-    with transport_col1:
-        if st.button("⏮️ REW"):
-            pass
-    with transport_col2:
-        play_label = "⏹️ STOP" if st.session_state.playing else "▶️ PLAY"
-        if st.button(play_label):
-            st.session_state.playing = not st.session_state.playing
-    with transport_col3:
-        rec_label = "🔴 REC" if not st.session_state.recording else "⏺️ STOP"
-        if st.button(rec_label):
-            st.session_state.recording = not st.session_state.recording
-    with transport_col4:
-        st.session_state.bpm = st.number_input("BPM", 40, 200, st.session_state.bpm, label_visibility="collapsed")
+    p1, p2, p3, p4 = st.columns(4)
+    
+    with p1:
+        st.session_state.preview_bpm = st.slider("BPM", 40, 180, st.session_state.preview_bpm, key="prev_bpm")
+    with p2:
+        keys = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+        idx = keys.index(st.session_state.preview_key) if st.session_state.preview_key in keys else 5
+        st.session_state.preview_key = st.selectbox("Key", keys, index=idx, key="prev_key")
+    with p3:
+        st.session_state.humanize = st.slider("Humanize", 0.0, 0.5, st.session_state.humanize, key="hum")
+    with p4:
+        st.session_state.dissonance = st.slider("Dissonance", 0.0, 1.0, st.session_state.dissonance, key="diss")
+    
+    # Preview vs Official
+    st.markdown(f'''<div class="preview-box">
+        <div style="display:flex;justify-content:space-around;align-items:center">
+            <div>
+                <div class="preview-label">PREVIEW</div>
+                <div class="preview-value">{st.session_state.preview_bpm} | {st.session_state.preview_key}</div>
+            </div>
+            <div style="color:#555;font-size:24px">→</div>
+            <div>
+                <div class="preview-label">OFFICIAL</div>
+                <div style="color:#ff9500;font-size:18px;font-weight:bold">{st.session_state.official_bpm} | {st.session_state.official_key}</div>
+            </div>
+        </div>
+    </div>''', unsafe_allow_html=True)
+    
+    # Transport
+    t1, t2, t3, t4, t5 = st.columns(5)
+    with t1:
+        if st.button("⏮️", key="rew", use_container_width=True):
+            st.toast("Rewind")
+    with t2:
+        if st.button("▶️ Preview", key="play_prev", use_container_width=True):
+            audio = generate_preview_tone(get_freq(st.session_state.preview_key), 0.8)
+            if audio:
+                st.audio(audio, format="audio/wav")
+    with t3:
+        if st.button("⏹️", key="stop", use_container_width=True):
+            st.toast("Stopped")
+    with t4:
+        if st.button("⏺️", key="rec", use_container_width=True):
+            st.toast("Record (coming soon)")
+    with t5:
+        if st.button("⏭️", key="fwd", use_container_width=True):
+            st.toast("Forward")
     
     st.markdown("---")
     
-    # Timeline
-    st.markdown("""
-    <div class="timeline">
-        <span class="bar-marker">1</span>
-        <span class="bar-marker">5</span>
-        <span class="bar-marker">9</span>
-        <span class="bar-marker">13</span>
-        <span class="bar-marker">17</span>
-        <span class="bar-marker">21</span>
-        <span class="bar-marker">25</span>
-        <span class="bar-marker">29</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # GENERATE
+    g1, g2 = st.columns([4, 1])
+    with g1:
+        if st.button("⚡ GENERATE → Apply to Official", key="gen", use_container_width=True, type="primary"):
+            st.session_state.official_bpm = st.session_state.preview_bpm
+            st.session_state.official_key = st.session_state.preview_key
+            st.session_state.official_emotion = st.session_state.preview_emotion
+            
+            if PIPELINE_OK:
+                with st.spinner("Generating..."):
+                    try:
+                        engine = InterrogationEngine()
+                        state = engine.quick_interrogate(st.session_state.official_emotion)
+                        params = get_parameters_for_state(state)
+                        params.tempo_suggested = st.session_state.official_bpm
+                        params.key_signature = st.session_state.official_key
+                        params.humanize = st.session_state.humanize
+                        params.dissonance = st.session_state.dissonance
+                        
+                        struct_gen = StructureGenerator()
+                        structure = struct_gen.generate(params, state)
+                        total_bars = sum(s.bars for s in structure)
+                        
+                        harmony = HarmonyEngine(params)
+                        progression = harmony.generate_progression(total_bars, state.primary_emotion)
+                        
+                        melody_engine = MelodyEngine(params, harmony)
+                        melody = melody_engine.generate(progression, total_bars)
+                        
+                        groove_engine = GrooveEngine(params)
+                        drums = groove_engine.generate_drums(total_bars, groove)
+                        
+                        builder = MIDIBuilder(bpm=params.tempo_suggested)
+                        builder.add_track("melody", melody)
+                        builder.add_track("drums", drums)
+                        
+                        out_dir = Path.home() / "Music" / "iDAW_Output"
+                        out_dir.mkdir(parents=True, exist_ok=True)
+                        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        midi_path = out_dir / f"iDAW_{ts}_{state.primary_emotion}.mid"
+                        builder.save(midi_path)
+                        
+                        st.session_state.generated = True
+                        st.session_state.midi_path = str(midi_path)
+                        st.session_state.tracks = [
+                            {"name": "Melody", "notes": len(melody), "sections": [{"name": s.name, "bars": s.bars} for s in structure]},
+                            {"name": "Drums", "notes": len(drums), "sections": [{"name": s.name, "bars": s.bars} for s in structure]},
+                        ]
+                        st.session_state.structure = structure
+                        st.success(f"✓ {midi_path.name}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            else:
+                st.error(f"Pipeline error: {PIPELINE_ERR}")
     
-    # Track lanes
-    st.markdown("### 🎹 Arrangement View")
+    with g2:
+        if st.button("🔄", key="reset", use_container_width=True):
+            for k, v in defaults.items():
+                st.session_state[k] = v
+            st.rerun()
     
-    # If generated, show tracks
+    # Arrangement
+    st.markdown("### 🎬 Arrangement")
+    
     if st.session_state.generated and st.session_state.tracks:
         for track in st.session_state.tracks:
-            track_col1, track_col2 = st.columns([1, 5])
-            
-            with track_col1:
-                color_map = {
-                    "drums": "#9a7a7a",
-                    "bass": "#7a7a9a",
-                    "melody": "#9a9a7a",
-                    "pad": "#7a9a9a",
-                    "chords": "#7a9a7a"
-                }
-                color = color_map.get(track['name'].lower(), "#5a7a5a")
-                st.markdown(f"""
-                <div class="track-header">
-                    <div class="track-color" style="background: {color};"></div>
-                    <span class="track-name">{track['name'].upper()}</span>
-                    <div class="track-arm"></div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with track_col2:
-                # Show clips for each section
-                clips_html = ""
-                for section in track.get('sections', []):
-                    clip_class = track['name'].lower()
-                    clips_html += f'<span class="clip {clip_class}">{section["name"]} ({section["bars"]} bars)</span>'
-                
-                st.markdown(f'<div style="padding: 10px; background: #1a1a1a; min-height: 50px;">{clips_html}</div>', unsafe_allow_html=True)
+            tc1, tc2 = st.columns([1, 5])
+            with tc1:
+                st.markdown(f"**{track['name']}**<br><small>{track['notes']} notes</small>", unsafe_allow_html=True)
+            with tc2:
+                clips = "".join([f'<span class="clip {track["name"].lower()}">{s["name"]} ({s["bars"]})</span>' for s in track.get("sections", [])])
+                st.markdown(f'<div style="background:#1a1a1a;padding:8px;border-radius:5px">{clips}</div>', unsafe_allow_html=True)
     else:
-        # Empty state
-        st.markdown("""
-        <div style="background: #1a1a1a; min-height: 200px; display: flex; align-items: center; justify-content: center; color: #aaaaaa; border-radius: 5px;">
-            <div style="text-align: center;">
-                <div style="font-size: 48px; margin-bottom: 10px;">🎵</div>
-                <div style="font-size: 14px;">Interrogate your emotion to generate tracks</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # ============================================================================
-    # INTERROGATION SECTION
-    # ============================================================================
-    st.markdown("### 🎤 Interrogation Engine")
-    
-    interrog_col1, interrog_col2 = st.columns(2)
-    
-    with interrog_col1:
-        st.markdown("**Phase 0: Core Wound**")
-        core_wound = st.text_area(
-            "What happened?",
-            placeholder="The raw event - be specific",
-            height=80,
-            key="core_wound"
-        )
-        
-        core_longing = st.text_input(
-            "What do you wish you could feel?",
-            placeholder="The transformation you seek",
-            key="core_longing"
-        )
-    
-    with interrog_col2:
-        st.markdown("**Phase 1: Emotional Intent**")
-        vernacular_input = st.text_area(
-            "Describe the sound (vernacular):",
-            placeholder="e.g., 'slow, fat, laid back, lo-fi bedroom feel'",
-            height=80,
-            key="vernacular"
-        )
-        
-        vulnerability = st.slider("Vulnerability", 1, 10, 7, key="vuln_slider")
-    
-    # Generate button
-    st.markdown('<div class="generate-btn">', unsafe_allow_html=True)
-    if st.button("🎵 GENERATE", use_container_width=True, type="primary"):
-        if PIPELINE_AVAILABLE:
-            with st.spinner("Interrogating emotional state..."):
-                # Build input
-                full_input = vernacular_input or ""
-                if selected_preset != "(interrogate)":
-                    full_input = f"{selected_preset} {full_input}"
-                if core_wound:
-                    full_input += f" about {core_wound}"
-                
-                # Interrogate
-                engine = InterrogationEngine()
-                state = engine.quick_interrogate(full_input)
-                state.vulnerability = vulnerability / 10.0
-                
-                # Get parameters
-                params = get_parameters_for_state(state)
-                params.tempo_suggested = st.session_state.bpm
-                params.key_signature = st.session_state.key
-                
-                # Apply rule breaks
-                if rule_breaks.get("Non-Resolution"):
-                    params.rule_breaks.append(RuleBreakCode.STRUCTURE_NonResolution)
-                if rule_breaks.get("Modal Interchange"):
-                    params.rule_breaks.append(RuleBreakCode.HARMONY_ModalInterchange)
-                
-                # Generate structure
-                struct_gen = StructureGenerator()
-                structure = struct_gen.generate(params, state)
-                total_bars = sum(s.bars for s in structure)
-                
-                # Generate music
-                harmony = HarmonyEngine(params)
-                progression = harmony.generate_progression(total_bars, state.primary_emotion)
-                
-                melody_engine = MelodyEngine(params, harmony)
-                melody = melody_engine.generate(progression, total_bars)
-                
-                groove = GrooveEngine(params)
-                drums = groove.generate_drums(total_bars, groove_style)
-                
-                # Build MIDI
-                builder = MIDIBuilder(bpm=params.tempo_suggested)
-                builder.add_track("melody", melody)
-                builder.add_track("drums", drums)
-                
-                # Save
-                output_dir = Path.home() / "Music" / "iDAW_Output"
-                output_dir.mkdir(parents=True, exist_ok=True)
-                
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                midi_path = output_dir / f"iDAW_{timestamp}_{state.primary_emotion}.mid"
-                builder.save(midi_path)
-                
-                # ============================================
-                # INSTRUMENT LIBRARY INTEGRATION
-                # ============================================
-                instrument_selections = {}
-                if LIBRARY_INTEGRATION_AVAILABLE:
-                    try:
-                        integration = iDAWLibraryIntegration()
-                        integration.scan_libraries()
-                        
-                        # Select instruments based on emotion
-                        instrument_selections = integration.select_instruments(
-                            state.primary_emotion, 
-                            track_type="full"
-                        )
-                        
-                        # Export Logic Pro project files
-                        export_files = integration.export_for_logic(
-                            midi_path,
-                            instrument_selections,
-                            state.primary_emotion,
-                            params.tempo_suggested
-                        )
-                        
-                        st.session_state.export_files = export_files
-                        st.session_state.instrument_selections = {
-                            k: {
-                                "category": v.category.value,
-                                "source": v.source,
-                                "preset": v.preset_path,
-                                "samples": v.sample_paths[:5]
-                            }
-                            for k, v in instrument_selections.items()
-                        }
-                    except Exception as e:
-                        st.warning(f"Library integration: {e}")
-                
-                # Update session state
-                st.session_state.emotion = state.primary_emotion
-                st.session_state.generated = True
-                st.session_state.midi_path = str(midi_path)
-                st.session_state.tracks = [
-                    {
-                        "name": "Melody",
-                        "notes": len(melody),
-                        "sections": [{"name": s.name, "bars": s.bars} for s in structure],
-                        "instrument": instrument_selections.get("lead", {})
-                    },
-                    {
-                        "name": "Drums", 
-                        "notes": len(drums),
-                        "sections": [{"name": s.name, "bars": s.bars} for s in structure],
-                        "instrument": instrument_selections.get("drums", {})
-                    },
-                    {
-                        "name": "Pad",
-                        "notes": 0,
-                        "sections": [{"name": s.name, "bars": s.bars} for s in structure],
-                        "instrument": instrument_selections.get("pad", {})
-                    },
-                    {
-                        "name": "Bass",
-                        "notes": 0,
-                        "sections": [{"name": s.name, "bars": s.bars} for s in structure],
-                        "instrument": instrument_selections.get("bass", {})
-                    }
-                ]
-                st.session_state.structure = structure
-                st.session_state.params = params
-                
-                st.success(f"✓ Generated: {midi_path.name}")
-                st.rerun()
-        else:
-            st.error("Pipeline not available. Check imports.")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div style="background:#1a1a1a;padding:30px;text-align:center;color:#555;border-radius:5px">Generate to see tracks</div>', unsafe_allow_html=True)
+
 
 # ============================================================================
-# RIGHT - DETAIL / DEVICE VIEW
+# RIGHT - OUTPUT & DEVICES
 # ============================================================================
-with col_detail:
-    st.markdown('<div class="browser-header">EMOTIONAL STATE</div>', unsafe_allow_html=True)
-    
-    st.markdown(f"""
-    <div class="emotion-display">
-        <div class="emotion-primary">{st.session_state.emotion.upper()}</div>
-        <div class="emotion-secondary">Vulnerability: {vulnerability}/10</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="browser-header">PARAMETERS</div>', unsafe_allow_html=True)
-    
-    # Key selector
-    st.session_state.key = st.selectbox(
-        "Key",
-        ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"],
-        index=5,
-        key="key_select"
-    )
-    
-    # Knob-style parameters
-    humanize = st.slider("Humanize", 0.0, 0.5, 0.2, key="humanize")
-    dissonance = st.slider("Dissonance", 0.0, 1.0, 0.3, key="dissonance")
-    lofi = st.slider("Lo-Fi", 0.0, 0.6, 0.3, key="lofi")
-    
-    timing_feel = st.select_slider(
-        "Pocket",
-        ["ahead", "on", "behind"],
-        value="behind",
-        key="pocket"
-    )
-    
-    st.markdown('<div class="browser-header" style="margin-top:20px;">OUTPUT</div>', unsafe_allow_html=True)
+with col_right:
+    st.markdown('<div class="browser-header">📦 OUTPUT</div>', unsafe_allow_html=True)
     
     if st.session_state.generated and hasattr(st.session_state, 'midi_path'):
-        midi_path = Path(st.session_state.midi_path)
-        if midi_path.exists():
-            with open(midi_path, "rb") as f:
-                st.download_button(
-                    "📥 Download MIDI",
-                    f,
-                    file_name=midi_path.name,
-                    mime="audio/midi",
-                    use_container_width=True
-                )
-            st.caption(f"Saved: {midi_path.name}")
+        mp = Path(st.session_state.midi_path)
+        if mp.exists():
+            with open(mp, "rb") as f:
+                st.download_button("📥 MIDI", f, file_name=mp.name, mime="audio/midi", use_container_width=True)
+            st.caption(mp.name)
+    else:
+        st.markdown('<span style="color:#555">Generate first</span>', unsafe_allow_html=True)
     
-    # Structure display
+    st.markdown('<div class="browser-header" style="margin-top:15px">📐 STRUCTURE</div>', unsafe_allow_html=True)
+    
     if st.session_state.generated and hasattr(st.session_state, 'structure'):
-        st.markdown('<div class="browser-header" style="margin-top:20px;">STRUCTURE</div>', unsafe_allow_html=True)
-        for section in st.session_state.structure:
-            st.markdown(f'<span class="section-marker">{section.name.upper()}</span> {section.bars} bars', unsafe_allow_html=True)
+        for s in st.session_state.structure:
+            st.markdown(f'<span class="section-marker">{s.name.upper()}</span>', unsafe_allow_html=True)
     
-    # ============================================================================
-    # INSTRUMENT ASSIGNMENTS
-    # ============================================================================
-    if st.session_state.generated and hasattr(st.session_state, 'instrument_selections'):
-        st.markdown('<div class="browser-header" style="margin-top:20px;">🎹 INSTRUMENTS</div>', unsafe_allow_html=True)
-        
-        for track_name, info in st.session_state.instrument_selections.items():
-            source_icons = {
-                "logic_pro": "🍎",
-                "vital": "💎", 
-                "melda": "🔷",
-                "user_samples": "📁"
-            }
-            icon = source_icons.get(info.get("source", ""), "🎵")
-            
-            st.markdown(f"**{icon} {track_name.title()}**")
-            st.markdown(f"<small style='color:#888'>{info.get('category', 'unknown')}</small>", unsafe_allow_html=True)
-            
-            if info.get("preset"):
-                preset_name = Path(info["preset"]).stem[:20]
-                st.markdown(f"<small style='color:#ff9500'>→ {preset_name}</small>", unsafe_allow_html=True)
-            
-            if info.get("samples"):
-                st.markdown(f"<small style='color:#666'>{len(info['samples'])} samples</small>", unsafe_allow_html=True)
+    st.markdown('<div class="browser-header" style="margin-top:15px">🎛️ DEVICES</div>', unsafe_allow_html=True)
     
-    # Export files for Logic Pro
-    if st.session_state.generated and hasattr(st.session_state, 'export_files'):
-        st.markdown('<div class="browser-header" style="margin-top:20px;">📦 LOGIC PRO</div>', unsafe_allow_html=True)
-        
-        export_files = st.session_state.export_files
-        
-        if "project" in export_files:
-            project_path = export_files["project"]
-            if project_path.exists():
-                with open(project_path, "rb") as f:
-                    st.download_button(
-                        "📄 Project JSON",
-                        f,
-                        file_name=project_path.name,
-                        mime="application/json",
-                        use_container_width=True
-                    )
-        
-        if "readme" in export_files:
-            readme_path = export_files["readme"]
-            if readme_path.exists():
-                with open(readme_path, "rb") as f:
-                    st.download_button(
-                        "📝 Import Guide",
-                        f,
-                        file_name=readme_path.name,
-                        mime="text/markdown",
-                        use_container_width=True
-                    )
+    d1, d2 = st.columns(2)
+    with d1:
+        st.markdown(f'<div class="device-box"><div class="device-title">Humanize</div><div class="device-value">{st.session_state.humanize:.0%}</div></div>', unsafe_allow_html=True)
+    with d2:
+        st.markdown(f'<div class="device-box"><div class="device-title">Dissonance</div><div class="device-value">{st.session_state.dissonance:.0%}</div></div>', unsafe_allow_html=True)
+    
+    st.session_state.pocket = st.select_slider("Pocket", ["ahead", "on", "behind"], value=st.session_state.pocket, key="pock")
+    st.session_state.lofi = st.slider("Lo-Fi", 0.0, 0.6, st.session_state.lofi, key="lof")
 
-# ============================================================================
-# BOTTOM - DEVICE CHAIN
-# ============================================================================
-st.markdown("---")
-st.markdown("### 🎛️ Device Chain")
-
-device_cols = st.columns(5)
-
-with device_cols[0]:
-    st.markdown("""
-    <div class="device">
-        <div class="device-title">Interrogator</div>
-        <div class="knob-row">
-            <div class="knob">
-                <div class="knob-dial"></div>
-                <div class="knob-label">Depth</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with device_cols[1]:
-    st.markdown("""
-    <div class="device">
-        <div class="device-title">Harmony</div>
-        <div class="knob-row">
-            <div class="knob">
-                <div class="knob-dial"></div>
-                <div class="knob-label">Dissonance</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with device_cols[2]:
-    st.markdown("""
-    <div class="device">
-        <div class="device-title">Groove</div>
-        <div class="knob-row">
-            <div class="knob">
-                <div class="knob-dial"></div>
-                <div class="knob-label">Swing</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with device_cols[3]:
-    st.markdown("""
-    <div class="device">
-        <div class="device-title">Humanizer</div>
-        <div class="knob-row">
-            <div class="knob">
-                <div class="knob-dial"></div>
-                <div class="knob-label">Feel</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with device_cols[4]:
-    st.markdown("""
-    <div class="device">
-        <div class="device-title">Lo-Fi</div>
-        <div class="knob-row">
-            <div class="knob">
-                <div class="knob-dial"></div>
-                <div class="knob-label">Degrade</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # ============================================================================
 # FOOTER
 # ============================================================================
 st.markdown("---")
-st.markdown(f"""
-<div style="text-align: center; color: #555; font-size: 11px;">
-    iDAW v{VERSION} — intelligent Digital Audio Workspace<br>
-    <em>"Interrogate Before Generate"</em>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;color:#555;font-size:11px">iDAW v{VERSION} — "Interrogate Before Generate"</div>', unsafe_allow_html=True)
