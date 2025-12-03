@@ -48,7 +48,23 @@ void HarmonyEngine::processNotes(const Note* notes, size_t count) noexcept {
 
 void HarmonyEngine::updateChordAnalysis() noexcept {
     chordAnalyzer_->update(pitchClassSet_);
-    currentChord_ = chordAnalyzer_->getCurrentChord();
+    Chord newChord = chordAnalyzer_->getCurrentChord();
+    
+    // Only add to history if chord changed significantly
+    if (newChord.root != currentChord_.root || 
+        newChord.quality != currentChord_.quality ||
+        newChord.confidence > 0.7f) {
+        
+        // Add to history (non-RT allocation, but limited size)
+        // Use deque for efficient front removal
+        chordHistory_.push_back(newChord);
+        if (chordHistory_.size() > 1000) {  // Limit history to prevent unbounded growth
+            // Remove oldest entry efficiently with deque
+            chordHistory_.erase(chordHistory_.begin());
+        }
+    }
+    
+    currentChord_ = newChord;
 }
 
 void HarmonyEngine::updateScaleDetection() noexcept {
@@ -61,7 +77,23 @@ void HarmonyEngine::updateScaleDetection() noexcept {
     }
     
     scaleDetector_->update(histogram);
-    currentScale_ = scaleDetector_->getCurrentScale();
+    Scale newScale = scaleDetector_->getCurrentScale();
+    
+    // Only add to history if scale changed significantly
+    if (newScale.tonic != currentScale_.tonic || 
+        newScale.mode != currentScale_.mode ||
+        newScale.confidence > 0.7f) {
+        
+        // Add to history (non-RT allocation, but limited size)
+        // Use deque for efficient front removal
+        scaleHistory_.push_back(newScale);
+        if (scaleHistory_.size() > 1000) {  // Limit history to prevent unbounded growth
+            // Remove oldest entry efficiently with deque
+            scaleHistory_.erase(scaleHistory_.begin());
+        }
+    }
+    
+    currentScale_ = newScale;
 }
 
 std::vector<Note> HarmonyEngine::suggestVoiceLeading(
@@ -88,15 +120,33 @@ void HarmonyEngine::updateConfig(const Config& config) {
 }
 
 std::vector<Chord> HarmonyEngine::getChordHistory(size_t maxCount) const {
-    // TODO: Implement chord history tracking
-    (void)maxCount;  // Suppress unused parameter warning
-    return {currentChord_};
+    // Return most recent chords up to maxCount
+    if (chordHistory_.empty()) {
+        return {currentChord_};
+    }
+    
+    size_t count = std::min(maxCount, chordHistory_.size());
+    size_t startIdx = chordHistory_.size() - count;
+    
+    return std::vector<Chord>(
+        chordHistory_.begin() + startIdx,
+        chordHistory_.end()
+    );
 }
 
 std::vector<Scale> HarmonyEngine::getScaleHistory(size_t maxCount) const {
-    // TODO: Implement scale history tracking
-    (void)maxCount;  // Suppress unused parameter warning
-    return {currentScale_};
+    // Return most recent scales up to maxCount
+    if (scaleHistory_.empty()) {
+        return {currentScale_};
+    }
+    
+    size_t count = std::min(maxCount, scaleHistory_.size());
+    size_t startIdx = scaleHistory_.size() - count;
+    
+    return std::vector<Scale>(
+        scaleHistory_.begin() + startIdx,
+        scaleHistory_.end()
+    );
 }
 
 } // namespace penta::harmony

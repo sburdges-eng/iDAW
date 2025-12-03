@@ -304,8 +304,8 @@ void oscMessageReceived(const juce::OSCMessage& msg) override
 | UI (Streamlit) | Working | `app.py` |
 | Native Wrapper | Working | `launcher.py` |
 | PyInstaller Build | Working | `daiw.spec` |
-| Brain Server | TODO | `brain_server.py` |
-| JUCE Plugin | TODO | `cpp/DAiWBridge/` |
+| Brain Server | Implemented | `brain_server.py` |
+| JUCE Plugin | In Progress | `cpp/DAiWBridge/` |
 
 ## Orders
 

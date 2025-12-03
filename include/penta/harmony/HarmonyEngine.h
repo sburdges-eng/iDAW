@@ -75,6 +75,10 @@ private:
     
     std::array<uint8_t, 128> activeNotes_; // Note velocity (0 = off)
     std::array<bool, 12> pitchClassSet_;   // Current pitch classes
+    
+    // History tracking
+    std::vector<Chord> chordHistory_;
+    std::vector<Scale> scaleHistory_;
 };
 
 } // namespace penta::harmony
