@@ -1,325 +1,206 @@
-# Sample Library Automation System
-**Created:** 2025-11-25
-**For:** DAiW Music Brain + Lo-Fi Production Workflow
+# Music Brain
 
----
+A complete music production analysis toolkit for MIDI and audio.
 
-## What This Is
+## Features
 
-A complete automated system for:
-1. Downloading curated Freesound sample packs
-2. Organizing samples into a standard folder structure
-3. Building a searchable catalog
-4. Creating Logic Pro drum kits
+### Groove Analysis & Application
+- **Extract groove** from any MIDI file — timing offsets, swing, velocity curves
+- **13 pre-built genre pockets** — hip-hop, trap, R&B, funk, jazz, rock, metal, reggae, house, techno, lo-fi, gospel, country
+- **Per-instrument timing** — kick stays on grid, snare behind, hihat ahead
+- **Track-safe MIDI modification** — preserves structure, doesn't flatten
 
-Perfect for lo-fi bedroom emo/indie folk production (Kelly song aesthetic).
+### Structure Analysis
+- **Chord detection** — major, minor, 7th, extended chords
+- **Progression matching** — I-V-vi-IV, ii-V-I, 12-bar blues, etc.
+- **Section detection** — intro, verse, chorus, bridge, outro
+- **Pattern recognition** — find recurring progressions
 
----
+### Audio Analysis
+- **Transient drift** — timing looseness measurement
+- **RMS swing** — dynamic groove
+- **Frequency balance** — mix fingerprint by band
+- **Genre matching** — compare against 14 genre templates
+
+## Installation
+
+```bash
+# Basic (MIDI only)
+pip install mido
+
+# Full (with audio analysis)
+pip install mido librosa numpy soundfile
+
+# Install package
+cd music_brain
+pip install .
+```
 
 ## Quick Start
 
-### 1. Set up Freesound API
-```bash
-# Get free API key from: https://freesound.org/apiv2/apply/
-echo "YOUR_API_KEY_HERE" > ~/.freesound_api_key
-chmod 600 ~/.freesound_api_key
-```
-
-### 2. Download Sample Packs
-```bash
-cd ~/Music/Samples
-./freesound_downloader.py
-```
-
-Downloads 14 curated packs:
-- Acoustic drums (kicks, snares, hi-hats)
-- Brush drums
-- Room ambiences
-- Acoustic guitar (notes, harmonics, strums)
-- Bass (jazz, upright)
-- Vocal textures
-- Tape/vinyl FX
-- Forest ambience
-
-**Download time:** ~10-15 minutes
-**Total size:** ~2-3 GB
-
-### 3. Organize Samples
-```bash
-./organize_samples.py
-```
-
-Sorts all downloads into:
-```
-~/Music/Samples/
-├── Drums/
-│   ├── Kicks/
-│   ├── Snares/
-│   ├── HiHats/
-│   └── ...
-├── Bass/
-├── Guitars/
-├── Vocals/
-└── FX/
-```
-
-Renames files to standard format:
-```
-[BPM]_[Key]_[Type]_[Description]_[Number].wav
-```
-
-Example: `120_Dmin_Kick_Acoustic_01.wav`
-
-### 4. Build Searchable Catalog
-```bash
-./sample_cataloger.py
-```
-
-Creates `sample_catalog.json` with:
-- Full metadata for every sample
-- BPM, key, type, description
-- File paths and sizes
-- MD5 hashes (for deduplication)
-
-### 5. Build Your First Kit
-```bash
-./build_lofi_kit.py
-```
-
-Creates `LoFi_Bedroom_Kit_01` with:
-- GM-standard MIDI mapping (C1-C2)
-- Best quality samples auto-selected
-- Logic Pro setup guide
-- MPK mini 3 compatible
-
----
-
-## Searching Samples
+### Command Line
 
 ```bash
-# Find all kicks
-./search_samples.py --type Kick
+# === GROOVE ===
+# Extract groove from MIDI
+music-brain groove extract drums.mid --genre hiphop --save
 
-# Find samples at 120 BPM in D minor
-./search_samples.py --bpm 120 --key Dmin
+# Apply hip-hop pocket to your beat
+music-brain groove apply my_drums.mid hiphop --intensity 0.8
 
-# Find all drum samples
-./search_samples.py --category Drums
+# Basic humanization
+music-brain groove humanize quantized.mid --timing 10 --velocity 15
 
-# Find acoustic samples
-./search_samples.py --description Acoustic
+# List available genres
+music-brain groove genres
+
+# === STRUCTURE ===
+# Analyze chords
+music-brain structure analyze song.mid
+
+# Show progressions for a genre
+music-brain structure progressions jazz
+
+# Detect sections
+music-brain sections song.mid
+
+# === GENERATE ===
+# Generate a new song!
+music-brain new-song --genre hiphop --bpm 92 --key Am --title "Midnight Dreams"
+
+# === DAW ===
+# Create Logic Pro session setup
+music-brain daw setup hiphop "My New Track" --bpm 92 --script setup.scpt
+
+# Show track templates for a genre
+music-brain daw tracks rock
+
+# === INFO ===
+# Show MIDI info
+music-brain info song.mid
 ```
 
----
-
-## File Structure
-
-```
-~/Music/Samples/
-├── README.md                    # This file
-├── FREESOUND_PACK_LIST.md      # Curated pack list with URLs
-├── freesound_downloader.py     # Download automation
-├── organize_samples.py         # Sample organizer
-├── sample_cataloger.py         # Database builder
-├── build_lofi_kit.py          # Kit builder
-├── search_samples.py          # Search tool
-├── sample_catalog.json         # Generated database
-│
-├── Drums/
-│   ├── Kicks/
-│   ├── Snares/
-│   ├── HiHats/
-│   ├── Cymbals/
-│   ├── Toms/
-│   ├── Percussion/
-│   └── Loops/
-│
-├── Bass/{Synth,Acoustic,Loops}/
-├── Synths/{Pads,Leads,Keys,Arps}/
-├── Guitars/{Acoustic,Electric,Loops}/
-├── Vocals/{Phrases,Chops,FX}/
-├── FX/{Risers,Downlifters,Impacts,Atmosphere}/
-└── Loops/{Full,Stems}/
-```
-
----
-
-## Logic Pro Integration
-
-### Using the Generated Kit
-
-1. Open mapping guide:
-   ```bash
-   open ~/Music/Audio\ Music\ Apps/Sampler\ Instruments/LoFi_Bedroom_Kit_01_MAPPING.txt
-   ```
-
-2. In Logic Pro:
-   - Create Software Instrument track
-   - Load "Sampler" or "Quick Sampler"
-   - Drag samples onto MIDI notes (per mapping guide)
-   - Save as preset: "LoFi Bedroom Kit 01"
-
-3. Play with your MIDI keyboard!
-
-### MIDI Mapping (GM Standard)
-
-| MIDI Note | Note Name | Drum |
-|-----------|-----------|------|
-| 36 | C1 | Kick |
-| 38 | D1 | Snare |
-| 42 | F#1 | Hi-Hat Closed |
-| 46 | A#1 | Hi-Hat Open |
-| 49 | C#2 | Crash Cymbal |
-| 51 | D#2 | Ride Cymbal |
-| 41-48 | F1-C2 | Toms (low to high) |
-
----
-
-## Workflow Examples
-
-### For Kelly Song Production
-
-```bash
-# 1. Find acoustic guitar samples in D minor
-./search_samples.py --key Dmin --category Guitars
-
-# 2. Find room ambience for bedroom vibe
-./search_samples.py --description Room
-
-# 3. Find brush drums for intimate verses
-./search_samples.py --description Brush
-
-# 4. Build custom kit with these samples
-./build_lofi_kit.py
-```
-
-### For Hip-Hop Production
-
-```bash
-# Find 90 BPM drum loops
-./search_samples.py --bpm 90 --type Loop
-
-# Find bass hits
-./search_samples.py --type Bass
-
-# Find vinyl crackle FX
-./search_samples.py --description Vinyl
-```
-
----
-
-## Customization
-
-### Add More Packs
-
-Edit `freesound_downloader.py` and add to `PACK_LIST`:
+### Python API
 
 ```python
-"my_pack": {
-    "pack_id": 12345,
-    "name": "My Custom Pack",
-    "user": "username",
-},
+from music_brain import (
+    # Groove
+    extract_groove, apply_groove, GENRE_POCKETS,
+    # Structure
+    load_midi, analyze_chords, detect_sections,
+    # Generate
+    generate_song,
+    # DAW
+    create_logic_session
+)
+
+# === EXTRACT GROOVE ===
+template = extract_groove('drums.mid', genre='hiphop')
+print(f"Swing: {template.swing}")
+print(f"Push/pull: {template.push_pull}")
+
+# === APPLY GENRE POCKET ===
+apply_groove('my_drums.mid', 'output.mid', 'hiphop', intensity=0.8)
+
+# === ANALYZE STRUCTURE ===
+data = load_midi('song.mid')
+chords = analyze_chords(data.all_notes, ppq=data.ppq)
+sections = detect_sections(data)
+
+# === GENERATE A SONG ===
+structure, midi_path = generate_song(
+    genre='lofi',
+    bpm=75,
+    key=9,  # A
+    title='Rainy Night',
+    humanize=True
+)
+print(f"Generated: {midi_path}")
+print(f"Structure: {[s.name for s in structure.sections]}")
+
+# === DAW SETUP ===
+session = create_logic_session(
+    genre='hiphop',
+    name='My Beat',
+    bpm=92,
+    output_script='setup.scpt'
+)
+
+# === GET GENRE POCKET ===
+pocket = GENRE_POCKETS['jazz']
+print(f"Jazz swing: {pocket['swing']}")  # 0.66 (triplet)
 ```
 
-### Change Naming Convention
+## Genre Pockets
 
-Edit `organize_samples.py` function `sanitize_description()`:
+| Genre | Swing | Snare | Hihat | Feel |
+|-------|-------|-------|-------|------|
+| hiphop | 58% | +15 behind | -5 ahead | Laid-back pocket |
+| trap | 52% | +5 | 0 | Tight, hard |
+| rnb | 62% | +20 | +5 | Deep pocket |
+| funk | 54% | 0 grid | -5 ahead | Tight, driving |
+| jazz | 66% | +8 | +3 | Floating, loose |
+| rock | 50% | 0 | -3 | Straight, powerful |
+| metal | 50% | 0 | 0 | Machine-tight |
+| lofi | 62% | +20 | +10 | Lazy, behind |
 
-```python
-# Current format: [BPM]_[Key]_[Type]_[Description]_[Number].wav
-# Change to whatever you want
+## Architecture
+
+```
+music_brain/
+├── groove/
+│   ├── extractor.py      # Multi-bar histogram, swing detection
+│   ├── applicator.py     # Track-safe, beat-aware application
+│   ├── templates.py      # Storage, versioning, merging
+│   └── pocket_rules.py   # 13 genre pocket maps
+├── structure/
+│   ├── chord.py          # Chord detection
+│   ├── progression.py    # Pattern matching (30+ progressions)
+│   └── sections.py       # Section boundary detection
+├── session/
+│   └── generator.py      # Auto song generation
+├── daw/
+│   └── logic_pro.py      # Logic Pro AppleScript automation
+├── audio/
+│   └── feel.py           # Audio analysis (librosa)
+├── utils/
+│   ├── midi_io.py        # Track-safe MIDI I/O
+│   ├── ppq.py            # PPQ normalization & scaling
+│   └── instruments.py    # GM instrument classification
+└── cli.py                # Unified command line
 ```
 
-### Custom Kit Mappings
+## Key Technical Features
 
-Edit `build_lofi_kit.py` function `build_lofi_drum_kit()`:
+### Track-Safe MIDI Modification
+Unlike naive implementations that flatten all tracks into soup, Music Brain:
+- Preserves per-track event boundaries
+- Maintains controller curves, pitch bends, meta events
+- Rebuilds delta-time correctly after modification
+- Sorts by absolute time, then re-deltas
 
-```python
-drum_mapping = {
-    36: ("C1", "Kick", "Kick"),
-    # Add your own mappings
-}
-```
+### PPQ Normalization
+- Normalizes all input to 480 PPQ standard
+- Scales timing values when applying to different PPQ files
+- Templates are portable across DAWs and files
 
----
+### Beat-Position-Aware Application
+- Applies correct offset for each grid position
+- Doesn't randomly pick indices
+- Snare on beat 2 gets different treatment than hihat on beat 1
 
-## Troubleshooting
-
-### "API key not found"
-```bash
-# Create API key file
-echo "YOUR_KEY_HERE" > ~/.freesound_api_key
-chmod 600 ~/.freesound_api_key
-```
-
-### "No samples to organize"
-```bash
-# Run downloader first
-./freesound_downloader.py
-```
-
-### "Catalog not found"
-```bash
-# Build catalog first
-./sample_cataloger.py
-```
-
-### "No samples available to build kit"
-```bash
-# Complete the full workflow:
-./freesound_downloader.py
-./organize_samples.py
-./sample_cataloger.py
-./build_lofi_kit.py
-```
-
----
-
-## Tech Stack
-
-- **Python 3:** All automation scripts
-- **Freesound API:** Sample downloads
-- **JSON:** Database format
-- **Logic Pro:** Sampler/EXS24 integration
-
----
-
-## Next Steps
-
-1. ✅ Run `freesound_downloader.py` - Download packs
-2. ✅ Run `organize_samples.py` - Sort into folders
-3. ✅ Run `sample_cataloger.py` - Build database
-4. ✅ Run `build_lofi_kit.py` - Create first kit
-5. 🎹 Load kit in Logic Pro
-6. 🎵 Make music!
-
----
-
-## Integration with DAiW Music Brain
-
-The sample catalog JSON can be used by DAiW for:
-- Auto-suggesting samples based on song key/tempo
-- Building genre-specific kits
-- Sample-based groove templates
-- Audio-to-MIDI extraction workflows
-
-Future integration:
-```python
-from music_brain.audio import SampleLibrary
-
-lib = SampleLibrary("~/Music/Samples/sample_catalog.json")
-kicks = lib.find(type="Kick", key="Dmin", bpm=82)
-```
-
----
+### Real Swing Extraction
+- Actually measures on-beat to off-beat ratios
+- Doesn't hardcode 0.0
+- Detects triplet feel vs. straight vs. shuffle
 
 ## Credits
 
-**Sample Packs:** Freesound.org contributors
-**Scripts:** DAiW Music Brain project
-**Created:** 2025-11-25 for Kelly song production
+Built by merging the best ideas from multiple AI systems:
+- Claude: Genre pocket maps, per-instrument offsets, chord analysis
+- ChatGPT: Multi-bar histograms, template versioning, CLI structure
+- Final integration: This unified package
 
----
+## License
 
-*Happy sampling! 🎵*
+MIT
