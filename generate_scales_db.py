@@ -874,10 +874,6 @@ def generate_scale_variations():
         # Sample emotions from taxonomy
         emotion_sample = all_emotions[:min(10, len(all_emotions))]
 
-        # Create combinations using itertools.product for cleaner iteration
-        from itertools import product
-        for emotion, intensity in product(emotion_sample[:5], intensities):
-            if scale_id > max_scales:
         # 6 intensity levels
         intensities = ["subtle", "mild", "moderate", "strong", "intense", "overwhelming"]
         
@@ -890,6 +886,12 @@ def generate_scale_variations():
             "intense": 0.9,
             "overwhelming": 1.0
         }
+
+        # Create combinations using itertools.product for cleaner iteration
+        from itertools import product
+        for emotion, intensity in product(emotion_sample[:5], intensities):
+            if scale_id > max_scales:
+                break
 
         # Pre-compute iDAW category once per scale (doesn't change in inner loop)
         # Use set for O(1) lookup instead of repeated list scans
