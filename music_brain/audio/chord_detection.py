@@ -5,8 +5,11 @@ Uses chromagram analysis and chord template matching to identify chords
 in real-time or from recorded audio.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 from pathlib import Path
 import math
 
@@ -18,8 +21,13 @@ try:
     import numpy as np
     LIBROSA_AVAILABLE = True
 except ImportError:
+    librosa = None
+    np = None
     LIBROSA_AVAILABLE = False
     np = None  # type: ignore
+
+if TYPE_CHECKING:
+    import numpy as np
 
 from music_brain.structure.chord import Chord, ChordProgression
 

@@ -1,269 +1,299 @@
-# CLAUDE.md - AI Assistant Guide for DAiW-Music-Brain
+# CLAUDE.md - AI Assistant Guide for iDAW
 
-> This document provides AI assistants with essential context for working with the DAiW (Digital Audio intelligent Workstation) codebase.
+> Comprehensive guide for AI assistants working with the iDAW (Intelligent Digital Audio Workstation) monorepo.
 
 ## Project Philosophy
 
 **"Interrogate Before Generate"** - The tool shouldn't finish art for people. It should make them braver.
 
-This is a Python toolkit for music production intelligence. The core philosophy is that emotional/creative intent should drive technical decisions, not the other way around. The three-phase "Song Intent Schema" ensures artists explore what they *need* to say before choosing technical parameters.
+iDAW is a multi-component music production platform that combines:
+- Real-time C++ audio processing (JUCE-based)
+- Python-based music intelligence and AI-assisted composition
+- Multi-AI collaboration orchestration
+- Intent-driven creative workflows
 
 ---
 
-## Project Overview
+## Repository Architecture
 
-DAiW-Music-Brain is a CLI toolkit and Python library for:
-- **Groove extraction & application** - Extract timing/velocity patterns from MIDI, apply genre templates
-- **Chord & harmony analysis** - Roman numeral analysis, key detection, borrowed chord identification
-- **Intent-based song generation** - Three-phase deep interrogation system for emotionally-driven composition
-- **Intentional rule-breaking** - Structured approach to breaking music theory "rules" for emotional effect
-- **Interactive teaching** - Lessons on production philosophy and music theory concepts
+This is a **monorepo** containing four major subsystems:
+
+```
+iDAW/
+├── [Root Level]           # MCP Multi-AI Workstation
+├── DAiW-Music-Brain/      # Python Music Intelligence Toolkit
+├── iDAW_Core/             # JUCE Plugin Suite (C++)
+├── src_penta-core/        # Penta-Core Real-time Engines (C++)
+├── include/penta/         # Penta-Core Headers
+├── src/                   # Core C++ DSP/MIDI modules
+├── Python_Tools/          # Additional Python utilities
+├── vault/                 # Obsidian Knowledge Base
+└── tests*/                # Test suites
+```
 
 ---
 
-## Directory Structure
+## 1. MCP Multi-AI Workstation (Root Level)
 
+Orchestration system for multi-AI collaboration on iDAW development.
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `__init__.py` | Package exports, version 1.0.0 |
+| `cli.py` | CLI entry point for workstation commands |
+| `orchestrator.py` | Central coordinator (`Workstation` class) |
+| `models.py` | Data models (AIAgent, Proposal, Phase, etc.) |
+| `proposals.py` | Proposal management system |
+| `phases.py` | Phase tracking for iDAW development |
+| `cpp_planner.py` | C++ transition planning |
+| `ai_specializations.py` | AI agent capabilities and task assignment |
+| `server.py` | MCP server implementation |
+| `debug.py` | Debug protocol and logging |
+
+### CLI Commands
+```bash
+# From project root
+python -m cli status              # Show workstation dashboard
+python -m cli register claude     # Register as Claude
+python -m cli propose claude "Title" "Desc" architecture
+python -m cli vote claude PROP_ID 1
+python -m cli phases              # Show phase progress
+python -m cli cpp                 # Show C++ transition plan
+python -m cli ai                  # Show AI specializations
+python -m cli server              # Run MCP server
+```
+
+### AI Agents
+- `claude` - Code architecture, real-time safety, complex debugging
+- `chatgpt` - Theory analysis, explanations, documentation
+- `gemini` - Cross-language patterns, multi-modal analysis
+- `github_copilot` - Code completion, boilerplate generation
+
+---
+
+## 2. DAiW-Music-Brain (Python Toolkit)
+
+Music production intelligence library for groove extraction, chord analysis, and intent-based generation.
+
+### Directory Structure
 ```
 DAiW-Music-Brain/
-├── music_brain/              # Main Python package
-│   ├── __init__.py          # Package exports (v0.2.0)
-│   ├── cli.py               # CLI entry point (`daiw` command)
-│   ├── data/                # JSON/YAML data files
-│   │   ├── chord_progressions.json
-│   │   ├── genre_pocket_maps.json    # Genre timing characteristics
-│   │   ├── song_intent_examples.json
-│   │   └── song_intent_schema.yaml
-│   ├── groove/              # Groove extraction & application
-│   │   ├── extractor.py     # extract_groove(), GrooveTemplate
-│   │   ├── applicator.py    # apply_groove()
-│   │   └── templates.py     # Genre templates (funk, jazz, rock, etc.)
-│   ├── structure/           # Harmonic analysis
-│   │   ├── chord.py         # Chord, ChordProgression, analyze_chords()
-│   │   ├── progression.py   # diagnose_progression(), generate_reharmonizations()
-│   │   └── sections.py      # Section detection
-│   ├── session/             # Intent schema & teaching
-│   │   ├── intent_schema.py # CompleteSongIntent, rule-breaking enums
-│   │   ├── intent_processor.py # process_intent(), IntentProcessor
-│   │   ├── teaching.py      # RuleBreakingTeacher
-│   │   ├── interrogator.py  # SongInterrogator
-│   │   └── generator.py     # Generation utilities
-│   ├── audio/               # Audio feel analysis
-│   │   └── feel.py          # analyze_feel(), AudioFeatures
-│   ├── utils/               # Utilities
-│   │   ├── midi_io.py       # MIDI file handling
-│   │   ├── instruments.py   # Instrument mappings
-│   │   └── ppq.py           # PPQ normalization
-│   └── daw/                 # DAW integration
-│       └── logic.py         # Logic Pro integration
-├── vault/                   # Knowledge base (Obsidian-compatible)
-│   ├── Songwriting_Guides/
-│   │   ├── song_intent_schema.md     # Intent schema documentation
-│   │   ├── rule_breaking_practical.md
-│   │   └── rule_breaking_masterpieces.md
-│   ├── Templates/
-│   ├── Theory_Reference/
-│   ├── Production_Workflows/
-│   └── Data_Files/
-├── tests/                   # Test suite
-│   └── test_basic.py        # Pytest tests
-├── examples/                # Example files
-│   └── midi/                # Example MIDI files
-├── docs/                    # Documentation
-├── app.py                   # Streamlit UI application
-├── launcher.py              # Native desktop app launcher (pywebview)
-├── daiw.spec                # PyInstaller build configuration
-├── pyproject.toml           # Package configuration
-├── setup.py                 # Legacy setup
-└── requirements.txt         # Core dependencies
+├── music_brain/
+│   ├── __init__.py           # Public API (v0.2.0)
+│   ├── cli.py                # `daiw` CLI command
+│   ├── data/                 # JSON/YAML data files
+│   ├── groove/               # Groove extraction/application
+│   ├── structure/            # Chord/progression analysis
+│   ├── session/              # Intent schema, teaching, interrogation
+│   ├── audio/                # Audio feel analysis
+│   └── daw/                  # DAW integration (Logic Pro)
+├── tests/
+└── pyproject.toml
 ```
+
+### CLI Commands (`daiw`)
+```bash
+daiw extract drums.mid            # Extract groove from MIDI
+daiw apply --genre funk track.mid # Apply genre groove template
+daiw analyze --chords song.mid    # Analyze chord progression
+daiw diagnose "F-C-Am-Dm"         # Diagnose harmonic issues
+daiw intent new --title "My Song" # Create intent template
+daiw intent suggest grief         # Suggest rules to break
+daiw teach rulebreaking           # Interactive teaching mode
+```
+
+### Three-Phase Intent Schema
+1. **Phase 0: Core Wound/Desire** - `core_event`, `core_resistance`, `core_longing`
+2. **Phase 1: Emotional Intent** - `mood_primary`, `vulnerability_scale`, `narrative_arc`
+3. **Phase 2: Technical Constraints** - `technical_genre`, `technical_key`, `technical_rule_to_break`
+
+### Rule-Breaking Categories
+| Category | Examples | Effect |
+|----------|----------|--------|
+| Harmony | `HARMONY_AvoidTonicResolution` | Unresolved yearning |
+| Rhythm | `RHYTHM_ConstantDisplacement` | Anxiety, restlessness |
+| Arrangement | `ARRANGEMENT_BuriedVocals` | Dissociation |
+| Production | `PRODUCTION_PitchImperfection` | Emotional honesty |
 
 ---
 
-## Key Concepts
+## 3. Penta-Core (C++ Real-time Engines)
 
-### The Three-Phase Intent Schema
+High-performance, RT-safe audio analysis engines.
 
-1. **Phase 0: Core Wound/Desire** - Deep interrogation
-   - `core_event` - What happened?
-   - `core_resistance` - What holds you back from saying it?
-   - `core_longing` - What do you want to feel?
-   - `core_stakes` - What's at risk?
-   - `core_transformation` - How should you feel when done?
+### Components
+```
+include/penta/
+├── common/           # RTTypes, RTLogger, RTMemoryPool
+├── groove/           # GrooveEngine, OnsetDetector, TempoEstimator, RhythmQuantizer
+├── harmony/          # HarmonyEngine, ChordAnalyzer, ScaleDetector, VoiceLeading
+├── diagnostics/      # DiagnosticsEngine, AudioAnalyzer, PerformanceMonitor
+└── osc/              # OSCHub, OSCClient, OSCServer, RTMessageQueue
+```
 
-2. **Phase 1: Emotional Intent** - Validated by Phase 0
-   - `mood_primary` - Dominant emotion
-   - `mood_secondary_tension` - Internal conflict (0.0-1.0)
-   - `vulnerability_scale` - Low/Medium/High
-   - `narrative_arc` - Climb-to-Climax, Slow Reveal, Repetitive Despair, etc.
+### Key Classes
+- **GrooveEngine** - Combines onset detection, tempo estimation, rhythm quantization
+- **HarmonyEngine** - Chord analysis, scale detection, voice leading suggestions
+- **DiagnosticsEngine** - Audio analysis and performance monitoring
+- **OSCHub** - Real-time OSC communication for DAW integration
 
-3. **Phase 2: Technical Constraints** - Implementation
-   - `technical_genre`, `technical_key`, `technical_mode`
-   - `technical_rule_to_break` - Intentional rule violation
-   - `rule_breaking_justification` - WHY break this rule (required!)
+### RT-Safety Rules
+1. All `processAudio()` methods are marked `noexcept`
+2. No memory allocation in audio callbacks
+3. Use lock-free data structures for thread communication
+4. `kDefaultSampleRate = 44100.0`
 
-### Rule-Breaking Categories
+---
 
-Rules are broken **intentionally** based on emotional justification:
+## 4. iDAW_Core (JUCE Plugin Suite)
 
-| Category | Examples | Effect |
-|----------|----------|--------|
-| **Harmony** | `HARMONY_AvoidTonicResolution`, `HARMONY_ModalInterchange` | Unresolved yearning, bittersweet color |
-| **Rhythm** | `RHYTHM_ConstantDisplacement`, `RHYTHM_TempoFluctuation` | Anxiety, organic breathing |
-| **Arrangement** | `ARRANGEMENT_BuriedVocals`, `ARRANGEMENT_ExtremeDynamicRange` | Dissociation, dramatic impact |
-| **Production** | `PRODUCTION_PitchImperfection`, `PRODUCTION_ExcessiveMud` | Emotional honesty, claustrophobia |
+Art-themed audio plugins built on JUCE 8.
+
+### Plugins
+| Plugin | Description | Shader |
+|--------|-------------|--------|
+| **Pencil** | Sketching/drafting audio ideas | Graphite |
+| **Eraser** | Audio removal/cleanup | ChalkDust |
+| **Palette** | Tonal coloring/mixing | Watercolor |
+| **Smudge** | Audio blending/smoothing | Scrapbook |
+| **Press** | Dynamics/compression | Heartbeat |
+| **Trace** | Pattern following/automation | Spirograph |
+| **Parrot** | Sample playback/mimicry | Feather |
+
+### Dual-Heap Memory Architecture
+```
+Side A ("Work State"):
+  - std::pmr::monotonic_buffer_resource
+  - 4GB pre-allocated at startup
+  - NO deallocation during runtime
+  - Thread-safe for real-time audio
+
+Side B ("Dream State"):
+  - std::pmr::synchronized_pool_resource
+  - Dynamic allocation allowed
+  - Used for AI generation and UI
+  - May block - NEVER use from audio thread
+
+Communication: Lock-free ring buffer (Side B → Side A)
+```
+
+### PythonBridge
+- Embeds Python interpreter in Side B (non-audio thread)
+- `call_iMIDI()` - Pass knob state + text prompt, get MIDI buffer
+- "Ghost Hands" - AI-suggested knob movements
+- Fail-safe: Returns C Major chord on Python failure
+
+---
+
+## 5. Python Tools
+
+Additional utilities in `Python_Tools/`:
+```
+Python_Tools/
+├── audio/          # analyzer.py, audio_feel_extractor.py, audio_cataloger.py
+├── groove/         # groove_extractor.py, groove_applicator.py, generator.py
+├── structure/      # structure_extractor.py, structure_analyzer.py
+└── utils/          # ppq.py, instruments.py, orchestral.py
+```
 
 ---
 
 ## Development Setup
 
-### Installation
+### Python Installation
 ```bash
-# Clone and install as editable package
-git clone https://github.com/yourusername/DAiW-Music-Brain.git
-cd DAiW-Music-Brain
+# Core installation
 pip install -e .
 
 # With optional dependencies
 pip install -e ".[dev]"      # pytest, black, flake8, mypy
 pip install -e ".[audio]"    # librosa, soundfile
 pip install -e ".[theory]"   # music21
-pip install -e ".[ui]"       # streamlit (web UI only)
-pip install -e ".[desktop]"  # streamlit + pywebview (native app)
-pip install -e ".[build]"    # + pyinstaller (build executables)
+pip install -e ".[ui]"       # streamlit
+pip install -e ".[desktop]"  # streamlit + pywebview
+pip install -e ".[build]"    # + pyinstaller
 pip install -e ".[all]"      # Everything
 ```
 
-### Dependencies
-- **Core**: `mido>=1.2.10`, `numpy>=1.21.0`
-- **Dev**: `pytest>=7.0.0`, `black>=22.0.0`, `flake8>=4.0.0`, `mypy>=0.900`
-- **UI**: `streamlit>=1.28.0`
-- **Desktop**: `streamlit`, `pywebview>=4.0.0`
-- **Build**: `pyinstaller>=6.0.0`
-- **Optional**: `librosa`, `soundfile`, `music21`
+### C++ Build
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . -j
+ctest --output-on-failure
+```
 
-### Python Version
-- Requires Python 3.9+
-- Tested on 3.9, 3.10, 3.11, 3.12
+### Requirements
+- **Python**: 3.9+ (tested 3.9-3.13)
+- **C++**: C++17 standard
+- **CMake**: 3.22+
+- **JUCE**: 8.0.10
 
 ---
 
 ## Running Tests
 
+### Python Tests
 ```bash
-# Run all tests
-pytest tests/
+# Music Brain tests
+pytest tests_music-brain/ -v
 
-# Run with verbose output
-pytest tests/ -v
+# Penta-Core Python bindings tests
+pytest tests_penta-core/ -v
 
-# Run specific test class
-pytest tests/test_basic.py::TestImports -v
+# DAiW-Music-Brain internal tests
+pytest DAiW-Music-Brain/tests/ -v
+
+# All tests with coverage
+pytest --cov=music_brain tests/
 ```
 
-### Test Categories in `test_basic.py`
-- `TestImports` - Verify all modules can be imported
-- `TestGrooveTemplates` - Genre template functionality
-- `TestChordParsing` - Chord string parsing
-- `TestDiagnoseProgression` - Harmonic diagnosis
-- `TestTeachingModule` - Teaching/lesson functionality
-- `TestInterrogator` - Song interrogation system
-- `TestDataFiles` - Data file accessibility
+### C++ Tests
+```bash
+cd build
+ctest --output-on-failure
+
+# Run specific test suite
+./tests/test_harmony
+./tests/test_groove
+./tests/test_simd
+```
+
+### Test Categories
+- `test_harmony.cpp` - Chord analysis, scale detection
+- `test_groove.cpp` - Onset detection, tempo estimation
+- `test_simd.cpp` - SIMD optimizations
+- `test_memory.cpp` - Memory pool tests
 
 ---
 
-## CLI Usage
+## CI/CD Workflows
 
-The package installs a `daiw` command:
+### Main Workflows (`.github/workflows/`)
 
-```bash
-# Groove operations
-daiw extract drums.mid                    # Extract groove from MIDI
-daiw apply --genre funk track.mid         # Apply genre groove template
+| Workflow | Purpose |
+|----------|---------|
+| `ci.yml` | Python tests, desktop builds (macOS/Linux/Windows) |
+| `sprint_suite.yml` | Comprehensive sprint-based testing |
+| `platform_support.yml` | Cross-platform Python testing |
 
-# Chord analysis
-daiw analyze --chords song.mid            # Analyze chord progression
-daiw diagnose "F-C-Am-Dm"                 # Diagnose harmonic issues
-daiw reharm "F-C-Am-Dm" --style jazz      # Generate reharmonizations
-
-# Intent-based generation
-daiw intent new --title "My Song"         # Create intent template
-daiw intent process my_intent.json        # Generate from intent
-daiw intent suggest grief                 # Suggest rules to break
-daiw intent list                          # List all rule-breaking options
-daiw intent validate my_intent.json       # Validate intent file
-
-# Teaching
-daiw teach rulebreaking                   # Interactive teaching mode
-```
-
----
-
-## Desktop Application
-
-DAiW includes a native desktop application that provides a graphical interface without requiring a browser.
-
-### Running the UI
-
-```bash
-# Option 1: Streamlit in browser (development)
-streamlit run app.py
-
-# Option 2: Native window (requires pywebview)
-python launcher.py
-
-# Option 3: After building executable
-./dist/DAiW/DAiW        # Linux
-./dist/DAiW/DAiW.exe    # Windows
-open dist/DAiW.app      # macOS
-```
-
-### Building Standalone Executable
-
-```bash
-# Install build dependencies
-pip install -e ".[build]"
-
-# Build the application
-pyinstaller daiw.spec --clean --noconfirm
-
-# Output location
-# Linux/Windows: dist/DAiW/DAiW (or DAiW.exe)
-# macOS: dist/DAiW.app
-```
-
-### Desktop Architecture
-
-| File | Purpose |
-|------|---------|
-| `app.py` | Streamlit UI - the actual interface |
-| `launcher.py` | Native window wrapper using pywebview |
-| `daiw.spec` | PyInstaller configuration for building executables |
-
-The launcher:
-1. Finds a free port
-2. Starts Streamlit server in background
-3. Opens a native window (no browser chrome)
-4. Cleans up server when window closes
-
-### Troubleshooting Builds
-
-If the built app opens and immediately closes:
-1. Edit `daiw.spec`: change `console=False` to `console=True`
-2. Rebuild: `pyinstaller daiw.spec --clean --noconfirm`
-3. Run from terminal to see error messages
-4. Add missing modules to `hiddenimports` list in spec file
+### Sprint Suite Jobs
+1. **Sprint 1** - Core testing & quality
+2. **Sprint 2** - C++ build & integration
+3. **Sprint 3** - Documentation checks
+4. **Sprint 5** - Platform matrix (Linux/macOS/Windows × Python 3.9-3.13)
+5. **Sprint 6** - Advanced theory and AI
+6. **Sprint 7** - Mobile/Web (Streamlit)
+7. **Sprint 8** - Enterprise tests
 
 ---
 
 ## Code Style & Conventions
 
-### Formatting
-- **Line length**: 100 characters (configured in `pyproject.toml`)
-- **Formatter**: black
-- **Linter**: flake8, mypy
-
+### Python
 ```bash
-# Format code
+# Format
 black music_brain/ tests/
 
 # Type check
@@ -273,133 +303,132 @@ mypy music_brain/
 flake8 music_brain/ tests/
 ```
 
+- **Line length**: 100 characters
+- **Formatter**: black
+- **Type hints**: Required for public APIs
+
+### C++
+- **Standard**: C++17
+- **Naming**: PascalCase for classes, camelCase for methods, snake_case for variables
+- **RT-Safety**: Mark audio callbacks `noexcept`, no allocations
+- **Memory**: Use `std::pmr` containers where possible
+
 ### Code Patterns
 
-1. **Lazy imports in CLI** (`cli.py`)
-   - Heavy modules are imported lazily to speed up CLI startup
-   - Use `get_*_module()` functions for deferred imports
-
-2. **Data classes for structured data** (`intent_schema.py`)
-   - `CompleteSongIntent`, `SongRoot`, `SongIntent`, `TechnicalConstraints`
-   - Support serialization via `to_dict()` / `from_dict()` / `save()` / `load()`
-
-3. **Enums for categorical values**
-   - `HarmonyRuleBreak`, `RhythmRuleBreak`, `ArrangementRuleBreak`, `ProductionRuleBreak`
-   - `VulnerabilityScale`, `NarrativeArc`, `CoreStakes`, `GrooveFeel`
-
-4. **Module-level exports in `__init__.py`**
-   - Each subpackage exports its public API via `__all__`
+1. **Lazy imports** in Python CLI for fast startup
+2. **Data classes** with `to_dict()`/`from_dict()` serialization
+3. **Enums** for categorical values
+4. **Singleton** pattern for managers (MemoryManager, Workstation)
+5. **Lock-free ring buffers** for audio/UI communication
 
 ---
 
-## Key Files to Understand
+## Key Architecture Decisions
 
-### Entry Points
-- `music_brain/cli.py` - CLI implementation, all commands
-- `music_brain/__init__.py` - Public API exports
+### 1. Dual-Engine Design
+- **Side A (C++)**: Real-time audio, deterministic, lock-free
+- **Side B (Python)**: AI generation, dynamic, may block
 
-### Core Logic
-- `music_brain/session/intent_schema.py` - The heart of the intent system
-- `music_brain/session/intent_processor.py` - Converts intent to musical elements
-- `music_brain/groove/templates.py` - Genre groove definitions
-- `music_brain/structure/progression.py` - Chord parsing and diagnosis
+### 2. Intent-Driven Composition
+- Emotional intent drives technical choices
+- Phase 0 (why) must precede Phase 2 (how)
+- Rule-breaking requires explicit justification
 
-### Data Files
-- `music_brain/data/genre_pocket_maps.json` - Genre timing characteristics
-- `music_brain/data/song_intent_schema.yaml` - Schema definition
-- `music_brain/data/chord_progressions.json` - Common progressions
+### 3. Multi-AI Collaboration
+- Each AI has specializations and limitations
+- Proposal system with voting
+- Task assignment based on AI strengths
 
----
-
-## Working with This Codebase
-
-### When Adding Features
-1. Consider the "Interrogate Before Generate" philosophy
-2. Rule-breaking should always have emotional justification
-3. Add tests for new functionality in `tests/test_basic.py`
-4. Update `__all__` exports if adding public API
-5. Keep CLI startup fast (use lazy imports)
-
-### When Modifying Intent Schema
-1. Update both `intent_schema.py` and `song_intent_schema.yaml`
-2. Ensure `to_dict()` / `from_dict()` handle new fields
-3. Add validation in `validate_intent()`
-4. Update vault documentation in `vault/Songwriting_Guides/`
-
-### When Adding Rule-Breaking Options
-1. Add enum value in appropriate class (`HarmonyRuleBreak`, etc.)
-2. Add entry in `RULE_BREAKING_EFFECTS` dict
-3. Implement processor function in `intent_processor.py`
-4. Update CLI help text if needed
-
-### Data Flow
-```
-User Input → CompleteSongIntent → IntentProcessor → Generated Elements
-                                                    ├── GeneratedProgression
-                                                    ├── GeneratedGroove
-                                                    ├── GeneratedArrangement
-                                                    └── GeneratedProduction
-```
+### 4. RT-Safety
+- Audio thread never waits on UI/AI
+- Lock-free communication via ring buffers
+- Pre-allocated memory pools
 
 ---
 
-## Important Design Decisions
+## Common Development Tasks
 
-1. **Emotional intent drives technical choices** - Never generate without understanding the "why"
-
-2. **Rules are broken intentionally** - Every rule break requires justification
-
-3. **Human imperfection is valued** - Lo-fi, pitch drift, room noise are features, not bugs
-
-4. **Phase 0 must come first** - Technical decisions (Phase 2) can't be made without emotional clarity (Phase 0)
-
-5. **Teaching over finishing** - The tool should educate and empower, not just generate
-
----
-
-## Common Tasks
-
-### Creating a new groove genre template
-1. Add entry to `music_brain/data/genre_pocket_maps.json`
+### Adding a New Groove Genre
+1. Add entry to `DAiW-Music-Brain/music_brain/data/genre_pocket_maps.json`
 2. Add template in `music_brain/groove/templates.py`
-3. Add to CLI choices in `cli.py`
+3. Add to CLI choices in `music_brain/cli.py`
 
-### Adding a new teaching topic
-1. Add content in `music_brain/session/teaching.py`
-2. Add to `valid_topics` list in `cmd_teach()`
+### Adding a Rule-Breaking Option
+1. Add enum value in `music_brain/session/intent_schema.py`
+2. Add entry in `RULE_BREAKING_EFFECTS` dict
+3. Implement in `intent_processor.py`
 
-### Extending intent validation
-1. Add validation logic in `validate_intent()` in `intent_schema.py`
-2. Consider consistency checks between phases
+### Adding a Penta-Core Engine
+1. Create header in `include/penta/<subsystem>/`
+2. Implement in `src_penta-core/<subsystem>/`
+3. Add Python bindings in `bindings/`
+4. Add tests in `tests_penta-core/`
+
+### Adding an iDAW_Core Plugin
+1. Create plugin directory in `iDAW_Core/plugins/<Name>/`
+2. Add `include/<Name>Processor.h`, `src/<Name>Processor.cpp`
+3. Add shader files in `shaders/`
+4. Register in CMakeLists.txt
 
 ---
 
 ## Vault (Knowledge Base)
 
-The `vault/` directory is an Obsidian-compatible knowledge base containing:
-- **Songwriting_Guides/** - Intent schema docs, rule-breaking guides
-- **Theory_Reference/** - Music theory reference materials
-- **Production_Workflows/** - Production technique guides
-- **Templates/** - Task boards and templates
-- **Data_Files/** - Supporting data
+Obsidian-compatible markdown files in `vault/`:
+```
+vault/
+├── Production_Guides/     # Compression, EQ, Dynamics guides
+├── Songwriting_Guides/    # Intent schema, rule-breaking guides
+├── Songs/                 # Song-specific project files
+└── Templates/             # Task boards
+```
 
-These markdown files use Obsidian-style `[[wiki links]]` for cross-referencing.
+Uses `[[wiki links]]` for cross-referencing.
 
 ---
 
 ## Troubleshooting
 
-### Import errors
-- Ensure package is installed: `pip install -e .`
-- Check Python version: `python --version` (requires 3.9+)
+### Python Import Errors
+```bash
+pip install -e .
+python --version  # Requires 3.9+
+```
 
-### MIDI file issues
-- Verify mido is installed: `pip install mido`
-- Check file exists and is valid MIDI
+### C++ Build Failures
+```bash
+# Check CMake version
+cmake --version  # Requires 3.22+
 
-### Test failures
-- Run with verbose: `pytest -v`
-- Check data files exist in `music_brain/data/`
+# Check compiler
+g++ --version    # Requires C++17 support
+```
+
+### Audio Thread Issues
+- Verify no allocations in `processBlock()`
+- Check `isAudioThread()` assertions
+- Use `assertNotAudioThread()` before blocking operations
+
+### Test Failures
+```bash
+pytest -v --tb=long  # Verbose output with full tracebacks
+```
+
+---
+
+## Data Flow
+
+```
+User Intent → Intent Schema → Intent Processor → Musical Elements
+                                               ├── GeneratedProgression
+                                               ├── GeneratedGroove
+                                               └── GeneratedArrangement
+
+Text Prompt → PythonBridge → Ring Buffer → Audio Engine
+(Side B)                                    (Side A)
+
+AI Proposal → Voting → Approved → Task Assignment → Implementation
+```
 
 ---
 
@@ -407,4 +436,4 @@ These markdown files use Obsidian-style `[[wiki links]]` for cross-referencing.
 
 > "The audience doesn't hear 'borrowed from Dorian.' They hear 'that part made me cry.'"
 
-When working on this codebase, remember: the technical implementation serves the emotional expression, never the other way around.
+Technical implementation serves emotional expression. The tool educates and empowers - it doesn't just generate.
