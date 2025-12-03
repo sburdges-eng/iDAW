@@ -63,6 +63,20 @@ def get_intent_module():
             IntentProcessor, process_intent)
 
 
+def get_audio_module():
+    from music_brain.audio import (
+        analyze_feel, ChordDetector, analyze_frequency_bands,
+        analyze_reference, compare_frequency_profiles, suggest_eq_adjustments
+    )
+    return (analyze_feel, ChordDetector, analyze_frequency_bands,
+            analyze_reference, compare_frequency_profiles, suggest_eq_adjustments)
+
+
+def get_arrangement_module():
+    from music_brain.arrangement import generate_arrangement, ArrangementGenerator
+    return generate_arrangement, ArrangementGenerator
+
+
 def cmd_extract(args):
     """Extract groove from MIDI file."""
     extract_groove, _ = get_groove_module()
@@ -492,6 +506,261 @@ def cmd_intent(args):
     return 0
 
 
+def cmd_audio(args):
+    """Audio analysis commands."""
+    if args.subcommand == 'analyze':
+        return cmd_audio_analyze(args)
+    elif args.subcommand == 'detect-chords':
+        return cmd_audio_detect_chords(args)
+    elif args.subcommand == 'frequency':
+        return cmd_audio_frequency(args)
+    elif args.subcommand == 'reference':
+        return cmd_audio_reference(args)
+    else:
+        print("Error: Unknown audio subcommand")
+        return 1
+
+
+def cmd_audio_analyze(args):
+    """Analyze audio file feel characteristics."""
+    (analyze_feel, _, _, _, _, _) = get_audio_module()
+    
+    audio_path = Path(args.audio_file)
+    if not audio_path.exists():
+        print(f"Error: File not found: {audio_path}")
+        return 1
+    
+    print(f"Analyzing: {audio_path}")
+    try:
+        features = analyze_feel(str(audio_path))
+        
+        print(f"\nTempo: {features.tempo_bpm:.1f} BPM (confidence: {features.tempo_confidence:.2f})")
+        print(f"Duration: {features.duration_seconds:.1f}s")
+        print(f"Beats detected: {len(features.beat_positions)}")
+        print(f"\nEnergy:")
+        print(f"  RMS mean: {features.rms_mean:.4f}")
+        print(f"  Dynamic range: {features.dynamic_range_db:.1f} dB")
+        print(f"\nSpectral:")
+        print(f"  Brightness (centroid): {features.spectral_centroid_mean:.0f} Hz")
+        print(f"  Rolloff: {features.spectral_rolloff_mean:.0f} Hz")
+        print(f"\nFeel:")
+        print(f"  Swing estimate: {features.swing_estimate:.2f} (0=straight, 1=swung)")
+        print(f"  Groove regularity: {features.groove_regularity:.2f} (0=loose, 1=tight)")
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(features.to_dict(), f, indent=2)
+            print(f"\nFull analysis saved to: {args.output}")
+        
+        return 0
+    except Exception as e:
+        print(f"Error analyzing audio: {e}")
+        return 1
+
+
+def cmd_audio_detect_chords(args):
+    """Detect chords from audio file."""
+    (_, ChordDetector, _, _, _, _) = get_audio_module()
+    
+    audio_path = Path(args.audio_file)
+    if not audio_path.exists():
+        print(f"Error: File not found: {audio_path}")
+        return 1
+    
+    print(f"Detecting chords in: {audio_path}")
+    try:
+        detector = ChordDetector(
+            window_size=args.window_size,
+            min_confidence=args.min_confidence,
+        )
+        result = detector.detect_progression(str(audio_path))
+        
+        print(f"\nDetected {len(result.chords)} chords:")
+        print(f"Estimated key: {result.estimated_key or 'Unknown'}")
+        print(f"Chord sequence: {'-'.join(result.chord_sequence)}")
+        print(f"\nChord timeline:")
+        for chord in result.chords:
+            print(f"  {chord.start_time:.1f}s - {chord.end_time:.1f}s: "
+                  f"{chord.chord_name} (confidence: {chord.confidence:.2f})")
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(result.to_dict(), f, indent=2)
+            print(f"\nChord analysis saved to: {args.output}")
+        
+        return 0
+    except Exception as e:
+        print(f"Error detecting chords: {e}")
+        return 1
+
+
+def cmd_audio_frequency(args):
+    """Analyze 8-band frequency profile."""
+    (_, _, analyze_frequency_bands, _, _, _) = get_audio_module()
+    
+    audio_path = Path(args.audio_file)
+    if not audio_path.exists():
+        print(f"Error: File not found: {audio_path}")
+        return 1
+    
+    print(f"Analyzing frequency profile: {audio_path}")
+    try:
+        profile = analyze_frequency_bands(str(audio_path))
+        
+        print(f"\n8-Band Frequency Analysis:")
+        print(f"  Sub-bass (20-60Hz):    {profile.sub_bass:.2f}")
+        print(f"  Bass (60-250Hz):       {profile.bass:.2f}")
+        print(f"  Low-mids (250-500Hz):  {profile.low_mids:.2f}")
+        print(f"  Mids (500-2kHz):       {profile.mids:.2f}")
+        print(f"  Upper-mids (2-4kHz):   {profile.upper_mids:.2f}")
+        print(f"  Presence (4-6kHz):     {profile.presence:.2f}")
+        print(f"  Brilliance (6-12kHz):  {profile.brilliance:.2f}")
+        print(f"  Air (12-20kHz):        {profile.air:.2f}")
+        
+        print(f"\nCharacteristics:")
+        print(f"  Brightness: {profile.brightness:.2f}")
+        print(f"  Warmth: {profile.warmth:.2f}")
+        print(f"  Clarity: {profile.clarity:.2f}")
+        
+        print(f"\nProduction Notes:")
+        for note in profile.get_production_notes():
+            print(f"  - {note}")
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(profile.to_dict(), f, indent=2)
+            print(f"\nFrequency analysis saved to: {args.output}")
+        
+        return 0
+    except Exception as e:
+        print(f"Error analyzing frequency: {e}")
+        return 1
+
+
+def cmd_audio_reference(args):
+    """Analyze reference track DNA."""
+    (_, _, _, analyze_reference, _, _) = get_audio_module()
+    
+    audio_path = Path(args.audio_file)
+    if not audio_path.exists():
+        print(f"Error: File not found: {audio_path}")
+        return 1
+    
+    print(f"Analyzing reference track: {audio_path}")
+    try:
+        profile = analyze_reference(audio_path)
+        
+        if profile is None:
+            print("Error: Could not analyze reference track")
+            return 1
+        
+        print(f"\nReference DNA:")
+        print(f"  Tempo: {profile.tempo_bpm:.1f} BPM")
+        key_str = f"{profile.key_root} {profile.key_mode}" if profile.key_root else "Unknown"
+        print(f"  Key: {key_str}")
+        print(f"  Brightness: {profile.brightness:.2f} (0=dark, 1=bright)")
+        print(f"  Energy: {profile.energy:.2f} (0=calm, 1=intense)")
+        print(f"  Warmth: {profile.warmth:.2f} (0=thin, 1=warm)")
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump({
+                    "tempo_bpm": profile.tempo_bpm,
+                    "key_root": profile.key_root,
+                    "key_mode": profile.key_mode,
+                    "brightness": profile.brightness,
+                    "energy": profile.energy,
+                    "warmth": profile.warmth,
+                }, f, indent=2)
+            print(f"\nReference DNA saved to: {args.output}")
+        
+        return 0
+    except Exception as e:
+        print(f"Error analyzing reference: {e}")
+        return 1
+
+
+def cmd_arrange(args):
+    """Arrangement generation commands."""
+    if args.subcommand == 'generate':
+        return cmd_arrange_generate(args)
+    elif args.subcommand == 'templates':
+        return cmd_arrange_templates(args)
+    else:
+        print("Error: Unknown arrange subcommand")
+        return 1
+
+
+def cmd_arrange_generate(args):
+    """Generate song arrangement."""
+    generate_arrangement, ArrangementGenerator = get_arrangement_module()
+    
+    print(f"Generating {args.genre} arrangement...")
+    
+    # Parse chord progression if provided
+    chords = None
+    if args.chords:
+        chords = args.chords.split('-')
+    
+    try:
+        arrangement = generate_arrangement(
+            genre=args.genre,
+            emotion=args.emotion,
+            chords=chords,
+            intensity=args.intensity,
+        )
+        
+        print(f"\nGenerated Arrangement:")
+        print(f"  Genre: {arrangement.template.genre}")
+        print(f"  Tempo: {arrangement.template.tempo_bpm} BPM")
+        print(f"  Sections: {len(arrangement.template.sections)}")
+        print(f"  Total bars: {arrangement.template.total_bars}")
+        print(f"  Narrative arc: {arrangement.energy_arc.narrative_arc.value}")
+        
+        print(f"\nProduction Notes:")
+        for note in arrangement.get_production_notes():
+            print(f"  {note}")
+        
+        # Export if requested
+        if args.output:
+            generator = ArrangementGenerator()
+            
+            # Export arrangement markers
+            markers_path = args.output.replace('.mid', '_markers.mid')
+            generator.export_arrangement_markers(arrangement, markers_path)
+            print(f"\nArrangement markers exported to: {markers_path}")
+            
+            # Export bass track if requested
+            if args.bass:
+                bass_path = args.output.replace('.mid', '_bass.mid')
+                generator.export_bass_track(arrangement, bass_path)
+                print(f"Bass track exported to: {bass_path}")
+            
+            # Export arrangement data
+            json_path = args.output.replace('.mid', '.json')
+            with open(json_path, 'w') as f:
+                json.dump(arrangement.to_dict(), f, indent=2)
+            print(f"Arrangement data saved to: {json_path}")
+        
+        return 0
+    except Exception as e:
+        print(f"Error generating arrangement: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def cmd_arrange_templates(args):
+    """List available arrangement templates."""
+    from music_brain.arrangement.templates import list_available_genres
+    
+    genres = list_available_genres()
+    print("Available arrangement templates:")
+    for genre in genres:
+        print(f"  - {genre}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='daiw',
@@ -588,6 +857,53 @@ def main():
     intent_validate = intent_subparsers.add_parser('validate', help='Validate intent file')
     intent_validate.add_argument('file', help='Intent JSON file')
     
+    # Audio analysis commands
+    audio_parser = subparsers.add_parser('audio', help='Audio analysis tools')
+    audio_subparsers = audio_parser.add_subparsers(dest='subcommand', help='Audio commands')
+    
+    # audio analyze
+    audio_analyze = audio_subparsers.add_parser('analyze', help='Analyze audio feel and characteristics')
+    audio_analyze.add_argument('audio_file', help='Audio file (WAV, MP3, FLAC, etc.)')
+    audio_analyze.add_argument('-o', '--output', help='Save analysis to JSON file')
+    
+    # audio detect-chords
+    audio_chords = audio_subparsers.add_parser('detect-chords', help='Detect chord progression from audio')
+    audio_chords.add_argument('audio_file', help='Audio file')
+    audio_chords.add_argument('-o', '--output', help='Save chord analysis to JSON')
+    audio_chords.add_argument('-w', '--window-size', type=float, default=0.5,
+                              help='Chord detection window size in seconds (default: 0.5)')
+    audio_chords.add_argument('-c', '--min-confidence', type=float, default=0.3,
+                              help='Minimum confidence threshold (default: 0.3)')
+    
+    # audio frequency
+    audio_freq = audio_subparsers.add_parser('frequency', help='Analyze 8-band frequency profile')
+    audio_freq.add_argument('audio_file', help='Audio file')
+    audio_freq.add_argument('-o', '--output', help='Save frequency analysis to JSON')
+    
+    # audio reference
+    audio_ref = audio_subparsers.add_parser('reference', help='Extract reference track DNA')
+    audio_ref.add_argument('audio_file', help='Audio file')
+    audio_ref.add_argument('-o', '--output', help='Save reference DNA to JSON')
+    
+    # Arrangement commands
+    arrange_parser = subparsers.add_parser('arrange', help='Song arrangement generation')
+    arrange_subparsers = arrange_parser.add_subparsers(dest='subcommand', help='Arrangement commands')
+    
+    # arrange generate
+    arrange_gen = arrange_subparsers.add_parser('generate', help='Generate song arrangement')
+    arrange_gen.add_argument('-g', '--genre', default='pop',
+                             help='Genre (pop, rock, edm, lofi, indie)')
+    arrange_gen.add_argument('-e', '--emotion', default='neutral',
+                             help='Primary emotion for energy mapping')
+    arrange_gen.add_argument('-c', '--chords', help='Chord progression (e.g., "C-G-Am-F")')
+    arrange_gen.add_argument('-i', '--intensity', type=float, default=0.6,
+                             help='Base intensity level 0.0-1.0 (default: 0.6)')
+    arrange_gen.add_argument('-o', '--output', help='Output file base name (generates .json, _markers.mid)')
+    arrange_gen.add_argument('-b', '--bass', action='store_true', help='Also generate bass track')
+    
+    # arrange templates
+    arrange_subparsers.add_parser('templates', help='List available arrangement templates')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -603,6 +919,8 @@ def main():
         'reharm': cmd_reharm,
         'teach': cmd_teach,
         'intent': cmd_intent,
+        'audio': cmd_audio,
+        'arrange': cmd_arrange,
     }
     
     return commands[args.command](args)
