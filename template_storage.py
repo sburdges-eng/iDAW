@@ -20,7 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
-from functools import lru_cache
 
 from .genre_templates import GENRE_TEMPLATES, validate_template
 from ..utils.ppq import STANDARD_PPQ, scale_template

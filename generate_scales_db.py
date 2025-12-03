@@ -863,25 +863,23 @@ def generate_scale_variations():
         # Sample emotions from taxonomy
         emotion_sample = all_emotions[:min(10, len(all_emotions))]
 
-        # Create combinations - flattened to avoid nested breaks
-        for emotion in emotion_sample[:5]:  # 5 emotions per scale
+        # Create combinations using itertools.product for cleaner iteration
+        from itertools import product
+        for emotion, intensity in product(emotion_sample[:5], intensities):
             if scale_id > max_scales:
                 break
-            for intensity in intensities:  # 6 intensities
-                if scale_id > max_scales:
-                    break
-                    
-                variation = {
-                    **common_fields,
-                    "id": scale_id,
-                    "emotional_quality": base_emotional_qualities + [emotion],
-                    "intensity": intensity,
-                    "music_brain_emotion": emotion,
-                    "idaw_category": idaw_cat,
-                    "arousal_modifier": AROUSAL_MODIFIERS[intensity]
-                }
-                variations.append(variation)
-                scale_id += 1
+                
+            variation = {
+                **common_fields,
+                "id": scale_id,
+                "emotional_quality": base_emotional_qualities + [emotion],
+                "intensity": intensity,
+                "music_brain_emotion": emotion,
+                "idaw_category": idaw_cat,
+                "arousal_modifier": AROUSAL_MODIFIERS[intensity]
+            }
+            variations.append(variation)
+            scale_id += 1
 
     print(f"Generated {len(variations)} scale variations")
     return variations

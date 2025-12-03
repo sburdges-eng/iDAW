@@ -183,12 +183,13 @@ def test_harmony_voice_leading_bounds():
             # understanding the full API
             try:
                 result = voice_leading_tool(chords)
-                # If it returns something, that's good enough for this test
-                assert result is not None or result is None  # Either is fine
-            except Exception as e:
-                # Some error is acceptable if the function isn't available
-                # but IndexError would indicate a bounds problem
-                assert not isinstance(e, IndexError), f"IndexError in voice leading: {e}"
+                # If it returns something without crashing, test passes
+            except IndexError as e:
+                # IndexError would indicate a bounds problem in optimized code
+                raise AssertionError(f"IndexError in voice leading: {e}")
+            except Exception:
+                # Other exceptions are acceptable if the function isn't fully available
+                pass
                 
     except (ImportError, NameError):
         # Module or function not available - that's okay
