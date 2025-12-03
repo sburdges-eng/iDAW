@@ -34,13 +34,15 @@ class StdoutLogger:
 class FileLogger:
     def __init__(self, name):
         self.file = None
+        self.filename = None
         try:
-            name = os.path.abspath(name)
-            self.file = open(name, "a")
-        except:
+            self.filename = os.path.abspath(name)
+            self.file = open(self.filename, "a")
+        except Exception:
             try:
-                self.file = open("formatters.log", "a")
-            except:
+                self.filename = "formatters.log"
+                self.file = open(self.filename, "a")
+            except Exception:
                 pass
 
     def write(self, data):
@@ -57,6 +59,17 @@ class FileLogger:
         if self.file is not None:
             self.file.close()
             self.file = None
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+    
+    def __del__(self):
+        """Ensure file is closed when object is garbage collected"""
+        self.close()
 
 
 # to enable logging:

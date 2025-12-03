@@ -7,6 +7,7 @@ Features:
 - Rollback capability
 - Merge multiple templates
 - Thread-safe file operations
+- Metadata caching for performance
 
 This consolidates templates.py and template_storage.py.
 """
@@ -19,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
+from functools import lru_cache
 
 from .genre_templates import GENRE_TEMPLATES, validate_template
 from ..utils.ppq import STANDARD_PPQ, scale_template
@@ -180,6 +182,8 @@ class TemplateStore:
             base_dir = os.path.expanduser("~/.music_brain/templates")
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self._metadata_cache: Dict[str, tuple[float, Dict]] = {}  # genre -> (mtime, data)
+        self._template_cache: Dict[str, tuple[float, Dict]] = {}  # key -> (mtime, template)
     
     def _genre_dir(self, genre: str) -> Path:
         """Get or create genre directory."""
@@ -209,20 +213,38 @@ class TemplateStore:
         return max_ver + 1
     
     def _load_metadata(self, genre_dir: Path) -> Dict:
-        """Load or create metadata."""
+        """Load or create metadata with caching."""
         meta_file = genre_dir / "metadata.json"
+        genre_key = str(genre_dir)
+        
+        # Check cache
         if meta_file.exists():
+            mtime = meta_file.stat().st_mtime
+            if genre_key in self._metadata_cache:
+                cached_mtime, cached_data = self._metadata_cache[genre_key]
+                if cached_mtime == mtime:
+                    return cached_data
+            
+            # Load and cache
             with open(meta_file) as f:
-                return json.load(f)
+                data = json.load(f)
+            self._metadata_cache[genre_key] = (mtime, data)
+            return data
+        
         return {"versions": [], "current": None}
     
     def _save_metadata(self, genre_dir: Path, metadata: Dict):
-        """Save metadata with locking."""
+        """Save metadata with locking and invalidate cache."""
         meta_file = genre_dir / "metadata.json"
         with open(meta_file, "w") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             json.dump(metadata, f, indent=2)
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        
+        # Invalidate cache
+        genre_key = str(genre_dir)
+        if genre_key in self._metadata_cache:
+            del self._metadata_cache[genre_key]
     
     def save(
         self,
@@ -302,7 +324,7 @@ class TemplateStore:
         target_ppq: Optional[int] = None
     ) -> Dict[str, Any]:
         """
-        Load template, optionally at specific version.
+        Load template, optionally at specific version, with caching.
         
         Args:
             genre: Genre name
@@ -316,14 +338,30 @@ class TemplateStore:
             FileNotFoundError: If genre/version not found
         """
         genre_dir = self._genre_dir(genre)
+        cache_key = f"{genre}:{version}"
         
         if version is None:
             # Try latest symlink
             latest = genre_dir / "latest.json"
             if latest.exists():
-                with open(latest) as f:
-                    data = json.load(f)
-                template = data.get("template", data)
+                # Check cache
+                mtime = latest.stat().st_mtime
+                if cache_key in self._template_cache:
+                    cached_mtime, cached_template = self._template_cache[cache_key]
+                    if cached_mtime == mtime:
+                        template = cached_template.copy()
+                    else:
+                        # Load and cache
+                        with open(latest) as f:
+                            data = json.load(f)
+                        template = data.get("template", data)
+                        self._template_cache[cache_key] = (mtime, template.copy())
+                else:
+                    # Load and cache
+                    with open(latest) as f:
+                        data = json.load(f)
+                    template = data.get("template", data)
+                    self._template_cache[cache_key] = (mtime, template.copy())
             elif genre.lower() in GENRE_TEMPLATES:
                 # Fall back to built-in
                 template = GENRE_TEMPLATES[genre.lower()].copy()
