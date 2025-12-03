@@ -19,6 +19,9 @@ from music_brain.groove import extract_groove, apply_groove, GrooveTemplate
 from music_brain.structure import analyze_chords, detect_sections, ChordProgression
 from music_brain.audio import analyze_feel, AudioFeatures
 
+# Harmony generation
+from music_brain.harmony import HarmonyGenerator, HarmonyResult, generate_midi_from_harmony
+
 # New comprehensive engine exports
 from music_brain.structure.comprehensive_engine import (
     AffectAnalyzer,
@@ -43,6 +46,10 @@ __all__ = [
     # Audio
     "analyze_feel",
     "AudioFeatures",
+    # Harmony
+    "HarmonyGenerator",
+    "HarmonyResult",
+    "generate_midi_from_harmony",
     # Comprehensive Engine
     "AffectAnalyzer",
     "TherapySession",

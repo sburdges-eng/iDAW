@@ -74,13 +74,38 @@ daiw teach rulebreaking
 ```python
 from music_brain.groove import extract_groove, apply_groove
 from music_brain.structure import analyze_chords
+from music_brain.harmony import HarmonyGenerator, generate_midi_from_harmony
 from music_brain.session import (
     CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints,
     suggest_rule_break
 )
 from music_brain.session.intent_processor import process_intent
 
-# Create song intent
+# Generate harmony from intent
+from music_brain.data.emotional_mapping import EmotionalState, get_parameters_for_state
+
+# Create emotional state
+state = EmotionalState(
+    valence=-0.8,  # Very negative
+    arousal=0.3,   # Low energy
+    primary_emotion="grief"
+)
+
+# Get musical parameters
+params = get_parameters_for_state(state)
+
+# Generate harmony
+generator = HarmonyGenerator()
+harmony = generator.generate_basic_progression(
+    key="F",
+    mode="major", 
+    pattern="I-V-vi-IV"
+)
+
+# Export to MIDI
+generate_midi_from_harmony(harmony, "output.mid", tempo_bpm=82)
+
+# Or use intent-based generation
 intent = CompleteSongIntent(
     song_root=SongRoot(
         core_event="Finding someone I loved after they chose to leave",
@@ -156,6 +181,7 @@ print(result['harmony'].chords)  # ['F', 'C', 'Bbm', 'F']
 ```
 DAiW-Music-Brain/
 ├── music_brain/              # Python analysis package
+│   ├── harmony.py            # Harmony generation & MIDI output
 │   ├── groove/               # Groove extraction & application
 │   ├── structure/            # Chord, section, progression analysis
 │   ├── audio/                # Audio feel analysis
@@ -169,13 +195,32 @@ DAiW-Music-Brain/
 │   └── data/                 # JSON datasets
 │       ├── song_intent_schema.yaml
 │       ├── song_intent_examples.json
-│       └── genre_pocket_maps.json
+│       ├── genre_pocket_maps.json
+│       ├── emotional_mapping.py  # Emotion-to-music parameter mapping
+│       ├── chord_progression_families.json  # Progressions by genre
+│       ├── rule_breaking_database.json  # Masterpiece rule-breaks
+│       └── vernacular_database.json  # Casual language → technical
 │
 ├── vault/                    # Knowledge base (Obsidian-compatible)
-│   └── Songwriting_Guides/
-│       ├── song_intent_schema.md
-│       ├── rule_breaking_practical.md
-│       └── rule_breaking_masterpieces.md
+│   ├── Songwriting_Guides/
+│   │   ├── song_intent_schema.md
+│   │   ├── rule_breaking_practical.md
+│   │   └── rule_breaking_masterpieces.md
+│   └── Production_Guides/
+│       ├── Groove and Rhythm Guide.md
+│       ├── Drum Programming Guide.md
+│       ├── Bass Programming Guide.md
+│       ├── Guitar Programming Guide.md
+│       ├── Compression Deep Dive Guide.md
+│       ├── EQ Deep Dive Guide.md
+│       └── Dynamics and Arrangement Guide.md
+│
+├── docs_music-brain/         # Technical documentation
+│   ├── INTEGRATION_GUIDE.md
+│   ├── AUDIO_ANALYZER_TOOLS.md
+│   ├── AUTOMATION_GUIDE.md
+│   ├── Audio Feel Extractor.md
+│   └── music_vernacular_database.md  # Casual language reference
 │
 └── tests/                    # Test suite
 ```
