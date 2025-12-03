@@ -50,6 +50,8 @@ jobs:
   sprint5_platform:
     name: "Sprint 5 – Platform (${{ matrix.os }}, Python ${{ matrix.python-version }})"
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
