@@ -40,35 +40,34 @@ def init_database():
     """Initialize SQLite database with schema."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS audio_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filepath TEXT UNIQUE NOT NULL,
-            filename TEXT NOT NULL,
-            folder TEXT,
-            extension TEXT,
-            duration_seconds REAL,
-            sample_rate INTEGER,
-            channels INTEGER,
-            estimated_bpm REAL,
-            estimated_key TEXT,
-            file_size_bytes INTEGER,
-            date_scanned TEXT,
-            date_modified TEXT
-        )
-    ''')
-    
-    # Create indexes for common searches
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_filename ON audio_files(filename)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_key ON audio_files(estimated_key)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_bpm ON audio_files(estimated_bpm)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_folder ON audio_files(folder)')
-    
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audio_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filepath TEXT UNIQUE NOT NULL,
+                filename TEXT NOT NULL,
+                folder TEXT,
+                extension TEXT,
+                duration_seconds REAL,
+                sample_rate INTEGER,
+                channels INTEGER,
+                estimated_bpm REAL,
+                estimated_key TEXT,
+                file_size_bytes INTEGER,
+                date_scanned TEXT,
+                date_modified TEXT
+            )
+        ''')
+        
+        # Create indexes for common searches
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_filename ON audio_files(filename)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_key ON audio_files(estimated_key)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_bpm ON audio_files(estimated_bpm)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_folder ON audio_files(folder)')
+        
+        conn.commit()
     print(f"Database initialized at: {DB_PATH}")
 
 def get_connection():
@@ -189,76 +188,76 @@ def scan_folder(folder_path, recursive=True):
     print("-" * 50)
     
     init_database()
-    conn = get_connection()
-    cursor = conn.cursor()
     
-    # Find audio files
-    if recursive:
-        audio_files = [f for f in folder.rglob('*') if f.suffix.lower() in SUPPORTED_FORMATS]
-    else:
-        audio_files = [f for f in folder.glob('*') if f.suffix.lower() in SUPPORTED_FORMATS]
-    
-    print(f"Found {len(audio_files)} audio files")
-    print("-" * 50)
-    
-    scanned = 0
-    skipped = 0
-    errors = 0
-    
-    for i, filepath in enumerate(audio_files, 1):
-        try:
-            # Check if already in database with same modification time
-            stat = filepath.stat()
-            date_modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
-            
-            cursor.execute(
-                'SELECT date_modified FROM audio_files WHERE filepath = ?',
-                (str(filepath),)
-            )
-            existing = cursor.fetchone()
-            
-            if existing and existing[0] == date_modified:
-                skipped += 1
-                continue
-            
-            # Analyze file
-            print(f"[{i}/{len(audio_files)}] Analyzing: {filepath.name}")
-            analysis = analyze_audio_file(str(filepath))
-            
-            # Insert or update
-            cursor.execute('''
-                INSERT OR REPLACE INTO audio_files 
-                (filepath, filename, folder, extension, duration_seconds, sample_rate,
-                 channels, estimated_bpm, estimated_key, file_size_bytes, 
-                 date_scanned, date_modified)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                str(filepath),
-                filepath.name,
-                str(filepath.parent),
-                filepath.suffix.lower(),
-                analysis['duration_seconds'],
-                analysis['sample_rate'],
-                analysis['channels'],
-                analysis['estimated_bpm'],
-                analysis['estimated_key'],
-                stat.st_size,
-                datetime.now().isoformat(),
-                date_modified
-            ))
-            
-            scanned += 1
-            
-            # Commit periodically
-            if scanned % 10 == 0:
-                conn.commit()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        # Find audio files
+        if recursive:
+            audio_files = [f for f in folder.rglob('*') if f.suffix.lower() in SUPPORTED_FORMATS]
+        else:
+            audio_files = [f for f in folder.glob('*') if f.suffix.lower() in SUPPORTED_FORMATS]
+        
+        print(f"Found {len(audio_files)} audio files")
+        print("-" * 50)
+        
+        scanned = 0
+        skipped = 0
+        errors = 0
+        
+        for i, filepath in enumerate(audio_files, 1):
+            try:
+                # Check if already in database with same modification time
+                stat = filepath.stat()
+                date_modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
                 
-        except Exception as e:
-            print(f"  Error: {e}")
-            errors += 1
-    
-    conn.commit()
-    conn.close()
+                cursor.execute(
+                    'SELECT date_modified FROM audio_files WHERE filepath = ?',
+                    (str(filepath),)
+                )
+                existing = cursor.fetchone()
+                
+                if existing and existing[0] == date_modified:
+                    skipped += 1
+                    continue
+                
+                # Analyze file
+                print(f"[{i}/{len(audio_files)}] Analyzing: {filepath.name}")
+                analysis = analyze_audio_file(str(filepath))
+                
+                # Insert or update
+                cursor.execute('''
+                    INSERT OR REPLACE INTO audio_files 
+                    (filepath, filename, folder, extension, duration_seconds, sample_rate,
+                     channels, estimated_bpm, estimated_key, file_size_bytes, 
+                     date_scanned, date_modified)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    str(filepath),
+                    filepath.name,
+                    str(filepath.parent),
+                    filepath.suffix.lower(),
+                    analysis['duration_seconds'],
+                    analysis['sample_rate'],
+                    analysis['channels'],
+                    analysis['estimated_bpm'],
+                    analysis['estimated_key'],
+                    stat.st_size,
+                    datetime.now().isoformat(),
+                    date_modified
+                ))
+                
+                scanned += 1
+                
+                # Commit periodically
+                if scanned % 10 == 0:
+                    conn.commit()
+                    
+            except Exception as e:
+                print(f"  Error: {e}")
+                errors += 1
+        
+        conn.commit()
     
     print("-" * 50)
     print(f"Scanned: {scanned}")
@@ -272,40 +271,39 @@ def scan_folder(folder_path, recursive=True):
 
 def search_catalog(query=None, key=None, bpm_min=None, bpm_max=None, limit=50):
     """Search the audio catalog."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    conditions = []
-    params = []
-    
-    if query:
-        conditions.append("(filename LIKE ? OR folder LIKE ?)")
-        params.extend([f'%{query}%', f'%{query}%'])
-    
-    if key:
-        conditions.append("estimated_key LIKE ?")
-        params.append(f'%{key}%')
-    
-    if bpm_min is not None:
-        conditions.append("estimated_bpm >= ?")
-        params.append(bpm_min)
-    
-    if bpm_max is not None:
-        conditions.append("estimated_bpm <= ?")
-        params.append(bpm_max)
-    
-    where_clause = " AND ".join(conditions) if conditions else "1=1"
-    
-    cursor.execute(f'''
-        SELECT filename, folder, duration_seconds, estimated_bpm, estimated_key, filepath
-        FROM audio_files
-        WHERE {where_clause}
-        ORDER BY filename
-        LIMIT ?
-    ''', params + [limit])
-    
-    results = cursor.fetchall()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        conditions = []
+        params = []
+        
+        if query:
+            conditions.append("(filename LIKE ? OR folder LIKE ?)")
+            params.extend([f'%{query}%', f'%{query}%'])
+        
+        if key:
+            conditions.append("estimated_key LIKE ?")
+            params.append(f'%{key}%')
+        
+        if bpm_min is not None:
+            conditions.append("estimated_bpm >= ?")
+            params.append(bpm_min)
+        
+        if bpm_max is not None:
+            conditions.append("estimated_bpm <= ?")
+            params.append(bpm_max)
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        cursor.execute(f'''
+            SELECT filename, folder, duration_seconds, estimated_bpm, estimated_key, filepath
+            FROM audio_files
+            WHERE {where_clause}
+            ORDER BY filename
+            LIMIT ?
+        ''', params + [limit])
+        
+        results = cursor.fetchall()
     
     return results
 
@@ -349,25 +347,23 @@ def export_results(results, output_path):
 
 def show_stats():
     """Show catalog statistics."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT COUNT(*) FROM audio_files')
-    total = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT COUNT(DISTINCT folder) FROM audio_files')
-    folders = cursor.fetchone()[0]
-    
-    cursor.execute('SELECT SUM(file_size_bytes) FROM audio_files')
-    total_size = cursor.fetchone()[0] or 0
-    
-    cursor.execute('SELECT estimated_key, COUNT(*) FROM audio_files WHERE estimated_key IS NOT NULL GROUP BY estimated_key ORDER BY COUNT(*) DESC LIMIT 5')
-    top_keys = cursor.fetchall()
-    
-    cursor.execute('SELECT AVG(estimated_bpm) FROM audio_files WHERE estimated_bpm IS NOT NULL')
-    avg_bpm = cursor.fetchone()[0]
-    
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM audio_files')
+        total = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(DISTINCT folder) FROM audio_files')
+        folders = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT SUM(file_size_bytes) FROM audio_files')
+        total_size = cursor.fetchone()[0] or 0
+        
+        cursor.execute('SELECT estimated_key, COUNT(*) FROM audio_files WHERE estimated_key IS NOT NULL GROUP BY estimated_key ORDER BY COUNT(*) DESC LIMIT 5')
+        top_keys = cursor.fetchall()
+        
+        cursor.execute('SELECT AVG(estimated_bpm) FROM audio_files WHERE estimated_bpm IS NOT NULL')
+        avg_bpm = cursor.fetchone()[0]
     
     print("\n📊 Audio Catalog Statistics\n")
     print(f"Total files: {total:,}")
@@ -384,18 +380,17 @@ def show_stats():
 
 def list_all(limit=100):
     """List all cataloged files."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT filename, folder, duration_seconds, estimated_bpm, estimated_key, filepath
-        FROM audio_files
-        ORDER BY folder, filename
-        LIMIT ?
-    ''', (limit,))
-    
-    results = cursor.fetchall()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT filename, folder, duration_seconds, estimated_bpm, estimated_key, filepath
+            FROM audio_files
+            ORDER BY folder, filename
+            LIMIT ?
+        ''', (limit,))
+        
+        results = cursor.fetchall()
     
     print_search_results(results)
 

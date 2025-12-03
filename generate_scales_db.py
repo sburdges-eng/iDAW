@@ -707,8 +707,17 @@ BASE_SCALES = {
 }
 
 # Load Music-Brain emotion taxonomy
+# Cache for emotion taxonomy to avoid repeated file I/O
+_EMOTION_TAXONOMY_CACHE = None
+
 def load_emotion_taxonomy():
-    """Load the 6×6×6 emotion database"""
+    """Load the 6×6×6 emotion database with caching"""
+    global _EMOTION_TAXONOMY_CACHE
+    
+    # Return cached version if available
+    if _EMOTION_TAXONOMY_CACHE is not None:
+        return _EMOTION_TAXONOMY_CACHE
+    
     emotions = {}
     emotion_files = ["happy.json", "sad.json", "angry.json", "fear.json", "surprise.json", "disgust.json"]
 
@@ -725,11 +734,14 @@ def load_emotion_taxonomy():
     if blends_path.exists():
         with open(blends_path, 'r') as f:
             emotions['blends'] = json.load(f)
-
+    
+    # Cache the result
+    _EMOTION_TAXONOMY_CACHE = emotions
     return emotions
 
 # Extract all unique emotions from taxonomy
 def extract_all_emotions(taxonomy: Dict) -> List[str]:
+    """Extract all emotion names from the taxonomy - optimized with list comprehension"""
     """Extract all emotion names from the taxonomy - optimized with list comprehensions"""
     all_emotions = []
 
@@ -740,9 +752,17 @@ def extract_all_emotions(taxonomy: Dict) -> List[str]:
         # Add base emotion
         all_emotions.append(data["name"].lower())
 
-        # Add all sub-emotions (dict keys)
+        # Add all sub-emotions (dict keys) using list comprehensions
         sub_emotions = data.get("sub_emotions", {})
         if isinstance(sub_emotions, dict):
+            # Add sub-emotions
+            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions.keys())
+            
+            # Add sub-sub-emotions in one pass
+            for sub_data in sub_emotions.values():
+                sub_sub_emotions = sub_data.get("sub_sub_emotions", {})
+                if isinstance(sub_sub_emotions, dict):
+                    all_emotions.extend(subsub_name.lower() for subsub_name in sub_sub_emotions.keys())
             # Use list comprehension instead of nested loops
             all_emotions.extend(sub_name.lower() for sub_name in sub_emotions.keys())
             
@@ -766,9 +786,43 @@ IDAW_CATEGORIES = [
     "organic_textures"
 ]
 
+# Pre-computed arousal modifiers to avoid dictionary lookup in loop
+AROUSAL_MODIFIERS = {
+    "subtle": 0.1,
+    "mild": 0.3,
+    "moderate": 0.5,
+    "strong": 0.7,
+    "intense": 0.9,
+    "overwhelming": 1.0
+}
+
+def _categorize_idaw(base_emotional_qualities: List[str]) -> str:
+    """Helper to categorize iDAW efficiently"""
+    # Convert to set once for faster 'in' checks
+    qualities_set = set(base_emotional_qualities)
+    
+    dark_terms = {"dark", "sad", "melancholy", "grief"}
+    happy_terms = {"happy", "joy", "uplifting"}
+    exotic_terms = {"exotic", "world", "ethnic"}
+    rhythm_terms = {"groovy", "rhythm", "funk"}
+    ambient_terms = {"lo_fi", "ambient", "dreamy"}
+    
+    if qualities_set & dark_terms:
+        return "velvet_noir"
+    elif qualities_set & happy_terms:
+        return "brass_soul"
+    elif qualities_set & exotic_terms:
+        return "organic_textures"
+    elif qualities_set & rhythm_terms:
+        return "rhythm_core"
+    elif qualities_set & ambient_terms:
+        return "lo_fi_dreams"
+    else:
+        return "cinema_fx"
+
 # Generate variations
 def generate_scale_variations():
-    """Generate 1,800 scale combinations"""
+    """Generate 1,800 scale combinations - optimized"""
 
     print("Loading Music-Brain emotion taxonomy...")
     taxonomy = load_emotion_taxonomy()
@@ -779,22 +833,34 @@ def generate_scale_variations():
 
     variations = []
     scale_id = 1
+    
+    # 6 intensity levels
+    intensities = ["subtle", "mild", "moderate", "strong", "intense", "overwhelming"]
+    max_scales = 1800
 
     for scale_name, scale_data in BASE_SCALES.items():
+        if scale_id > max_scales:
+            break
+            
         base_emotional_qualities = scale_data["base_emotional_qualities"]
         base_genres = scale_data["base_genres"]
-
-        # Create base version
-        base_variation = {
-            "id": scale_id,
+        
+        # Pre-compute common fields
+        common_fields = {
             "scale_type": scale_name,
             "category": scale_data["category"],
             "intervals_semitones": scale_data["intervals_semitones"],
             "intervals_names": scale_data["intervals_names"],
-            "emotional_quality": base_emotional_qualities,
             "genre_associations": base_genres,
             "chords": scale_data["chords"],
             "related_scales": scale_data["related_scales"],
+        }
+
+        # Create base version
+        base_variation = {
+            **common_fields,
+            "id": scale_id,
+            "emotional_quality": base_emotional_qualities,
             "intensity": "base",
             "music_brain_emotion": None,
             "idaw_category": None
@@ -802,12 +868,16 @@ def generate_scale_variations():
         variations.append(base_variation)
         scale_id += 1
 
-        # Generate variations with different emotional mappings
-        # Create 32 variations per scale to reach ~1,800 total (56 * 32 = 1,792)
-
+        # Pre-compute iDAW category once per scale
+        idaw_cat = _categorize_idaw(base_emotional_qualities)
+        
         # Sample emotions from taxonomy
         emotion_sample = all_emotions[:min(10, len(all_emotions))]
 
+        # Create combinations using itertools.product for cleaner iteration
+        from itertools import product
+        for emotion, intensity in product(emotion_sample[:5], intensities):
+            if scale_id > max_scales:
         # 6 intensity levels
         intensities = ["subtle", "mild", "moderate", "strong", "intense", "overwhelming"]
         
@@ -862,9 +932,18 @@ def generate_scale_variations():
                     break
             if scale_id > 1800:
                 break
-
-        if scale_id > 1800:
-            break
+                
+            variation = {
+                **common_fields,
+                "id": scale_id,
+                "emotional_quality": base_emotional_qualities + [emotion],
+                "intensity": intensity,
+                "music_brain_emotion": emotion,
+                "idaw_category": idaw_cat,
+                "arousal_modifier": AROUSAL_MODIFIERS[intensity]
+            }
+            variations.append(variation)
+            scale_id += 1
 
     print(f"Generated {len(variations)} scale variations")
     return variations

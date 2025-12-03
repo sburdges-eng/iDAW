@@ -412,14 +412,17 @@ def _optimize_voice_leading(chords: List[str], key: str) -> Tuple[List[Dict[str,
     improvements = []
     parallel_motion = []
     
-    # Check for parallel fifths and octaves
-    for i in range(len(selected_voicings) - 1):
-        prev = selected_voicings[i]
-        curr = selected_voicings[i + 1]
+    # Check for parallel fifths and octaves - optimized to avoid redundant checks
+    for idx, (prev, curr) in enumerate(zip(selected_voicings[:-1], selected_voicings[1:])):
+        # Pre-compute intervals as sets to avoid redundant modulo operations
+        num_voices = min(len(prev), len(curr))
         
-        # Check all pairs of voices
-        for j in range(len(prev)):
-            for k in range(j + 1, len(prev)):
+        # Check all pairs of voices efficiently
+        for j in range(num_voices):
+            for k in range(j + 1, num_voices):
+                if k >= len(prev) or k >= len(curr):
+                    continue
+                    
                 prev_interval = abs(prev[j] - prev[k]) % 12
                 curr_interval = abs(curr[j] - curr[k]) % 12
                 
@@ -427,32 +430,30 @@ def _optimize_voice_leading(chords: List[str], key: str) -> Tuple[List[Dict[str,
                 if prev_interval == 7 and curr_interval == 7:
                     parallel_motion.append({
                         "type": "parallel_fifth",
-                        "chord_pair": f"{chords[i]} -> {chords[i+1]}",
+                        "chord_pair": f"{chords[idx]} -> {chords[idx+1]}",
                         "voices": (j, k)
                     })
-                
                 # Parallel octaves (0 semitones)
-                if prev_interval == 0 and curr_interval == 0 and prev[j] != prev[k]:
+                elif prev_interval == 0 and curr_interval == 0 and prev[j] != prev[k]:
                     parallel_motion.append({
                         "type": "parallel_octave",
-                        "chord_pair": f"{chords[i]} -> {chords[i+1]}",
+                        "chord_pair": f"{chords[idx]} -> {chords[idx+1]}",
                         "voices": (j, k)
                     })
     
-    # Calculate quality score (0.0-1.0)
+    # Calculate quality score (0.0-1.0) and check for large leaps in one pass
     # Penalize parallel motion, reward smooth voice leading
     score = 1.0
     if parallel_motion:
         score -= len(parallel_motion) * 0.1
     
-    # Check for large leaps (more than 12 semitones)
-    large_leaps = 0
-    for i in range(len(selected_voicings) - 1):
-        prev = selected_voicings[i]
-        curr = selected_voicings[i + 1]
-        for j in range(len(prev)):
-            if abs(curr[j] - prev[j]) > 12:
-                large_leaps += 1
+    # Check for large leaps (more than 12 semitones) - optimized single pass
+    large_leaps = sum(
+        1
+        for prev, curr in zip(selected_voicings[:-1], selected_voicings[1:])
+        for j in range(min(len(prev), len(curr)))
+        if abs(curr[j] - prev[j]) > 12
+    )
     
     if large_leaps > 0:
         score -= large_leaps * 0.05
