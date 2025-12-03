@@ -16,24 +16,34 @@ iDAW is a multi-component music production platform that combines:
 
 ## Repository Architecture
 
-This is a **monorepo** containing four major subsystems:
+This is a **monorepo** containing multiple subsystems:
 
 ```
 iDAW/
-├── [Root Level]           # MCP Multi-AI Workstation
-├── DAiW-Music-Brain/      # Python Music Intelligence Toolkit
-├── iDAW_Core/             # JUCE Plugin Suite (C++)
-├── src_penta-core/        # Penta-Core Real-time Engines (C++)
-├── include/penta/         # Penta-Core Headers
-├── src/                   # Core C++ DSP/MIDI modules
-├── Python_Tools/          # Additional Python utilities
-├── vault/                 # Obsidian Knowledge Base
-└── tests*/                # Test suites
+├── [Root Level Python]        # Core Python modules (analyzers, engines, tools)
+├── mcp_workstation/           # MCP Multi-AI Workstation (orchestration)
+├── mcp_todo/                  # MCP TODO Server (cross-AI task management)
+├── penta_core_music-brain/    # MCP Swarm Server (multi-AI aggregation)
+├── DAiW-Music-Brain/          # Python Music Intelligence Toolkit
+├── iDAW_Core/                 # JUCE Plugin Suite (C++)
+├── src_penta-core/            # Penta-Core C++ Engines (implementation)
+├── include/penta/             # Penta-Core C++ Headers
+├── python/penta_core/         # Python bindings for Penta-Core
+├── tests/                     # C++ unit tests
+├── tests_music-brain/         # Python integration tests
+├── tests_penta-core/          # Penta-Core C++ tests
+├── examples_music-brain/      # Example scripts and MIDI files
+├── external/                  # External library stubs (oscpack, readerwriterqueue)
+├── Data_Files/                # JSON data (progressions, genres, fingerprints)
+├── vault/                     # Obsidian Knowledge Base
+├── Production_Workflows/      # Production workflow guides
+├── Songwriting_Guides/        # Songwriting methodology guides
+└── Theory_Reference/          # Music theory reference materials
 ```
 
 ---
 
-## 1. MCP Multi-AI Workstation (Root Level)
+## 1. MCP Multi-AI Workstation (`mcp_workstation/`)
 
 Orchestration system for multi-AI collaboration on iDAW development.
 
@@ -54,14 +64,14 @@ Orchestration system for multi-AI collaboration on iDAW development.
 ### CLI Commands
 ```bash
 # From project root
-python -m cli status              # Show workstation dashboard
-python -m cli register claude     # Register as Claude
-python -m cli propose claude "Title" "Desc" architecture
-python -m cli vote claude PROP_ID 1
-python -m cli phases              # Show phase progress
-python -m cli cpp                 # Show C++ transition plan
-python -m cli ai                  # Show AI specializations
-python -m cli server              # Run MCP server
+python -m mcp_workstation status              # Show workstation dashboard
+python -m mcp_workstation register claude     # Register as Claude
+python -m mcp_workstation propose claude "Title" "Desc" architecture
+python -m mcp_workstation vote claude PROP_ID 1
+python -m mcp_workstation phases              # Show phase progress
+python -m mcp_workstation cpp                 # Show C++ transition plan
+python -m mcp_workstation ai                  # Show AI specializations
+python -m mcp_workstation server              # Run MCP server
 ```
 
 ### AI Agents
@@ -72,7 +82,47 @@ python -m cli server              # Run MCP server
 
 ---
 
-## 2. DAiW-Music-Brain (Python Toolkit)
+## 2. MCP TODO Server (`mcp_todo/`)
+
+Cross-AI task management server. Tasks created in one AI are instantly available in all others.
+
+### Supported AI Assistants
+- Claude (Desktop & Code), Cursor, VSCode + Copilot (MCP stdio)
+- ChatGPT (HTTP/OpenAPI), Gemini (Function Calling), OpenAI API
+
+### Key Features
+- **Cross-AI Sync**: Tasks created in Claude appear in ChatGPT, Cursor, etc.
+- **Rich Task Model**: Priority, tags, projects, due dates, notes, subtasks
+- **File-based Storage**: JSON storage at `~/.mcp_todo/todos.json`
+- **CLI Tool**: `python -m mcp_todo.cli`
+- **HTTP API**: `python -m mcp_todo.http_server`
+
+### CLI Commands
+```bash
+python -m mcp_todo.cli add "Task" --priority high --tags "code,urgent"
+python -m mcp_todo.cli list --status pending
+python -m mcp_todo.cli complete <id>
+python -m mcp_todo.cli summary
+```
+
+---
+
+## 3. Penta-Core MCP Swarm (`penta_core_music-brain/`)
+
+An MCP server that aggregates the top 5 AI platforms into a single "Swarm" toolset.
+
+### AI Tools
+| Tool | Backend | Purpose |
+|------|---------|---------|
+| `consult_architect` | OpenAI GPT-4o | High-level logic and design patterns |
+| `consult_developer` | Anthropic Claude 3.5 Sonnet | Clean code and refactoring |
+| `consult_researcher` | Google Gemini 1.5 Pro | Deep context analysis |
+| `consult_maverick` | xAI Grok Beta | Creative problem-solving and red teaming |
+| `fetch_repo_context` | GitHub API | Repository context fetching |
+
+---
+
+## 4. DAiW-Music-Brain (Python Toolkit)
 
 Music production intelligence library for groove extraction, chord analysis, and intent-based generation.
 
@@ -87,7 +137,8 @@ DAiW-Music-Brain/
 │   ├── structure/            # Chord/progression analysis
 │   ├── session/              # Intent schema, teaching, interrogation
 │   ├── audio/                # Audio feel analysis
-│   └── daw/                  # DAW integration (Logic Pro)
+│   ├── daw/                  # DAW integration (Logic Pro)
+│   └── utils/                # Utility functions
 ├── tests/
 └── pyproject.toml
 ```
@@ -118,25 +169,34 @@ daiw teach rulebreaking           # Interactive teaching mode
 
 ---
 
-## 3. Penta-Core (C++ Real-time Engines)
+## 5. Penta-Core (C++ Real-time Engines)
 
 High-performance, RT-safe audio analysis engines.
 
-### Components
+### C++ Headers (`include/penta/`)
 ```
 include/penta/
-├── common/           # RTTypes, RTLogger, RTMemoryPool
+├── common/           # RTTypes, RTLogger, RTMemoryPool, SIMDKernels
 ├── groove/           # GrooveEngine, OnsetDetector, TempoEstimator, RhythmQuantizer
 ├── harmony/          # HarmonyEngine, ChordAnalyzer, ScaleDetector, VoiceLeading
 ├── diagnostics/      # DiagnosticsEngine, AudioAnalyzer, PerformanceMonitor
-└── osc/              # OSCHub, OSCClient, OSCServer, RTMessageQueue
+└── osc/              # OSCHub, OSCClient, OSCServer, OSCMessage, RTMessageQueue
 ```
 
-### Key Classes
-- **GrooveEngine** - Combines onset detection, tempo estimation, rhythm quantization
-- **HarmonyEngine** - Chord analysis, scale detection, voice leading suggestions
-- **DiagnosticsEngine** - Audio analysis and performance monitoring
-- **OSCHub** - Real-time OSC communication for DAW integration
+### C++ Implementation (`src_penta-core/`)
+- Static library: `penta_core`
+- Dependencies: `oscpack`, `readerwriterqueue` (lock-free queue)
+- SIMD optimizations: AVX2 when available (`ChordAnalyzerSIMD.cpp`)
+
+### Python Bindings (`python/penta_core/`)
+```python
+from penta_core import PentaCore, HarmonyEngine, GrooveEngine, DiagnosticsEngine, OSCHub
+
+# Integrated workflow
+core = PentaCore(sample_rate=48000.0)
+core.process(audio_buffer, midi_notes=[(60, 100), (64, 100)])
+state = core.get_state()  # chord, scale, groove, diagnostics
+```
 
 ### RT-Safety Rules
 1. All `processAudio()` methods are marked `noexcept`
@@ -144,9 +204,26 @@ include/penta/
 3. Use lock-free data structures for thread communication
 4. `kDefaultSampleRate = 44100.0`
 
+### Rules System (`python/penta_core/rules/`)
+| Module | Purpose |
+|--------|---------|
+| `base.py` | Base rule classes and interfaces |
+| `harmony_rules.py` | Harmony and chord progression rules |
+| `counterpoint_rules.py` | Voice leading and counterpoint rules |
+| `rhythm_rules.py` | Rhythm and timing rules |
+| `voice_leading.py` | Voice leading analysis |
+| `species.py` | Species counterpoint rules |
+| `emotion.py` | Emotional expression rules |
+
+### Teachers (`python/penta_core/teachers/`)
+- `rule_breaking_teacher.py` - Interactive rule-breaking instruction
+- `voice_leading_rules.py` - Voice leading teaching
+- `counterpoint_rules.py` - Counterpoint teaching
+- `rule_reference.py` - Rule reference documentation
+
 ---
 
-## 4. iDAW_Core (JUCE Plugin Suite)
+## 6. iDAW_Core (JUCE Plugin Suite)
 
 Art-themed audio plugins built on JUCE 8.
 
@@ -186,16 +263,16 @@ Communication: Lock-free ring buffer (Side B → Side A)
 
 ---
 
-## 5. Python Tools
+## 7. Data Files
 
-Additional utilities in `Python_Tools/`:
-```
-Python_Tools/
-├── audio/          # analyzer.py, audio_feel_extractor.py, audio_cataloger.py
-├── groove/         # groove_extractor.py, groove_applicator.py, generator.py
-├── structure/      # structure_extractor.py, structure_analyzer.py
-└── utils/          # ppq.py, instruments.py, orchestral.py
-```
+### Location: `Data_Files/`
+| File | Purpose |
+|------|---------|
+| `chord_progression_families.json` | Chord progression family definitions |
+| `chord_progressions_db.json` | Database of common progressions |
+| `common_progressions.json` | Frequently used progressions |
+| `genre_mix_fingerprints.json` | Genre mixing characteristics |
+| `genre_pocket_maps.json` | Genre-specific groove pocket maps |
 
 ---
 
@@ -219,9 +296,10 @@ pip install -e ".[all]"      # Everything
 ### C++ Build
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j
-ctest --output-on-failure
+cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
+ninja penta_core           # Build the library
+ninja penta_tests          # Build tests
+ctest --output-on-failure  # Run tests
 ```
 
 ### Requirements
@@ -239,14 +317,11 @@ ctest --output-on-failure
 # Music Brain tests
 pytest tests_music-brain/ -v
 
-# Penta-Core Python bindings tests
-pytest tests_penta-core/ -v
-
 # DAiW-Music-Brain internal tests
 pytest DAiW-Music-Brain/tests/ -v
 
 # All tests with coverage
-pytest --cov=music_brain tests/
+pytest tests_music-brain/ -v --cov=music_brain --cov-report=term-missing
 ```
 
 ### C++ Tests
@@ -255,16 +330,18 @@ cd build
 ctest --output-on-failure
 
 # Run specific test suite
-./tests/test_harmony
-./tests/test_groove
-./tests/test_simd
+./penta_tests --gtest_filter="*Harmony*"
+./penta_tests --gtest_filter="*Groove*"
+./penta_tests --gtest_filter="*Performance*"
 ```
 
-### Test Categories
-- `test_harmony.cpp` - Chord analysis, scale detection
-- `test_groove.cpp` - Onset detection, tempo estimation
-- `test_simd.cpp` - SIMD optimizations
-- `test_memory.cpp` - Memory pool tests
+### Test Files
+| Location | Tests |
+|----------|-------|
+| `tests/` | C++ unit tests (groove, harmony, simd, memory) |
+| `tests_music-brain/` | Python integration tests |
+| `tests_penta-core/` | Penta-Core C++ tests (performance, OSC, etc.) |
+| `DAiW-Music-Brain/tests/` | Music Brain internal tests |
 
 ---
 
@@ -274,15 +351,23 @@ ctest --output-on-failure
 
 | Workflow | Purpose |
 |----------|---------|
-| `ci.yml` | Python tests, desktop builds (macOS/Linux/Windows) |
+| `ci.yml` | Python tests, C++ builds, memory testing (Valgrind), performance regression |
 | `sprint_suite.yml` | Comprehensive sprint-based testing |
-| `platform_support.yml` | Cross-platform Python testing |
+| `platform_support.yml` | Cross-platform Python testing (3.9-3.13, Linux/macOS/Windows) |
+| `release.yml` | Build desktop apps (macOS/Linux/Windows), Python dist, C++ libraries |
+
+### CI Jobs
+1. **Python Tests** - pytest with coverage (Python 3.9, 3.11)
+2. **C++ Build** - CMake/Ninja on Ubuntu and macOS
+3. **Memory Testing** - Valgrind for leak detection
+4. **Performance Testing** - Benchmark regression checks (<200ms latency target)
+5. **Desktop Builds** - PyInstaller for macOS/Linux/Windows
 
 ### Sprint Suite Jobs
 1. **Sprint 1** - Core testing & quality
 2. **Sprint 2** - C++ build & integration
 3. **Sprint 3** - Documentation checks
-4. **Sprint 5** - Platform matrix (Linux/macOS/Windows × Python 3.9-3.13)
+4. **Sprint 5** - Platform matrix (Linux/macOS/Windows x Python 3.9-3.13)
 5. **Sprint 6** - Advanced theory and AI
 6. **Sprint 7** - Mobile/Web (Streamlit)
 7. **Sprint 8** - Enterprise tests
@@ -306,12 +391,14 @@ flake8 music_brain/ tests/
 - **Line length**: 100 characters
 - **Formatter**: black
 - **Type hints**: Required for public APIs
+- **Python version**: Target 3.9+
 
 ### C++
 - **Standard**: C++17
 - **Naming**: PascalCase for classes, camelCase for methods, snake_case for variables
 - **RT-Safety**: Mark audio callbacks `noexcept`, no allocations
 - **Memory**: Use `std::pmr` containers where possible
+- **SIMD**: Use AVX2 optimizations with scalar fallback
 
 ### Code Patterns
 
@@ -344,12 +431,17 @@ flake8 music_brain/ tests/
 - Lock-free communication via ring buffers
 - Pre-allocated memory pools
 
+### 5. MCP Protocol
+- Standard protocol for AI tool integration
+- Multiple MCP servers for different purposes
+- Cross-AI task synchronization
+
 ---
 
 ## Common Development Tasks
 
 ### Adding a New Groove Genre
-1. Add entry to `DAiW-Music-Brain/music_brain/data/genre_pocket_maps.json`
+1. Add entry to `Data_Files/genre_pocket_maps.json`
 2. Add template in `music_brain/groove/templates.py`
 3. Add to CLI choices in `music_brain/cli.py`
 
@@ -361,14 +453,21 @@ flake8 music_brain/ tests/
 ### Adding a Penta-Core Engine
 1. Create header in `include/penta/<subsystem>/`
 2. Implement in `src_penta-core/<subsystem>/`
-3. Add Python bindings in `bindings/`
-4. Add tests in `tests_penta-core/`
+3. Update `src_penta-core/CMakeLists.txt`
+4. Add Python bindings in `python/penta_core/`
+5. Add tests in `tests_penta-core/`
 
 ### Adding an iDAW_Core Plugin
 1. Create plugin directory in `iDAW_Core/plugins/<Name>/`
 2. Add `include/<Name>Processor.h`, `src/<Name>Processor.cpp`
 3. Add shader files in `shaders/`
 4. Register in CMakeLists.txt
+
+### Adding a Music Theory Rule
+1. Create rule class in `python/penta_core/rules/`
+2. Add to appropriate rules module (harmony, rhythm, etc.)
+3. Add teacher support in `python/penta_core/teachers/`
+4. Add tests
 
 ---
 
@@ -377,11 +476,14 @@ flake8 music_brain/ tests/
 Obsidian-compatible markdown files in `vault/`:
 ```
 vault/
-├── Production_Guides/     # Compression, EQ, Dynamics guides
 ├── Songwriting_Guides/    # Intent schema, rule-breaking guides
-├── Songs/                 # Song-specific project files
-└── Templates/             # Task boards
+└── Songs/                 # Song-specific project files
 ```
+
+Additional guides:
+- `Production_Workflows/` - Production workflow documentation
+- `Songwriting_Guides/` - Songwriting methodology
+- `Theory_Reference/` - Music theory reference
 
 Uses `[[wiki links]]` for cross-referencing.
 
@@ -402,6 +504,9 @@ cmake --version  # Requires 3.22+
 
 # Check compiler
 g++ --version    # Requires C++17 support
+
+# Check for AVX2 support (optional)
+grep avx2 /proc/cpuinfo
 ```
 
 ### Audio Thread Issues
@@ -414,20 +519,31 @@ g++ --version    # Requires C++17 support
 pytest -v --tb=long  # Verbose output with full tracebacks
 ```
 
+### MCP Server Issues
+```bash
+# Test MCP TODO server
+python -m mcp_todo.server --help
+
+# Test Workstation server
+python -m mcp_workstation.server --help
+```
+
 ---
 
 ## Data Flow
 
 ```
-User Intent → Intent Schema → Intent Processor → Musical Elements
-                                               ├── GeneratedProgression
-                                               ├── GeneratedGroove
-                                               └── GeneratedArrangement
+User Intent --> Intent Schema --> Intent Processor --> Musical Elements
+                                                    |-> GeneratedProgression
+                                                    |-> GeneratedGroove
+                                                    `-> GeneratedArrangement
 
-Text Prompt → PythonBridge → Ring Buffer → Audio Engine
-(Side B)                                    (Side A)
+Text Prompt --> PythonBridge --> Ring Buffer --> Audio Engine
+(Side B)                                         (Side A)
 
-AI Proposal → Voting → Approved → Task Assignment → Implementation
+AI Proposal --> Voting --> Approved --> Task Assignment --> Implementation
+
+MCP TODO: Claude <--> JSON Storage <--> ChatGPT/Cursor/Gemini
 ```
 
 ---
