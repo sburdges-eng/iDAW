@@ -376,9 +376,10 @@ def render_plan_to_midi(plan: HarmonyPlan, output_path: str, include_guide_tones
     current_bar = 0
     total_bars = plan.length_bars
 
-    # Handle empty progression gracefully
+    # Handle empty progression gracefully  
     if not parsed_chords:
-        # No chords to render, return early
+        # No chords to render, skip note generation
+        # Still create project and export (empty MIDI file)
         pass
     else:
         while current_bar < total_bars:
@@ -412,15 +413,28 @@ def render_plan_to_midi(plan: HarmonyPlan, output_path: str, include_guide_tones
                     )
                     
                     # Add guide tones (3rd and 7th) if requested and available
-                    if include_guide_tones and len(intervals) >= 3 and i in [1, 3]:  # 3rd and 7th
-                        guide_tone_events.append(
-                            NoteEvent(
-                                pitch=root_midi + interval + 12,  # Octave up
-                                velocity=60,  # Softer
-                                start_tick=start_tick,
-                                duration_ticks=duration_ticks,
+                    # Guide tones are typically the 3rd (interval ~3-4 semitones) and 7th (interval ~10-11 semitones)
+                    if include_guide_tones and len(intervals) >= 3:
+                        # Identify 3rd: interval between 3-5 semitones
+                        if 3 <= interval <= 5:
+                            guide_tone_events.append(
+                                NoteEvent(
+                                    pitch=root_midi + interval + 12,  # Octave up
+                                    velocity=60,  # Softer
+                                    start_tick=start_tick,
+                                    duration_ticks=duration_ticks,
+                                )
                             )
-                        )
+                        # Identify 7th: interval between 10-11 semitones
+                        elif 10 <= interval <= 11:
+                            guide_tone_events.append(
+                                NoteEvent(
+                                    pitch=root_midi + interval + 12,  # Octave up
+                                    velocity=60,  # Softer
+                                    start_tick=start_tick,
+                                    duration_ticks=duration_ticks,
+                                )
+                            )
 
                 start_tick += duration_ticks
                 current_bar += 1
