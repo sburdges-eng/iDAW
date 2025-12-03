@@ -36,13 +36,47 @@ void GrooveEngine::processAudio(const float* buffer, size_t frames) noexcept {
 }
 
 uint64_t GrooveEngine::quantizeToGrid(uint64_t timestamp) const noexcept {
-    // Stub implementation
-    return timestamp;
+    if (!quantizer_ || !config_.enableQuantization || analysis_.currentTempo <= 0.0f) {
+        return timestamp;
+    }
+
+    // Calculate samples per beat based on current tempo
+    uint64_t samplesPerBeat = static_cast<uint64_t>(
+        (60.0 * config_.sampleRate) / analysis_.currentTempo
+    );
+
+    if (samplesPerBeat == 0) {
+        return timestamp;
+    }
+
+    // Calculate bar start position (assume 4 beats per bar for now)
+    uint64_t samplesPerBar = samplesPerBeat * analysis_.timeSignatureNum;
+    uint64_t barStartPosition = (timestamp / samplesPerBar) * samplesPerBar;
+
+    // Use the RhythmQuantizer to quantize to grid
+    return quantizer_->quantize(timestamp, samplesPerBeat, barStartPosition);
 }
 
 uint64_t GrooveEngine::applySwing(uint64_t position) const noexcept {
-    // Stub implementation
-    return position;
+    if (!quantizer_ || analysis_.currentTempo <= 0.0f) {
+        return position;
+    }
+
+    // Calculate samples per beat based on current tempo
+    uint64_t samplesPerBeat = static_cast<uint64_t>(
+        (60.0 * config_.sampleRate) / analysis_.currentTempo
+    );
+
+    if (samplesPerBeat == 0) {
+        return position;
+    }
+
+    // Calculate bar start position
+    uint64_t samplesPerBar = samplesPerBeat * analysis_.timeSignatureNum;
+    uint64_t barStartPosition = (position / samplesPerBar) * samplesPerBar;
+
+    // Use the RhythmQuantizer to apply swing timing
+    return quantizer_->applySwing(position, samplesPerBeat, barStartPosition);
 }
 
 void GrooveEngine::updateConfig(const Config& config) {

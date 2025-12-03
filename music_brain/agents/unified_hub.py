@@ -240,6 +240,32 @@ class LocalVoiceSynth:
                     stderr=subprocess.DEVNULL
                 )
                 return True
+            elif self._platform == "windows":
+                import subprocess
+                # Use PowerShell with System.Speech for TTS
+                # Rate: -10 (slowest) to 10 (fastest), default 0
+                # Map rate (words per minute, ~175 default) to -10 to 10 scale
+                ps_rate = int((rate - 175) / 25)  # Roughly maps 100-250 wpm to -3 to 3
+                ps_rate = max(-10, min(10, ps_rate))
+
+                # Escape text for PowerShell (single quotes, escape existing quotes)
+                escaped_text = text.replace("'", "''")
+
+                # PowerShell command using System.Speech.Synthesis
+                ps_command = (
+                    f"Add-Type -AssemblyName System.Speech; "
+                    f"$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                    f"$synth.Rate = {ps_rate}; "
+                    f"$synth.Speak('{escaped_text}')"
+                )
+
+                subprocess.Popen(
+                    ["powershell", "-Command", ps_command],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                )
+                return True
             else:
                 print(f"TTS not implemented for {self._platform}")
                 return False

@@ -1,12 +1,24 @@
 /**
  * SmudgeProcessor.cpp - Implementation of Plugin 004: "The Smudge"
- * 
+ *
  * Profile: 'Convolution Reverb' with Scrapbook UI
+ *
+ * Implements uniformly-partitioned FFT convolution for efficient
+ * real-time convolution with arbitrarily long impulse responses.
  */
 
 #include "SmudgeProcessor.h"
+#include <cmath>
+#include <algorithm>
 
 namespace iDAW {
+
+// Hop size is half the FFT size for 50% overlap
+static constexpr int HOP_SIZE = SmudgeConfig::FFT_SIZE / 2;
+// Number of complex bins (DC to Nyquist)
+static constexpr int NUM_BINS = SmudgeConfig::FFT_SIZE / 2 + 1;
+// Window correction factor for 50% overlap Hann window
+static constexpr float WINDOW_CORRECTION = 2.0f;
 
 SmudgeProcessor::SmudgeProcessor()
     : AudioProcessor(BusesProperties()
@@ -14,7 +26,11 @@ SmudgeProcessor::SmudgeProcessor()
                      .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
     m_fft = std::make_unique<juce::dsp::FFT>(SmudgeConfig::FFT_ORDER);
-    
+    m_window = std::make_unique<juce::dsp::WindowingFunction<float>>(
+        SmudgeConfig::FFT_SIZE,
+        juce::dsp::WindowingFunction<float>::hann
+    );
+
     // Initialize IR library mapping
     m_irLibrary["Cave"] = "IR_Cave.wav";
     m_irLibrary["Room"] = "IR_Studio.wav";
@@ -27,121 +43,241 @@ SmudgeProcessor::~SmudgeProcessor() = default;
 
 void SmudgeProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     m_sampleRate = sampleRate;
-    
-    // Initialize buffers
-    m_inputBuffer.resize(SmudgeConfig::FFT_SIZE * 2, 0.0f);
-    m_outputBuffer.resize(SmudgeConfig::FFT_SIZE * 2, 0.0f);
-    m_fftBuffer.resize(SmudgeConfig::FFT_SIZE + 1);
-    
+
+    // Initialize FFT work buffer (needs 2x FFT_SIZE for JUCE's real FFT)
+    m_fftWorkBuffer.resize(SmudgeConfig::FFT_SIZE * 2, 0.0f);
+    m_inputSpectrum.resize(NUM_BINS);
+    m_accumSpectrum.resize(NUM_BINS);
+
+    // Initialize per-channel buffers
+    for (int ch = 0; ch < 2; ++ch) {
+        m_inputFIFO[ch].resize(SmudgeConfig::FFT_SIZE, 0.0f);
+        m_inputFIFOIndex[ch] = 0;
+        m_overlapBuffer[ch].resize(SmudgeConfig::FFT_SIZE, 0.0f);
+    }
+
     // Pre-delay buffer
     int maxPreDelaySamples = static_cast<int>(SmudgeConfig::MAX_PREDELAY_MS * sampleRate / 1000.0);
     m_preDelayBuffer.resize(maxPreDelaySamples, 0.0f);
     m_preDelayWriteIndex = 0;
-    
+
     // High-cut filter
     updateHighCutFilter();
-    
+
+    // Re-prepare IR if one is loaded
+    if (!m_currentIR.samples.empty()) {
+        prepareIR();
+    }
+
     m_prepared = true;
 }
 
 void SmudgeProcessor::releaseResources() {
-    m_inputBuffer.clear();
-    m_outputBuffer.clear();
+    for (auto& fifo : m_inputFIFO) fifo.clear();
+    for (auto& overlap : m_overlapBuffer) overlap.clear();
+    m_fftWorkBuffer.clear();
     m_prepared = false;
 }
 
 void SmudgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) {
-    if (!m_prepared || m_irPartitions.empty()) {
-        // Pass through if no IR loaded
+    if (!m_prepared) {
         return;
     }
-    
+
     juce::ScopedNoDenormals noDenormals;
-    
+
     const int numSamples = buffer.getNumSamples();
+    const int numChannels = std::min(buffer.getNumChannels(), 2);
     float mix = m_mix.load();
-    
-    // Process left channel (mono convolution for simplicity)
-    const float* inputL = buffer.getReadPointer(0);
-    float* outputL = buffer.getWritePointer(0);
-    
-    // Temporary buffers
-    std::vector<float> wetSignal(numSamples, 0.0f);
-    
-    // Process convolution
-    processConvolution(const_cast<float*>(inputL), wetSignal.data(), numSamples);
-    
-    // Mix dry/wet
-    for (int i = 0; i < numSamples; ++i) {
-        outputL[i] = inputL[i] * (1.0f - mix) + wetSignal[i] * mix;
+
+    // If no IR loaded, pass through
+    if (m_irPartitions.empty() || m_numPartitions == 0) {
+        return;
     }
-    
-    // Copy to right channel
-    if (buffer.getNumChannels() > 1) {
-        float* outputR = buffer.getWritePointer(1);
-        std::memcpy(outputR, outputL, numSamples * sizeof(float));
+
+    // Process each channel
+    for (int channel = 0; channel < numChannels; ++channel) {
+        const float* input = buffer.getReadPointer(channel);
+        float* output = buffer.getWritePointer(channel);
+
+        // Create temporary wet buffer
+        std::vector<float> wetSignal(numSamples, 0.0f);
+
+        // Process convolution for this channel
+        processConvolutionChannel(channel, input, wetSignal.data(), numSamples);
+
+        // Apply pre-delay to wet signal (only for channel 0, copied to others)
+        if (channel == 0) {
+            int preDelaySamples = static_cast<int>(m_preDelayMs.load() * m_sampleRate / 1000.0);
+            preDelaySamples = std::min(preDelaySamples, static_cast<int>(m_preDelayBuffer.size()) - 1);
+
+            for (int i = 0; i < numSamples; ++i) {
+                int readIndex = (m_preDelayWriteIndex - preDelaySamples + m_preDelayBuffer.size()) % m_preDelayBuffer.size();
+                float delayed = m_preDelayBuffer[readIndex];
+                m_preDelayBuffer[m_preDelayWriteIndex] = wetSignal[i];
+                m_preDelayWriteIndex = (m_preDelayWriteIndex + 1) % m_preDelayBuffer.size();
+                wetSignal[i] = delayed;
+            }
+        }
+
+        // Mix dry/wet
+        for (int i = 0; i < numSamples; ++i) {
+            output[i] = input[i] * (1.0f - mix) + wetSignal[i] * mix;
+        }
+    }
+
+    // Copy left to right if mono input
+    if (numChannels == 1 && buffer.getNumChannels() > 1) {
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
     }
 }
 
-void SmudgeProcessor::processConvolution(float* input, float* output, int numSamples) {
-    // Simplified uniformly-partitioned convolution
+void SmudgeProcessor::processConvolutionChannel(int channel, const float* input, float* output, int numSamples) {
+    auto& inputFIFO = m_inputFIFO[channel];
+    auto& overlapBuffer = m_overlapBuffer[channel];
+    int& fifoIndex = m_inputFIFOIndex[channel];
+
     for (int i = 0; i < numSamples; ++i) {
-        // Apply pre-delay
-        int preDelaySamples = static_cast<int>(m_preDelayMs.load() * m_sampleRate / 1000.0);
-        preDelaySamples = std::min(preDelaySamples, static_cast<int>(m_preDelayBuffer.size()) - 1);
-        
-        int readIndex = (m_preDelayWriteIndex - preDelaySamples + m_preDelayBuffer.size()) % m_preDelayBuffer.size();
-        float delayedSample = m_preDelayBuffer[readIndex];
-        m_preDelayBuffer[m_preDelayWriteIndex] = input[i];
-        m_preDelayWriteIndex = (m_preDelayWriteIndex + 1) % m_preDelayBuffer.size();
-        
-        // Simple convolution (first partition only for demo)
-        if (!m_currentIR.samples.empty()) {
-            // Direct convolution for short IRs
-            float sum = 0.0f;
-            int irLen = std::min(static_cast<int>(m_currentIR.samples.size()), 512);
-            
-            for (int j = 0; j < irLen && (i - j) >= 0; ++j) {
-                sum += input[i - j] * m_currentIR.samples[j];
-            }
-            output[i] = sum;
-        } else {
-            output[i] = delayedSample;
+        // Store input in FIFO
+        inputFIFO[fifoIndex] = input[i];
+
+        // Output from overlap buffer
+        output[i] = overlapBuffer[fifoIndex];
+
+        // Clear the overlap position we just read
+        overlapBuffer[fifoIndex] = 0.0f;
+
+        // Advance FIFO index
+        fifoIndex++;
+
+        // When we've accumulated HOP_SIZE samples, process an FFT frame
+        if (fifoIndex >= HOP_SIZE) {
+            fifoIndex = 0;
+            processFFTFrame(channel);
         }
+    }
+}
+
+void SmudgeProcessor::processFFTFrame(int channel) {
+    auto& inputFIFO = m_inputFIFO[channel];
+    auto& overlapBuffer = m_overlapBuffer[channel];
+
+    // Copy input to FFT work buffer with zero-padding
+    // Use the full FIFO (last FFT_SIZE samples, but we only have HOP_SIZE new ones)
+    std::fill(m_fftWorkBuffer.begin(), m_fftWorkBuffer.end(), 0.0f);
+
+    // For overlap-save, we need the last FFT_SIZE samples
+    // Since we're using 50% overlap, we need previous HOP_SIZE + current HOP_SIZE
+    // But our FIFO only stores HOP_SIZE, so we use zero-padding for first half
+    // This implements a simplified version - full overlap-add approach
+    for (int i = 0; i < HOP_SIZE; ++i) {
+        m_fftWorkBuffer[i + HOP_SIZE] = inputFIFO[i];
+    }
+
+    // Apply window
+    m_window->multiplyWithWindowingTable(m_fftWorkBuffer.data(), SmudgeConfig::FFT_SIZE);
+
+    // Perform forward FFT
+    m_fft->performRealOnlyForwardTransform(m_fftWorkBuffer.data());
+
+    // Extract complex spectrum from interleaved real/imag format
+    for (int bin = 0; bin < NUM_BINS; ++bin) {
+        m_inputSpectrum[bin] = std::complex<float>(
+            m_fftWorkBuffer[bin * 2],
+            m_fftWorkBuffer[bin * 2 + 1]
+        );
+    }
+
+    // Shift the FDL (frequency-domain delay line)
+    m_fdlIndex = (m_fdlIndex + m_numPartitions - 1) % m_numPartitions;
+
+    // Store current input spectrum in FDL
+    m_fdlBuffer[m_fdlIndex] = m_inputSpectrum;
+
+    // Accumulate convolution result: sum of input[k] * IR[k] for all partitions
+    std::fill(m_accumSpectrum.begin(), m_accumSpectrum.end(), std::complex<float>(0, 0));
+
+    for (int p = 0; p < m_numPartitions; ++p) {
+        int fdlIdx = (m_fdlIndex + p) % m_numPartitions;
+        const auto& inputPart = m_fdlBuffer[fdlIdx];
+        const auto& irPart = m_irPartitions[p];
+
+        // Complex multiply and accumulate
+        for (int bin = 0; bin < NUM_BINS; ++bin) {
+            m_accumSpectrum[bin] += inputPart[bin] * irPart[bin];
+        }
+    }
+
+    // Convert back to interleaved format for IFFT
+    for (int bin = 0; bin < NUM_BINS; ++bin) {
+        m_fftWorkBuffer[bin * 2] = m_accumSpectrum[bin].real();
+        m_fftWorkBuffer[bin * 2 + 1] = m_accumSpectrum[bin].imag();
+    }
+
+    // Perform inverse FFT
+    m_fft->performRealOnlyInverseTransform(m_fftWorkBuffer.data());
+
+    // Apply window and add to overlap buffer (overlap-add)
+    m_window->multiplyWithWindowingTable(m_fftWorkBuffer.data(), SmudgeConfig::FFT_SIZE);
+
+    float scale = WINDOW_CORRECTION / static_cast<float>(SmudgeConfig::FFT_SIZE);
+
+    for (int i = 0; i < SmudgeConfig::FFT_SIZE; ++i) {
+        int idx = (i) % SmudgeConfig::FFT_SIZE;
+        overlapBuffer[idx] += m_fftWorkBuffer[i] * scale;
     }
 }
 
 void SmudgeProcessor::prepareIR() {
-    if (m_currentIR.samples.empty()) return;
-    
-    // Partition IR for FFT convolution
-    int numPartitions = (static_cast<int>(m_currentIR.samples.size()) + SmudgeConfig::FFT_SIZE - 1) / SmudgeConfig::FFT_SIZE;
-    m_irPartitions.resize(numPartitions);
-    
-    for (int p = 0; p < numPartitions; ++p) {
-        m_irPartitions[p].resize(SmudgeConfig::FFT_SIZE + 1);
-        
-        std::vector<float> partitionData(SmudgeConfig::FFT_SIZE * 2, 0.0f);
-        int startIdx = p * SmudgeConfig::FFT_SIZE;
-        int copyLen = std::min(SmudgeConfig::FFT_SIZE, static_cast<int>(m_currentIR.samples.size()) - startIdx);
-        
-        for (int i = 0; i < copyLen; ++i) {
-            partitionData[i] = m_currentIR.samples[startIdx + i];
+    if (m_currentIR.samples.empty()) {
+        m_numPartitions = 0;
+        m_irPartitions.clear();
+        m_fdlBuffer.clear();
+        return;
+    }
+
+    // Calculate number of partitions needed
+    int irLength = static_cast<int>(m_currentIR.samples.size());
+    m_numPartitions = (irLength + HOP_SIZE - 1) / HOP_SIZE;
+
+    // Resize partition storage
+    m_irPartitions.resize(m_numPartitions);
+
+    // FFT each partition of the IR
+    std::vector<float> partitionBuffer(SmudgeConfig::FFT_SIZE * 2, 0.0f);
+
+    for (int p = 0; p < m_numPartitions; ++p) {
+        m_irPartitions[p].resize(NUM_BINS);
+
+        // Clear partition buffer
+        std::fill(partitionBuffer.begin(), partitionBuffer.end(), 0.0f);
+
+        // Copy IR segment to buffer (zero-padded to FFT_SIZE)
+        int startIdx = p * HOP_SIZE;
+        int copyLen = std::min(HOP_SIZE, irLength - startIdx);
+
+        if (copyLen > 0) {
+            for (int i = 0; i < copyLen; ++i) {
+                partitionBuffer[i] = m_currentIR.samples[startIdx + i];
+            }
         }
-        
+
         // FFT the partition
-        m_fft->performRealOnlyForwardTransform(partitionData.data());
-        
+        m_fft->performRealOnlyForwardTransform(partitionBuffer.data());
+
         // Store as complex
-        for (int i = 0; i <= SmudgeConfig::FFT_SIZE / 2; ++i) {
-            m_irPartitions[p][i] = std::complex<float>(partitionData[i * 2], partitionData[i * 2 + 1]);
+        for (int bin = 0; bin < NUM_BINS; ++bin) {
+            m_irPartitions[p][bin] = std::complex<float>(
+                partitionBuffer[bin * 2],
+                partitionBuffer[bin * 2 + 1]
+            );
         }
     }
-    
+
     // Initialize FDL buffer
-    m_fdlBuffer.resize(numPartitions);
+    m_fdlBuffer.resize(m_numPartitions);
     for (auto& fdl : m_fdlBuffer) {
-        fdl.resize(SmudgeConfig::FFT_SIZE + 1, std::complex<float>(0, 0));
+        fdl.resize(NUM_BINS, std::complex<float>(0, 0));
     }
     m_fdlIndex = 0;
 }
@@ -149,23 +285,23 @@ void SmudgeProcessor::prepareIR() {
 bool SmudgeProcessor::loadIR(const juce::File& file) {
     juce::AudioFormatManager formatManager;
     formatManager.registerBasicFormats();
-    
+
     std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
     if (!reader) return false;
-    
+
     // Read IR samples
     int numSamples = static_cast<int>(reader->lengthInSamples);
     numSamples = std::min(numSamples, SmudgeConfig::MAX_IR_LENGTH);
-    
+
     m_currentIR.samples.resize(numSamples);
     juce::AudioBuffer<float> tempBuffer(1, numSamples);
     reader->read(&tempBuffer, 0, numSamples, 0, true, false);
-    
+
     std::memcpy(m_currentIR.samples.data(), tempBuffer.getReadPointer(0), numSamples * sizeof(float));
     m_currentIR.sampleRate = static_cast<int>(reader->sampleRate);
     m_currentIR.name = file.getFileNameWithoutExtension();
     m_currentIRName = m_currentIR.name;
-    
+
     prepareIR();
     return true;
 }
@@ -173,27 +309,62 @@ bool SmudgeProcessor::loadIR(const juce::File& file) {
 bool SmudgeProcessor::loadIRFromLibrary(const juce::String& name) {
     auto it = m_irLibrary.find(name);
     if (it == m_irLibrary.end()) return false;
-    
+
+    // Generate a simple synthetic IR for the library presets
     // In a real implementation, load from bundled resources
-    // For now, generate a simple synthetic IR
     m_currentIR.samples.resize(static_cast<int>(m_sampleRate * 2));  // 2 second IR
-    
+
+    // Different decay characteristics based on space type
+    float decayRate = 3.0f;  // Default
+    float diffusion = 0.5f;
+
+    if (name == "Cave") {
+        decayRate = 1.5f;   // Longer decay
+        diffusion = 0.8f;   // More diffuse
+    } else if (name == "Room") {
+        decayRate = 5.0f;   // Shorter decay
+        diffusion = 0.3f;   // Less diffuse
+    } else if (name == "Hall") {
+        decayRate = 2.0f;
+        diffusion = 0.6f;
+    } else if (name == "Plate") {
+        decayRate = 3.5f;
+        diffusion = 0.4f;
+    } else if (name == "Spring") {
+        decayRate = 4.0f;
+        diffusion = 0.2f;   // Metallic, less diffuse
+    }
+
+    // Generate exponentially decaying noise
     for (size_t i = 0; i < m_currentIR.samples.size(); ++i) {
-        float t = static_cast<float>(i) / m_sampleRate;
-        float decay = std::exp(-t * 3.0f);  // 3 second decay time
+        float t = static_cast<float>(i) / static_cast<float>(m_sampleRate);
+        float decay = std::exp(-t * decayRate);
+
+        // Mix of random noise and filtered noise for diffusion
         float noise = (static_cast<float>(rand()) / RAND_MAX * 2.0f - 1.0f);
+
+        // Simple lowpass for diffusion effect
+        static float lastNoise = 0.0f;
+        noise = noise * (1.0f - diffusion) + lastNoise * diffusion;
+        lastNoise = noise;
+
         m_currentIR.samples[i] = noise * decay * 0.5f;
     }
-    
+
+    // Add initial spike for direct sound
+    if (!m_currentIR.samples.empty()) {
+        m_currentIR.samples[0] = 0.8f;
+    }
+
     m_currentIR.name = name;
     m_currentIRName = name;
-    
+
     {
         std::lock_guard<std::mutex> lock(m_visualMutex);
         m_visualState.currentSpace = name;
         m_visualState.tearProgress = 1.0f;  // Trigger tear animation
     }
-    
+
     prepareIR();
     return true;
 }
@@ -231,7 +402,7 @@ void SmudgeProcessor::setPhotoCorner(float x, float y) {
     std::lock_guard<std::mutex> lock(m_visualMutex);
     m_visualState.photoCornerX = x;
     m_visualState.photoCornerY = y;
-    
+
     // Map corner position to decay
     float decay = 0.5f + (x * 0.5f + y * 0.5f) * 2.5f;
     m_decay.store(decay);
@@ -246,7 +417,7 @@ void SmudgeProcessor::getStateInformation(juce::MemoryBlock& destData) {
     float decay = m_decay.load();
     float preDelay = m_preDelayMs.load();
     float highCut = m_highCutHz.load();
-    
+
     destData.append(&mix, sizeof(float));
     destData.append(&decay, sizeof(float));
     destData.append(&preDelay, sizeof(float));

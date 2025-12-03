@@ -5,10 +5,12 @@ Features:
 - Feel/groove analysis
 - Energy extraction
 - Tempo detection
+- Key detection
 - Spectral analysis
 - Reference track DNA analysis
 - Chord detection from audio
 - 8-band frequency analysis
+- Comprehensive audio analysis
 - Comprehensive audio analysis (AudioAnalyzer)
 """
 
@@ -32,6 +34,7 @@ from music_brain.audio.frequency_analysis import (
 from music_brain.audio.analyzer import (
     AudioAnalyzer,
     AudioAnalysis,
+    analyze_audio,
 )
 
 __all__ = [
@@ -53,4 +56,8 @@ __all__ = [
     "compare_frequency_profiles",
     "suggest_eq_adjustments",
     "FrequencyProfile",
+    # Comprehensive analyzer
+    "AudioAnalyzer",
+    "AudioAnalysis",
+    "analyze_audio",
 ]

@@ -65,23 +65,34 @@ from music_brain.voice import (
     VoiceSynthesizer,
     SynthConfig,
     get_voice_profile,
+    VoiceSynthesizer,
+    SynthConfig,
+    get_voice_profile,
+    LocalVoiceSynth,
 )
 
 
 class DAiWAPI:
     """
     Unified API wrapper for DAiW functionality.
-    
+
     Provides a clean, consistent interface for all music_brain operations,
     making it easier to integrate with desktop apps, web services, or CLI tools.
     """
-    
+
     def __init__(self):
         self.harmony_generator = HarmonyGenerator()
         self.audio_analyzer = AudioAnalyzer()
         self.auto_tune_processor = AutoTuneProcessor()
         self.voice_modulator = VoiceModulator()
         self.voice_synthesizer = VoiceSynthesizer()
+        self.voice_synthesizer = VoiceSynthesizer()
+        self._audio_analyzer: AudioAnalyzer = None
+        self.audio_analyzer = AudioAnalyzer()
+        # Voice processors not yet implemented
+        # self.auto_tune_processor = AutoTuneProcessor()
+        # self.voice_modulator = VoiceModulator()
+        # self.voice_synthesizer = VoiceSynthesizer()
     
     # ========== Harmony Generation ==========
     
@@ -346,6 +357,12 @@ class DAiWAPI:
     
     # ========== Audio Analysis ==========
 
+    def _get_audio_analyzer(self, sample_rate: int = 44100) -> AudioAnalyzer:
+        """Get or create audio analyzer instance."""
+        if self._audio_analyzer is None or self._audio_analyzer.sample_rate != sample_rate:
+            self._audio_analyzer = AudioAnalyzer(sample_rate=sample_rate)
+        return self._audio_analyzer
+
     def analyze_audio_file(self, audio_path: str) -> Dict[str, Any]:
         """
         Analyze an audio file, returning tempo, key, spectrum, and chords.
@@ -365,9 +382,49 @@ class DAiWAPI:
         Args:
             samples: Audio samples (numpy array)
             sample_rate: Sample rate in Hz
+            audio_path: Path to audio file
 
         Returns:
             Dict with analysis results
+        """
+        analyzer = self._get_audio_analyzer()
+        return analyzer.analyze_file(audio_path).to_dict()
+
+    def analyze_audio_waveform(self, samples: np.ndarray, sample_rate: int) -> Dict[str, Any]:
+        """
+        Analyze audio waveform samples.
+
+        Args:
+            samples: Audio samples (numpy array)
+            sample_rate: Sample rate
+
+        Returns:
+            Dict with analysis results
+        """
+        analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
+        return analyzer.analyze_waveform(samples, sample_rate).to_dict()
+            audio_path: Path to audio file (wav, mp3, etc.)
+
+        Returns:
+            Dict with comprehensive audio analysis including tempo, key,
+            spectral features, dynamics, and detected chords.
+        """
+        return self.audio_analyzer.analyze_file(audio_path).to_dict()
+
+    def analyze_audio_waveform(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Dict[str, Any]:
+        """
+        Analyze audio from raw waveform samples.
+
+        Args:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Dict with audio analysis results
         """
         return self.audio_analyzer.analyze_waveform(samples, sample_rate).to_dict()
 
@@ -378,6 +435,11 @@ class DAiWAPI:
         Args:
             samples: Audio samples (numpy array)
             sample_rate: Sample rate in Hz
+        Detect tempo (BPM) from audio samples.
+
+        Args:
+            samples: Audio samples
+            sample_rate: Sample rate
 
         Returns:
             Detected BPM
@@ -386,15 +448,43 @@ class DAiWAPI:
         return bpm
 
     def detect_audio_key(self, samples: np.ndarray, sample_rate: int) -> Tuple[str, str]:
+        analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
+        bpm, _ = analyzer.detect_bpm(samples, sample_rate)
+        return bpm
+
+    def detect_audio_key(self, samples: np.ndarray, sample_rate: int) -> Tuple[str, str]:
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Detected tempo in BPM
+        """
+        return self.audio_analyzer.detect_bpm(samples, sample_rate)
+
+    def detect_audio_key(
+        self,
+        samples: np.ndarray,
+        sample_rate: int
+    ) -> Tuple[str, str]:
         """
         Detect musical key from audio samples.
 
         Args:
             samples: Audio samples (numpy array)
             sample_rate: Sample rate in Hz
+            samples: Audio samples
+            sample_rate: Sample rate
 
         Returns:
             Tuple of (key, mode) e.g., ("C", "major")
+        """
+        analyzer = self._get_audio_analyzer(sample_rate=sample_rate)
+        return analyzer.detect_key(samples, sample_rate)
+            samples: Audio samples as numpy array
+            sample_rate: Sample rate in Hz
+
+        Returns:
+            Tuple of (key_name, mode) e.g., ("C", "major")
         """
         return self.audio_analyzer.detect_key(samples, sample_rate)
     
@@ -470,10 +560,33 @@ class DAiWAPI:
         config = get_voice_profile(profile)
         synthesizer = VoiceSynthesizer(config)
         return synthesizer.synthesize_guide(
+    def synthesize_voice(
+        self,
+        lyrics: str,
+        melody_midi: Optional[List[int]] = None,
+        tempo_bpm: int = 82,
+        output_path: str = "guide_vocal.wav",
+        profile: str = "guide_vulnerable",
+    ) -> Optional[str]:
+        """
+        Synthesize guide vocal from lyrics using TTS.
+
+        Args:
+            lyrics: Lyrics text to synthesize
+            melody_midi: Optional MIDI note sequence (for future melodic synthesis)
+            tempo_bpm: Tempo in BPM (affects speech rate)
+            output_path: Output audio file path
+            profile: Voice profile name
+
+        Returns:
+            Output path if successful, None otherwise
+        """
+        return self.voice_synthesizer.synthesize_guide(
             lyrics=lyrics,
             melody_midi=melody_midi,
             tempo_bpm=tempo_bpm,
             output_path=output_path,
+            profile=profile,
         )
 
     def speak_text_prompt(
@@ -502,6 +615,32 @@ class DAiWAPI:
             output_path=output_path,
             tempo_bpm=tempo_bpm,
         )
+        profile: str = "narrator_neutral",
+    ) -> Optional[str]:
+        """
+        Generate spoken audio from text prompt.
+
+        Args:
+            text: Text to speak
+            output_path: Output audio file path
+            profile: Voice profile name
+
+        Returns:
+            Output path if successful, None otherwise
+        """
+        return self.voice_synthesizer.speak_text(
+            text=text,
+            output_path=output_path,
+            profile=profile,
+        )
+
+    def list_voice_profiles(self) -> List[str]:
+        """List available voice profiles."""
+        return self.voice_synthesizer.list_profiles()
+
+    def voice_synthesis_available(self) -> bool:
+        """Check if voice synthesis is available (TTS installed)."""
+        return self.voice_synthesizer.is_available
     
     # ========== Therapy Session ==========
     
