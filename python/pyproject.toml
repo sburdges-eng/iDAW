@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "penta_core"
+version = "0.1.0"
+description = "Penta Core Python API for C++ engine integration"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "sburdges-eng"}
+]
+keywords = ["audio", "dsp", "music", "midi", "osc", "harmony", "groove"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "numpy>=1.21.0",
+    "python-dotenv>=1.0.0",
+    "fastmcp>=0.1.0",
+    "httpx>=0.24.0",
+]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0",
+]
+ai = [
+    "openai>=1.0.0",
+    "anthropic>=0.20.0",
+    "google-generativeai>=0.3.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+all = [
+    "numpy>=1.21.0",
+    "python-dotenv>=1.0.0",
+    "fastmcp>=0.1.0",
+    "mcp>=1.0.0",
+    "httpx>=0.24.0",
+    "openai>=1.0.0",
+    "anthropic>=0.20.0",
+    "google-generativeai>=0.3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["penta_core*"]
