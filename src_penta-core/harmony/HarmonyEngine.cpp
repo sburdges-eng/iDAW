@@ -56,12 +56,11 @@ void HarmonyEngine::updateChordAnalysis() noexcept {
         newChord.confidence > 0.7f) {
         
         // Add to history (non-RT allocation, but limited size)
-        if (chordHistory_.size() < 1000) {  // Limit history to prevent unbounded growth
-            chordHistory_.push_back(newChord);
-        } else {
-            // Shift history in non-RT context
+        // Use deque for efficient front removal
+        chordHistory_.push_back(newChord);
+        if (chordHistory_.size() > 1000) {  // Limit history to prevent unbounded growth
+            // Remove oldest entry efficiently with deque
             chordHistory_.erase(chordHistory_.begin());
-            chordHistory_.push_back(newChord);
         }
     }
     
@@ -86,12 +85,11 @@ void HarmonyEngine::updateScaleDetection() noexcept {
         newScale.confidence > 0.7f) {
         
         // Add to history (non-RT allocation, but limited size)
-        if (scaleHistory_.size() < 1000) {  // Limit history to prevent unbounded growth
-            scaleHistory_.push_back(newScale);
-        } else {
-            // Shift history in non-RT context
+        // Use deque for efficient front removal
+        scaleHistory_.push_back(newScale);
+        if (scaleHistory_.size() > 1000) {  // Limit history to prevent unbounded growth
+            // Remove oldest entry efficiently with deque
             scaleHistory_.erase(scaleHistory_.begin());
-            scaleHistory_.push_back(newScale);
         }
     }
     

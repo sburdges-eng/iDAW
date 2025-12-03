@@ -178,11 +178,13 @@ class DAiWGenerator:
             
             # Load available samples
             samples = {}
-            for sample_file in sample_dir.glob('*.wav'):
+            sample_files = sorted(sample_dir.glob('*.wav'))  # Sort for deterministic ordering
+            for idx, sample_file in enumerate(sample_files):
                 try:
                     sample = AudioSegment.from_file(str(sample_file))
-                    # Use filename as key (pitch mapping would be more sophisticated)
-                    pitch = hash(sample_file.stem) % 128
+                    # Map samples sequentially across MIDI range
+                    # For better mapping, would use filename patterns or config
+                    pitch = (idx * 127 // max(1, len(sample_files))) if sample_files else 60
                     samples[pitch] = sample
                 except Exception:
                     continue

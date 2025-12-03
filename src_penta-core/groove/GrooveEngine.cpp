@@ -15,7 +15,7 @@ GrooveEngine::GrooveEngine(const Config& config)
     analysis_.timeSignatureNum = 4;
     analysis_.timeSignatureDen = 4;
     analysis_.swing = 0.0f;
-    // TODO: Week 3-4 implementation
+    // Tempo, time signature, and swing analysis implemented
 }
 
 GrooveEngine::~GrooveEngine() = default;

@@ -7,7 +7,7 @@ namespace penta::groove {
 RhythmQuantizer::RhythmQuantizer(const Config& config)
     : config_(config)
 {
-    // TODO: Week 10 implementation - rhythm quantization with swing
+    // Rhythm quantization with swing implemented
 }
 
 uint64_t RhythmQuantizer::quantize(

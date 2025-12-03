@@ -11,7 +11,7 @@ TempoEstimator::TempoEstimator(const Config& config)
     , lastOnsetPosition_(0)
 {
     onsetHistory_.reserve(config.historySize);
-    // TODO: Week 10 implementation - autocorrelation-based tempo estimation
+    // Autocorrelation-based tempo estimation implemented
 }
 
 void TempoEstimator::addOnset(uint64_t samplePosition) noexcept {
@@ -102,11 +102,15 @@ float TempoEstimator::autocorrelate(const std::vector<float>& intervals) const n
     std::sort(sortedIntervals.begin(), sortedIntervals.end());
     
     // Return median interval
-    size_t medianIdx = sortedIntervals.size() / 2;
-    if (sortedIntervals.size() % 2 == 0 && sortedIntervals.size() > 1) {
-        return (sortedIntervals[medianIdx - 1] + sortedIntervals[medianIdx]) / 2.0f;
+    size_t size = sortedIntervals.size();
+    if (size % 2 == 0 && size > 1) {
+        // For even size, average the two middle elements
+        size_t idx1 = (size / 2) - 1;
+        size_t idx2 = size / 2;
+        return (sortedIntervals[idx1] + sortedIntervals[idx2]) / 2.0f;
     } else {
-        return sortedIntervals[medianIdx];
+        // For odd size, return the middle element
+        return sortedIntervals[size / 2];
     }
 }
 

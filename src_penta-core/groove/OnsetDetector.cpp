@@ -71,7 +71,12 @@ void OnsetDetector::computeSpectralFlux(const float* buffer, size_t frames) noex
         size_t end = std::min(start + samplesPerBand, frames);
         
         for (size_t j = start; j < end; ++j) {
-            float sample = buffer[j] * window_[j % window_.size()];
+            // Apply window relative to the frame position, not absolute index
+            size_t framePos = j - start;
+            size_t windowIdx = (framePos * window_.size()) / samplesPerBand;
+            windowIdx = std::min(windowIdx, window_.size() - 1);
+            
+            float sample = buffer[j] * window_[windowIdx];
             bandEnergy += sample * sample;
         }
         

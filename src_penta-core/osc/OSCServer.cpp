@@ -140,7 +140,8 @@ void OSCServer::receiveThread() {
                             uint32_t netVal;
                             std::memcpy(&netVal, &buffer[pos], 4);
                             netVal = ntohl(netVal);
-                            float val = *reinterpret_cast<float*>(&netVal);
+                            float val;
+                            std::memcpy(&val, &netVal, sizeof(float));
                             message.addFloat(val);
                             pos += 4;
                         } else if (typeTag == 's') {

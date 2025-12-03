@@ -88,7 +88,9 @@ bool OSCClient::send(const OSCMessage& message) noexcept {
             buffer.insert(buffer.end(), bytes, bytes + 4);
         } else if (std::holds_alternative<float>(arg)) {
             float val = std::get<float>(arg);
-            uint32_t netVal = htonl(*reinterpret_cast<uint32_t*>(&val));
+            uint32_t temp;
+            std::memcpy(&temp, &val, sizeof(float));
+            uint32_t netVal = htonl(temp);
             const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&netVal);
             buffer.insert(buffer.end(), bytes, bytes + 4);
         } else if (std::holds_alternative<std::string>(arg)) {
