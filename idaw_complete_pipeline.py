@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Tuple, Callable
 from pathlib import Path
 from datetime import datetime
+from functools import lru_cache
 import numpy as np
 
 # ============================================================================
@@ -709,6 +710,18 @@ class StructureGenerator:
 # 6. HARMONY ENGINE
 # ============================================================================
 
+# Module-level cached helper functions for better performance
+@lru_cache(maxsize=128)
+def parse_key_to_midi(key_sig: str) -> int:
+    """Parse key signature to MIDI root note - cached for performance."""
+    key_map = {
+        "C": 60, "C#": 61, "Db": 61, "D": 62, "D#": 63, "Eb": 63,
+        "E": 64, "F": 65, "F#": 66, "Gb": 66, "G": 67, "G#": 68,
+        "Ab": 68, "A": 69, "A#": 70, "Bb": 70, "B": 71
+    }
+    return key_map.get(key_sig, 60)
+
+
 class HarmonyEngine:
     """
     Generates chord progressions based on emotional parameters.
@@ -749,7 +762,7 @@ class HarmonyEngine:
     
     def __init__(self, params: MusicalParameters):
         self.params = params
-        self.key_root = self._parse_key(params.key_signature)
+        self.key_root = parse_key_to_midi(params.key_signature)  # Use cached function
         self.mode = self._select_mode()
         self.scale = self.MODE_SCALES[self.mode]
         
