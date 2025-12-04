@@ -20,6 +20,12 @@ from .intent_versioning import (
     ChangeType,
 )
 
+from .collab_ui import (
+    CollaborationClient,
+    CollaboratorInfo,
+    render_collaboration_ui,
+)
+
 __all__ = [
     # WebSocket server
     "CollaborationServer",
@@ -33,4 +39,8 @@ __all__ = [
     "Tag",
     "Change",
     "ChangeType",
+    # Collaboration UI
+    "CollaborationClient",
+    "CollaboratorInfo",
+    "render_collaboration_ui",
 ]
