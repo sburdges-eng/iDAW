@@ -1,11 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import clsx from 'clsx';
+import { VUMeter } from './VUMeter';
+import { Knob } from './Knob';
 
 export const Mixer: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { tracks, updateTrack, selectedTrackId, selectTrack } = useStore();
+  const { tracks, updateTrack, selectedTrackId, selectTrack, isPlaying } = useStore();
+  const [levels, setLevels] = useState<Record<string, { left: number; right: number }>>({});
+
+  // Simulate audio levels (would come from audio engine in production)
+  useEffect(() => {
+    if (!isPlaying) {
+      // Clear levels when not playing
+      const clearedLevels: Record<string, { left: number; right: number }> = {};
+      tracks.forEach(track => {
+        clearedLevels[track.id] = { left: 0, right: 0 };
+      });
+      setLevels(clearedLevels);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const newLevels: Record<string, { left: number; right: number }> = {};
+      tracks.forEach(track => {
+        if (!track.muted) {
+          // Simulate stereo levels based on track volume and pan
+          const baseLevel = Math.random() * 0.4 + 0.3; // Base random level
+          const volumeAdjusted = baseLevel * track.volume;
+
+          // Pan affects stereo balance
+          const panFactor = track.pan; // -1 to 1
+          const leftLevel = volumeAdjusted * Math.min(1, 1 - panFactor);
+          const rightLevel = volumeAdjusted * Math.min(1, 1 + panFactor);
+
+          newLevels[track.id] = {
+            left: leftLevel + Math.random() * 0.1,
+            right: rightLevel + Math.random() * 0.1
+          };
+        } else {
+          newLevels[track.id] = { left: 0, right: 0 };
+        }
+      });
+      setLevels(newLevels);
+    }, 50); // 20fps for smoother animation
+
+    return () => clearInterval(interval);
+  }, [tracks, isPlaying]);
 
   if (isCollapsed) {
     return (
@@ -50,13 +92,14 @@ export const Mixer: React.FC = () => {
             key={track.id}
             track={track}
             isSelected={track.id === selectedTrackId}
+            levels={levels[track.id] || { left: 0, right: 0 }}
             onSelect={() => selectTrack(track.id)}
             onUpdate={(updates) => updateTrack(track.id, updates)}
           />
         ))}
 
         {/* Master Channel */}
-        <MasterChannel />
+        <MasterChannel levels={levels} tracks={tracks} />
       </div>
     </div>
   );
@@ -69,23 +112,23 @@ interface MixerChannelProps {
     color: string;
     muted: boolean;
     solo: boolean;
+    armed: boolean;
     volume: number;
     pan: number;
   };
   isSelected: boolean;
+  levels: { left: number; right: number };
   onSelect: () => void;
-  onUpdate: (updates: { volume?: number; pan?: number }) => void;
+  onUpdate: (updates: { volume?: number; pan?: number; muted?: boolean; solo?: boolean }) => void;
 }
 
 const MixerChannel: React.FC<MixerChannelProps> = ({
   track,
   isSelected,
+  levels,
   onSelect,
   onUpdate,
 }) => {
-  // Simulate VU meter level (would come from audio engine)
-  const [meterLevel] = useState(() => Math.random() * 0.7 + 0.1);
-
   return (
     <div
       className={clsx(
@@ -103,40 +146,26 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
       </div>
 
       {/* Pan knob */}
-      <div className="relative mb-2">
-        <div className="text-[10px] text-ableton-text-dim text-center mb-1">
-          PAN
-        </div>
-        <input
-          type="range"
-          min={-1}
-          max={1}
-          step={0.01}
-          value={track.pan}
-          onChange={(e) => onUpdate({ pan: parseFloat(e.target.value) })}
-          className="w-12"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <div className="text-[10px] text-ableton-text-dim text-center">
-          {track.pan === 0 ? 'C' : track.pan < 0 ? `L${Math.abs(Math.round(track.pan * 50))}` : `R${Math.round(track.pan * 50)}`}
-        </div>
-      </div>
+      <Knob
+        value={track.pan}
+        onChange={(val) => onUpdate({ pan: val })}
+        label="PAN"
+        min={-1}
+        max={1}
+        size="sm"
+        showValue
+      />
 
-      {/* VU Meter + Fader */}
-      <div className="flex-1 flex items-end gap-1 mb-2">
-        {/* VU Meter */}
-        <div className="vu-meter h-32">
-          <div
-            className="vu-meter-bar"
-            style={{
-              height: `${meterLevel * 100}%`,
-              opacity: track.muted ? 0.3 : 1,
-            }}
-          />
-        </div>
+      {/* VU Meters + Fader */}
+      <div className="flex-1 flex items-end gap-1 mb-2 mt-3">
+        {/* Left VU Meter */}
+        <VUMeter
+          level={track.muted ? 0 : levels.left}
+          height="h-28"
+        />
 
         {/* Fader */}
-        <div className="h-32 flex flex-col items-center">
+        <div className="h-28 flex flex-col items-center">
           <input
             type="range"
             min={0}
@@ -144,7 +173,7 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
             step={0.01}
             value={track.volume}
             onChange={(e) => onUpdate({ volume: parseFloat(e.target.value) })}
-            className="h-28 w-4"
+            className="h-24 w-4"
             style={{
               writingMode: 'vertical-lr',
               direction: 'rtl',
@@ -154,21 +183,50 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
           />
         </div>
 
-        {/* Second VU Meter (stereo) */}
-        <div className="vu-meter h-32">
-          <div
-            className="vu-meter-bar"
-            style={{
-              height: `${meterLevel * 0.9 * 100}%`,
-              opacity: track.muted ? 0.3 : 1,
-            }}
-          />
-        </div>
+        {/* Right VU Meter */}
+        <VUMeter
+          level={track.muted ? 0 : levels.right}
+          height="h-28"
+        />
       </div>
 
       {/* dB reading */}
       <div className="text-[10px] font-mono text-ableton-text-dim text-center mb-2">
         {track.volume === 0 ? '-∞' : `${Math.round((track.volume - 1) * 40)}dB`}
+      </div>
+
+      {/* Mute/Solo Buttons */}
+      <div className="flex gap-1 mb-2">
+        <button
+          className={clsx(
+            'px-2 py-1 text-xs rounded transition-colors',
+            track.muted
+              ? 'bg-ableton-yellow text-black'
+              : 'bg-ableton-surface-light text-ableton-text-dim hover:bg-ableton-border'
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdate({ muted: !track.muted });
+          }}
+          title="Mute"
+        >
+          M
+        </button>
+        <button
+          className={clsx(
+            'px-2 py-1 text-xs rounded transition-colors',
+            track.solo
+              ? 'bg-ableton-accent text-black'
+              : 'bg-ableton-surface-light text-ableton-text-dim hover:bg-ableton-border'
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdate({ solo: !track.solo });
+          }}
+          title="Solo"
+        >
+          S
+        </button>
       </div>
 
       {/* Color indicator */}
@@ -180,9 +238,33 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
   );
 };
 
-const MasterChannel: React.FC = () => {
+interface MasterChannelProps {
+  levels: Record<string, { left: number; right: number }>;
+  tracks: Array<{ id: string; muted: boolean; solo: boolean }>;
+}
+
+const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
   const [masterVolume, setMasterVolume] = useState(0.85);
-  const meterLevel = 0.75;
+
+  // Calculate master levels from all non-muted tracks
+  const activeTracks = tracks.filter(t => !t.muted);
+  const soloedTracks = tracks.filter(t => t.solo);
+  const tracksToSum = soloedTracks.length > 0 ? soloedTracks : activeTracks;
+
+  let masterLeft = 0;
+  let masterRight = 0;
+
+  tracksToSum.forEach(track => {
+    const trackLevels = levels[track.id];
+    if (trackLevels) {
+      masterLeft = Math.max(masterLeft, trackLevels.left);
+      masterRight = Math.max(masterRight, trackLevels.right);
+    }
+  });
+
+  // Apply master volume
+  masterLeft *= masterVolume;
+  masterRight *= masterVolume;
 
   return (
     <div className="mixer-channel bg-ableton-surface-light border-l-2 border-ableton-accent">
@@ -191,21 +273,16 @@ const MasterChannel: React.FC = () => {
         MASTER
       </div>
 
-      {/* Spacer for pan area */}
-      <div className="h-12 mb-2" />
+      {/* Spacer for pan area alignment */}
+      <div className="h-14 mb-2" />
 
-      {/* VU Meter + Fader */}
+      {/* VU Meters + Fader */}
       <div className="flex-1 flex items-end gap-1 mb-2">
-        {/* VU Meter L */}
-        <div className="vu-meter h-32">
-          <div
-            className="vu-meter-bar"
-            style={{ height: `${meterLevel * 100}%` }}
-          />
-        </div>
+        {/* Left VU Meter */}
+        <VUMeter level={masterLeft} height="h-28" />
 
         {/* Fader */}
-        <div className="h-32 flex flex-col items-center">
+        <div className="h-28 flex flex-col items-center">
           <input
             type="range"
             min={0}
@@ -213,7 +290,7 @@ const MasterChannel: React.FC = () => {
             step={0.01}
             value={masterVolume}
             onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
-            className="h-28 w-4"
+            className="h-24 w-4"
             style={{
               writingMode: 'vertical-lr',
               direction: 'rtl',
@@ -222,19 +299,17 @@ const MasterChannel: React.FC = () => {
           />
         </div>
 
-        {/* VU Meter R */}
-        <div className="vu-meter h-32">
-          <div
-            className="vu-meter-bar"
-            style={{ height: `${meterLevel * 0.95 * 100}%` }}
-          />
-        </div>
+        {/* Right VU Meter */}
+        <VUMeter level={masterRight} height="h-28" />
       </div>
 
       {/* dB reading */}
       <div className="text-[10px] font-mono text-ableton-text-dim text-center mb-2">
         {masterVolume === 0 ? '-∞' : `${Math.round((masterVolume - 1) * 40)}dB`}
       </div>
+
+      {/* Spacer for button alignment */}
+      <div className="h-8 mb-2" />
 
       {/* Color indicator */}
       <div className="w-full h-2 rounded-sm bg-ableton-accent" />
