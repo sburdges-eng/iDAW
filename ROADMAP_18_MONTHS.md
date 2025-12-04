@@ -460,6 +460,10 @@ This document provides a comprehensive 18-month implementation plan for the iDAW
 ### Lower Priority Plugins
 - [ ] **Trace Plugin DSP** - Envelope follower, pattern automation
 - [ ] **Parrot Plugin DSP** - Sample playback engine, pitch shifting
+- [ ] **Stencil Plugin DSP** - Sidechain/ducking effect with external/internal triggers
+- [ ] **Chalk Plugin DSP** - Lo-fi/bitcrusher with vinyl crackle, tape hiss, bit reduction
+- [ ] **Brush Plugin DSP** - Modulated filter with LFO and envelope follower
+- [ ] **Stamp Plugin DSP** - Stutter/repeater effect with tempo sync and pitch shifting
 
 ---
 
