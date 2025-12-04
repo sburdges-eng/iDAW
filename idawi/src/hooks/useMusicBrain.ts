@@ -106,7 +106,7 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
 export function useMusicBrain() {
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const getEmotions = async (): Promise<Emotion[]> => {
+  const getEmotions = React.useCallback(async (): Promise<Emotion[]> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
@@ -120,9 +120,9 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []); // Empty deps: setIsLoading is stable, no external dependencies
 
-  const suggestRuleBreak = async (emotion: string): Promise<RuleBreakSuggestion[]> => {
+  const suggestRuleBreak = React.useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
@@ -144,9 +144,9 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []); // Empty deps: setIsLoading is stable, ruleBreakingDatabase is constant
 
-  const processIntent = async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
+  const processIntent = React.useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
@@ -191,7 +191,7 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  };
+  }, []); // Empty deps: setIsLoading is stable, all data is constant
 
   return {
     getEmotions,

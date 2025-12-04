@@ -4,17 +4,21 @@ import { Interrogator } from './Interrogator';
 import { GhostWriter } from './GhostWriter';
 import { RuleBreaker } from './RuleBreaker';
 import { SideBToolbar } from './SideBToolbar';
+import { useStore } from '../../store/useStore';
 
 export const SideB: React.FC = () => {
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [intent, setIntent] = useState<Record<string, unknown> | null>(null);
+  const { updateSongIntent } = useStore();
 
   const handleSelectEmotion = (emotion: string) => {
     setSelectedEmotion(emotion);
+    updateSongIntent({ coreEmotion: emotion });
   };
 
   const handleCompleteIntent = (completedIntent: Record<string, unknown>) => {
     setIntent(completedIntent);
+    updateSongIntent({ intent: completedIntent });
   };
 
   return (

@@ -8,7 +8,11 @@ export const SideBToolbar: React.FC = () => {
   const { processIntent, isLoading } = useMusicBrain();
 
   const handleGenerate = async () => {
-    const result = await processIntent();
+    if (!songIntent.intent) {
+      console.warn('No intent available to process');
+      return;
+    }
+    const result = await processIntent(songIntent.intent);
     if (result) {
       console.log('Generated:', result);
       // Would apply result to DAW state
@@ -76,9 +80,9 @@ export const SideBToolbar: React.FC = () => {
         </button>
 
         <button
-          className={`btn-ableton flex items-center gap-2 ${isLoading ? 'opacity-50' : ''}`}
+          className={`btn-ableton flex items-center gap-2 ${isLoading || !songIntent.intent ? 'opacity-50' : ''}`}
           onClick={handleGenerate}
-          disabled={isLoading}
+          disabled={isLoading || !songIntent.intent}
         >
           <Sparkles size={16} />
           {isLoading ? 'Generating...' : 'Generate'}

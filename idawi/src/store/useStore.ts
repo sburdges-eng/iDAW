@@ -25,6 +25,7 @@ export interface SongIntent {
   coreEmotion: string | null;
   subEmotion: string | null;
   ruleToBreak: string | null;
+  intent: Record<string, unknown> | null;
 }
 
 interface StoreState {
@@ -172,6 +173,7 @@ export const useStore = create<StoreState>((set) => ({
     coreEmotion: null,
     subEmotion: null,
     ruleToBreak: null,
+    intent: null,
   },
 
   // Actions
@@ -226,6 +228,7 @@ export const useStore = create<StoreState>((set) => ({
       coreEmotion: null,
       subEmotion: null,
       ruleToBreak: null,
+      intent: null,
     }
   }),
 }));
