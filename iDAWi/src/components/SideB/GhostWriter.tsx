@@ -4,7 +4,6 @@ import { useMusicBrain } from '../../hooks/useMusicBrain';
 import {
   Sparkles,
   Check,
-  X,
   Music,
   Zap,
   Sliders,
@@ -31,10 +30,9 @@ export const GhostWriter: React.FC = () => {
   const {
     ghostWriterSuggestions,
     applySuggestion,
-    clearSuggestions,
     songIntent,
   } = useStore();
-  const { suggestRuleBreak, processIntent, isLoading } = useMusicBrain();
+  const { suggestRuleBreak, isLoading } = useMusicBrain();
   const [activeTab, setActiveTab] = useState<'suggestions' | 'applied'>('suggestions');
 
   const handleGenerate = async () => {
@@ -72,7 +70,7 @@ export const GhostWriter: React.FC = () => {
 
       {/* Philosophy Quote */}
       <div className="p-3 bg-ableton-surface rounded mb-4 text-sm italic text-ableton-text-dim">
-        "The tool shouldn't finish art for people. It should make them braver."
+        {'"The tool shouldn\'t finish art for people. It should make them braver."'}
       </div>
 
       {/* Tabs */}
@@ -109,7 +107,7 @@ export const GhostWriter: React.FC = () => {
               <div className="text-center py-8 text-ableton-text-dim">
                 <Sparkles size={24} className="mx-auto mb-2 opacity-50" />
                 <p>No suggestions yet.</p>
-                <p className="text-sm">Click "Generate Ideas" to get started.</p>
+                <p className="text-sm">Click &quot;Generate Ideas&quot; to get started.</p>
               </div>
             ) : (
               pendingSuggestions.map((suggestion) => (

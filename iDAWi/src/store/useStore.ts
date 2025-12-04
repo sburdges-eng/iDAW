@@ -99,7 +99,7 @@ const defaultTrackColors = ['#ff7e3e', '#0066ff', '#00cc00', '#ff3366', '#9933ff
 
 export const useStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // UI State
       currentSide: 'A',
       isFlipping: false,

@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { SideA } from './components/SideA';
 import { SideB } from './components/SideB';
 import { FlipIndicator } from './components/shared/FlipIndicator';
 
 function App() {
-  const { currentSide, toggleSide, isFlipping } = useStore();
+  const { currentSide, toggleSide } = useStore();
 
   // Handle keyboard shortcuts
   useEffect(() => {

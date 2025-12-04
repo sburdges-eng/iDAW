@@ -44,7 +44,7 @@ const EMOTION_CATEGORIES: EmotionCategory[] = [
 
 export const EmotionWheel: React.FC = () => {
   const { songIntent, updateSongIntent } = useStore();
-  const { getEmotions } = useMusicBrain();
+  useMusicBrain(); // Hook for future music brain integration
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [vulnerabilityScale, setVulnerabilityScale] = useState(songIntent.vulnerabilityScale);
 

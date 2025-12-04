@@ -79,7 +79,8 @@ export function useTauriAudio() {
         setPosition(state.position_samples);
       } catch {
         // Fallback: simulate position advancement
-        setPosition((prev: number) => prev + (tempo / 60) * 44100 * 0.1);
+        const currentPosition = useStore.getState().position;
+        setPosition(currentPosition + (tempo / 60) * 44100 * 0.1);
       }
     }, 100);
 
