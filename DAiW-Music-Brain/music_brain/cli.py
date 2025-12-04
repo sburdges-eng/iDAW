@@ -8,12 +8,16 @@ Usage:
     daiw diagnose <progression>                 Diagnose harmonic issues
     daiw reharm <progression> [--style <style>] Generate reharmonizations
     daiw teach <topic>                          Interactive teaching mode
-    
+
     daiw intent new [--title <title>]           Create new intent template
     daiw intent process <file>                  Generate elements from intent
     daiw intent suggest <emotion>               Suggest rules to break
     daiw intent list                            List all rule-breaking options
     daiw intent validate <file>                 Validate intent file
+
+    daiw arrange --genre <genre> [--key <key>]  Generate complete arrangement
+    daiw bass <chords> --genre <genre>          Generate bass line
+    daiw energy --mood <mood>                   Generate energy arc
 """
 
 import argparse
@@ -38,13 +42,46 @@ def get_session_module():
 
 def get_intent_module():
     from music_brain.session.intent_schema import (
-        CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints, 
+        CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints,
         SystemDirective, suggest_rule_break, validate_intent, list_all_rules
     )
     from music_brain.session.intent_processor import IntentProcessor, process_intent
     return (CompleteSongIntent, SongRoot, SongIntent, TechnicalConstraints,
             SystemDirective, suggest_rule_break, validate_intent, list_all_rules,
             IntentProcessor, process_intent)
+
+
+def get_arrangement_module():
+    from music_brain.arrangement import (
+        generate_arrangement,
+        generate_complete_song,
+        ArrangementGenerator,
+        GeneratedArrangement,
+        get_genre_template,
+        GENRE_TEMPLATES,
+    )
+    return (generate_arrangement, generate_complete_song, ArrangementGenerator,
+            GeneratedArrangement, get_genre_template, GENRE_TEMPLATES)
+
+
+def get_bass_module():
+    from music_brain.arrangement.bass_generator import (
+        generate_bass_line,
+        BassLine,
+        BassPattern,
+    )
+    return generate_bass_line, BassLine, BassPattern
+
+
+def get_energy_module():
+    from music_brain.arrangement.energy_arc import (
+        generate_energy_arc,
+        EnergyArc,
+        EmotionalJourney,
+        describe_energy_arc,
+        suggest_arc_for_intent,
+    )
+    return generate_energy_arc, EnergyArc, EmotionalJourney, describe_energy_arc, suggest_arc_for_intent
 
 
 def cmd_extract(args):
@@ -394,12 +431,182 @@ def cmd_intent(args):
     return 0
 
 
+def cmd_arrange(args):
+    """Generate complete arrangement."""
+    (generate_arrangement, generate_complete_song, ArrangementGenerator,
+     GeneratedArrangement, get_genre_template, GENRE_TEMPLATES) = get_arrangement_module()
+
+    print(f"Generating {args.genre} arrangement...")
+    print(f"Key: {args.key} | Tempo: {args.tempo} BPM | Mood: {args.mood}")
+
+    # Parse chord progression if provided
+    chord_progression = None
+    if args.chords:
+        chord_progression = [c.strip() for c in args.chords.split('-')]
+
+    arrangement = generate_arrangement(
+        title=args.title,
+        genre=args.genre,
+        key=args.key,
+        tempo=args.tempo,
+        chord_progression=chord_progression,
+        mood=args.mood,
+        vulnerability=args.vulnerability,
+        narrative_arc=args.narrative,
+    )
+
+    print("\n" + "=" * 60)
+    print("🎵 GENERATED ARRANGEMENT")
+    print("=" * 60)
+    print(f"\nTitle: {arrangement.title}")
+    print(f"Genre: {arrangement.genre} | Key: {arrangement.key} | Tempo: {arrangement.tempo} BPM")
+    print(f"Total: {arrangement.total_bars} bars")
+
+    print("\n📋 STRUCTURE:")
+    for section in arrangement.sections:
+        chords_str = " → ".join([c for c, _ in section.chords[:4]])
+        if len(section.chords) > 4:
+            chords_str += " ..."
+        print(f"  {section.name}: {section.bars} bars @ {section.energy:.0%} energy")
+        print(f"    Chords: {chords_str}")
+        print(f"    Instruments: {', '.join(section.instruments[:3])}")
+
+    print("\n🎸 CHORD PROGRESSION:")
+    print(f"  {' - '.join(arrangement.chord_progression)}")
+
+    print("\n📈 ENERGY ARC:")
+    print(f"  Journey: {arrangement.energy_arc.emotional_journey.value}")
+    print(f"  Climax at bar {arrangement.energy_arc.get_climax_bar()}")
+
+    # Save outputs
+    if args.output:
+        arrangement.save(args.output)
+        print(f"\n✅ Arrangement saved to: {args.output}")
+
+    if args.notes:
+        with open(args.notes, 'w') as f:
+            f.write(arrangement.production_notes)
+        print(f"✅ Production notes saved to: {args.notes}")
+
+    return 0
+
+
+def cmd_bass(args):
+    """Generate bass line from chord progression."""
+    generate_bass_line, BassLine, BassPattern = get_bass_module()
+
+    # Parse chord progression
+    chords_str = args.chords
+    chord_list = []
+
+    for chord_part in chords_str.split('-'):
+        chord_part = chord_part.strip()
+        # Check for duration (e.g., "C:2" means C for 2 bars)
+        if ':' in chord_part:
+            chord, duration = chord_part.split(':')
+            chord_list.append((chord.strip(), int(duration)))
+        else:
+            chord_list.append((chord_part, args.bars_per_chord))
+
+    print(f"Generating {args.genre} bass line...")
+    print(f"Chords: {chords_str}")
+
+    bass_line = generate_bass_line(
+        chords=chord_list,
+        genre=args.genre,
+        key=args.key,
+        section_type=args.section,
+        energy=args.energy,
+    )
+
+    print("\n" + "=" * 60)
+    print("🎸 GENERATED BASS LINE")
+    print("=" * 60)
+    print(f"\nPattern: {bass_line.pattern.value}")
+    print(f"Total bars: {bass_line.total_bars}")
+    print(f"Total notes: {len(bass_line.notes)}")
+
+    print("\n📋 NOTES (first 16):")
+    for note in bass_line.notes[:16]:
+        print(f"  Beat {note.start_beat:.1f}: MIDI {note.pitch} (vel: {note.velocity}, dur: {note.duration})")
+
+    if len(bass_line.notes) > 16:
+        print(f"  ... and {len(bass_line.notes) - 16} more notes")
+
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(bass_line.to_dict(), f, indent=2)
+        print(f"\n✅ Bass line saved to: {args.output}")
+
+    return 0
+
+
+def cmd_energy(args):
+    """Generate energy arc."""
+    (generate_energy_arc, EnergyArc, EmotionalJourney,
+     describe_energy_arc, suggest_arc_for_intent) = get_energy_module()
+
+    print(f"Generating energy arc for mood: {args.mood}")
+
+    # Suggest arc parameters from mood
+    arc_type, journey, climax = suggest_arc_for_intent(
+        mood=args.mood,
+        vulnerability=args.vulnerability,
+        narrative_arc=args.narrative,
+    )
+
+    arc = generate_energy_arc(
+        total_bars=args.bars,
+        arc_type=arc_type,
+        emotional_journey=journey,
+        climax_position=climax,
+        min_energy=args.min_energy,
+        max_energy=args.max_energy,
+    )
+
+    print("\n" + "=" * 60)
+    print("📈 GENERATED ENERGY ARC")
+    print("=" * 60)
+    print(f"\n{describe_energy_arc(arc)}")
+
+    print("\n📋 ENERGY CURVE (sampled):")
+    sample_points = [0, 0.25, 0.5, 0.75, 1.0]
+    for pos in sample_points:
+        bar = int(pos * arc.total_bars)
+        energy = arc.get_energy_at_position(pos)
+        bar_graph = "█" * int(energy * 20) + "░" * (20 - int(energy * 20))
+        print(f"  Bar {bar:3d} ({pos:.0%}): {bar_graph} {energy:.0%}")
+
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(arc.to_dict(), f, indent=2)
+        print(f"\n✅ Energy arc saved to: {args.output}")
+
+    return 0
+
+
+def cmd_genres(args):
+    """List available genres."""
+    (_, _, _, _, get_genre_template, GENRE_TEMPLATES) = get_arrangement_module()
+
+    print("\n📋 AVAILABLE GENRES:\n")
+    for genre, template in GENRE_TEMPLATES.items():
+        print(f"  {genre}:")
+        print(f"    Name: {template.name}")
+        print(f"    Tempo: {template.tempo_range[0]}-{template.tempo_range[1]} BPM")
+        print(f"    Sections: {len(template.sections)} ({template.total_bars} bars)")
+        print(f"    Description: {template.description}")
+        print()
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='daiw',
         description='DAiW - Digital Audio intelligent Workstation CLI'
     )
-    parser.add_argument('--version', action='version', version='%(prog)s 0.2.0')
+    parser.add_argument('--version', action='version', version='%(prog)s 0.3.0')
     
     subparsers = parser.add_subparsers(dest='command', help='Commands')
     
@@ -467,7 +674,55 @@ def main():
     # intent validate
     intent_validate = intent_subparsers.add_parser('validate', help='Validate intent file')
     intent_validate.add_argument('file', help='Intent JSON file')
-    
+
+    # Arrange command
+    arrange_parser = subparsers.add_parser('arrange', help='Generate complete arrangement')
+    arrange_parser.add_argument('-t', '--title', default='Untitled', help='Song title')
+    arrange_parser.add_argument('-g', '--genre', default='pop',
+                                choices=['pop', 'rock', 'folk', 'lofi', 'edm', 'jazz', 'hiphop', 'rnb', 'indie'],
+                                help='Genre template')
+    arrange_parser.add_argument('-k', '--key', default='C', help='Musical key (e.g., C, Am, F#)')
+    arrange_parser.add_argument('--tempo', type=float, default=120.0, help='Tempo in BPM')
+    arrange_parser.add_argument('-c', '--chords', help='Chord progression (e.g., "C-G-Am-F")')
+    arrange_parser.add_argument('-m', '--mood', default='neutral', help='Primary mood')
+    arrange_parser.add_argument('-v', '--vulnerability', type=float, default=0.5,
+                                help='Vulnerability scale 0.0-1.0')
+    arrange_parser.add_argument('-n', '--narrative', default='transformation',
+                                choices=['transformation', 'cyclical', 'descent', 'ascent', 'static', 'climactic'],
+                                help='Narrative arc type')
+    arrange_parser.add_argument('-o', '--output', help='Save arrangement JSON')
+    arrange_parser.add_argument('--notes', help='Save production notes markdown')
+
+    # Bass command
+    bass_parser = subparsers.add_parser('bass', help='Generate bass line from chords')
+    bass_parser.add_argument('chords', help='Chord progression (e.g., "C-G-Am-F" or "C:2-G:2-Am:2-F:2")')
+    bass_parser.add_argument('-g', '--genre', default='pop',
+                             choices=['pop', 'rock', 'folk', 'lofi', 'jazz', 'funk', 'hiphop', 'rnb', 'reggae'],
+                             help='Genre for bass pattern')
+    bass_parser.add_argument('-k', '--key', default='C', help='Musical key')
+    bass_parser.add_argument('-s', '--section', default='verse',
+                             choices=['intro', 'verse', 'chorus', 'bridge', 'outro', 'breakdown', 'buildup', 'drop'],
+                             help='Section type')
+    bass_parser.add_argument('-e', '--energy', type=float, default=0.5, help='Energy level 0.0-1.0')
+    bass_parser.add_argument('-b', '--bars-per-chord', type=int, default=2, help='Default bars per chord')
+    bass_parser.add_argument('-o', '--output', help='Save bass line JSON')
+
+    # Energy command
+    energy_parser = subparsers.add_parser('energy', help='Generate energy arc')
+    energy_parser.add_argument('-m', '--mood', default='neutral', help='Primary mood')
+    energy_parser.add_argument('-b', '--bars', type=int, default=64, help='Total bars')
+    energy_parser.add_argument('-v', '--vulnerability', type=float, default=0.5,
+                               help='Vulnerability scale 0.0-1.0')
+    energy_parser.add_argument('-n', '--narrative', default='transformation',
+                               choices=['transformation', 'cyclical', 'descent', 'ascent', 'static', 'climactic'],
+                               help='Narrative arc type')
+    energy_parser.add_argument('--min-energy', type=float, default=0.2, help='Minimum energy 0.0-1.0')
+    energy_parser.add_argument('--max-energy', type=float, default=0.95, help='Maximum energy 0.0-1.0')
+    energy_parser.add_argument('-o', '--output', help='Save energy arc JSON')
+
+    # Genres command
+    subparsers.add_parser('genres', help='List available genre templates')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -482,8 +737,12 @@ def main():
         'reharm': cmd_reharm,
         'teach': cmd_teach,
         'intent': cmd_intent,
+        'arrange': cmd_arrange,
+        'bass': cmd_bass,
+        'energy': cmd_energy,
+        'genres': cmd_genres,
     }
-    
+
     return commands[args.command](args)
 
 
