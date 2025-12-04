@@ -11,9 +11,26 @@ from .websocket_server import (
     MessageType,
 )
 
+from .intent_versioning import (
+    IntentVersionControl,
+    Commit,
+    Branch,
+    Tag,
+    Change,
+    ChangeType,
+)
+
 __all__ = [
+    # WebSocket server
     "CollaborationServer",
     "Session",
     "Participant",
     "MessageType",
+    # Intent versioning
+    "IntentVersionControl",
+    "Commit",
+    "Branch",
+    "Tag",
+    "Change",
+    "ChangeType",
 ]
