@@ -5,12 +5,14 @@
 
 #include "penta/ml/MLInterface.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
 #ifdef PENTA_HAS_ONNX
 #include <onnxruntime_cxx_api.h>
@@ -217,7 +219,18 @@ private:
             result.output_size = static_cast<size_t>(output_shape[1]);
             std::copy(output_data, output_data + result.output_size, result.output_data.begin());
 
-            result.confidence = 1.0f;  // TODO: Extract from model
+            // Extract confidence from model output
+            // For classification models: max probability is confidence
+            // For regression models: use a reasonable default
+            if (result.output_size > 0) {
+                float max_val = *std::max_element(
+                    result.output_data.begin(),
+                    result.output_data.begin() + result.output_size);
+                // Clamp confidence to [0, 1] range
+                result.confidence = std::min(1.0f, std::max(0.0f, max_val));
+            } else {
+                result.confidence = 0.0f;
+            }
             result.success = true;
         } catch (const Ort::Exception& e) {
             result.success = false;
