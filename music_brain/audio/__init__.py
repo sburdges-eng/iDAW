@@ -49,9 +49,6 @@ from music_brain.audio.refinery import (
 __all__ = [
     "analyze_feel",
     "AudioFeatures",
-    # Comprehensive analyzer
-    "AudioAnalyzer",
-    "AudioAnalysis",
     # Reference DNA
     "analyze_reference",
     "apply_reference_to_plan",
