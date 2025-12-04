@@ -40,7 +40,17 @@ export const Toolbar: React.FC = () => {
         <button
           className="btn-ableton-icon"
           title="Add MIDI Track"
-          onClick={() => addTrack('midi')}
+          onClick={() => addTrack({
+            name: 'New Track',
+            type: 'midi',
+            color: '#00aaff',
+            volume: 0.7,
+            pan: 0,
+            muted: false,
+            solo: false,
+            armed: false,
+            clips: [],
+          })}
         >
           <Plus size={16} />
         </button>

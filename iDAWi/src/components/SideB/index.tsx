@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { EmotionWheel } from './EmotionWheel';
 import { Interrogator } from './Interrogator';
 import { GhostWriter } from './GhostWriter';
@@ -6,6 +6,17 @@ import { RuleBreaker } from './RuleBreaker';
 import { SideBToolbar } from './SideBToolbar';
 
 export const SideB: React.FC = () => {
+  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  const [intent, setIntent] = useState<Record<string, unknown> | null>(null);
+
+  const handleSelectEmotion = (emotion: string) => {
+    setSelectedEmotion(emotion);
+  };
+
+  const handleCompleteIntent = (completedIntent: Record<string, unknown>) => {
+    setIntent(completedIntent);
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-ableton-bg">
       {/* Toolbar */}
@@ -18,7 +29,7 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Core Emotion</div>
             <div className="flex-1 p-4 overflow-auto">
-              <EmotionWheel />
+              <EmotionWheel onSelectEmotion={handleSelectEmotion} />
             </div>
           </div>
         </div>
@@ -28,7 +39,7 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Interrogator</div>
             <div className="flex-1 overflow-auto">
-              <Interrogator />
+              <Interrogator emotion={selectedEmotion} onComplete={handleCompleteIntent} />
             </div>
           </div>
 
@@ -46,7 +57,7 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Ghost Writer</div>
             <div className="flex-1 overflow-auto">
-              <GhostWriter />
+              <GhostWriter emotion={selectedEmotion} intent={intent} />
             </div>
           </div>
         </div>

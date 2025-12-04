@@ -31,20 +31,30 @@ export const SideBToolbar: React.FC = () => {
       {/* Current Intent Summary */}
       <div className="flex-1 flex items-center gap-2 text-sm">
         <span className="text-ableton-text-dim">Intent:</span>
-        <span className="text-ableton-accent capitalize">
-          {songIntent.coreEmotion}
-        </span>
-        <span className="text-ableton-text-dim">→</span>
-        <span className="text-ableton-text capitalize">
-          {songIntent.subEmotion}
-        </span>
-        {songIntent.ruleToBreak && (
+        {songIntent.coreEmotion ? (
           <>
-            <span className="text-ableton-text-dim">|</span>
-            <span className="text-ableton-yellow text-xs">
-              Breaking: {songIntent.ruleToBreak}
+            <span className="text-ableton-accent capitalize">
+              {songIntent.coreEmotion}
             </span>
+            {songIntent.subEmotion && (
+              <>
+                <span className="text-ableton-text-dim">→</span>
+                <span className="text-ableton-text capitalize">
+                  {songIntent.subEmotion}
+                </span>
+              </>
+            )}
+            {songIntent.ruleToBreak && (
+              <>
+                <span className="text-ableton-text-dim">|</span>
+                <span className="text-ableton-yellow text-xs">
+                  Breaking: {songIntent.ruleToBreak}
+                </span>
+              </>
+            )}
           </>
+        ) : (
+          <span className="text-ableton-text-dim italic">No emotion selected</span>
         )}
       </div>
 

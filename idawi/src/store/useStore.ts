@@ -21,6 +21,12 @@ export interface Track {
   clips: Clip[];
 }
 
+export interface SongIntent {
+  coreEmotion: string | null;
+  subEmotion: string | null;
+  ruleToBreak: string | null;
+}
+
 interface StoreState {
   // Playback state
   isPlaying: boolean;
@@ -32,21 +38,37 @@ interface StoreState {
   // Project state
   projectName: string;
   tracks: Track[];
+  masterVolume: number;
 
   // UI state
   currentSide: 'A' | 'B';
   selectedTrackId: string | null;
+  isFlipping: boolean;
+
+  // Song intent (Side B)
+  songIntent: SongIntent;
 
   // Actions
   setPlaying: (playing: boolean) => void;
   setRecording: (recording: boolean) => void;
-  setCurrentTime: (time: number) => void;
+  setCurrentTime: (time: number | ((prev: number) => number)) => void;
   setTempo: (tempo: number) => void;
+  setMasterVolume: (volume: number) => void;
   toggleSide: () => void;
   addTrack: (track: Omit<Track, 'id'>) => void;
   updateTrack: (id: string, updates: Partial<Track>) => void;
   removeTrack: (id: string) => void;
   selectTrack: (id: string | null) => void;
+  
+  // Playback actions
+  play: () => void;
+  stop: () => void;
+  pause: () => void;
+  setPosition: (position: number | ((prev: number) => number)) => void;
+  
+  // Song intent actions
+  updateSongIntent: (updates: Partial<SongIntent>) => void;
+  clearSuggestions: () => void;
 }
 
 const defaultTracks: Track[] = [
@@ -142,18 +164,34 @@ export const useStore = create<StoreState>((set) => ({
   timeSignature: [4, 4],
   projectName: 'Untitled Project',
   tracks: defaultTracks,
+  masterVolume: 0.8,
   currentSide: 'A',
   selectedTrackId: null,
+  isFlipping: false,
+  songIntent: {
+    coreEmotion: null,
+    subEmotion: null,
+    ruleToBreak: null,
+  },
 
   // Actions
   setPlaying: (playing) => set({ isPlaying: playing }),
   setRecording: (recording) => set({ isRecording: recording }),
-  setCurrentTime: (time) => set({ currentTime: time }),
-  setTempo: (tempo) => set({ tempo }),
-
-  toggleSide: () => set((state) => ({
-    currentSide: state.currentSide === 'A' ? 'B' : 'A'
+  setCurrentTime: (time) => set((state) => ({
+    currentTime: typeof time === 'function' ? time(state.currentTime) : time
   })),
+  setTempo: (tempo) => set({ tempo }),
+  setMasterVolume: (volume) => set({ masterVolume: volume }),
+
+  toggleSide: () => {
+    set({ isFlipping: true });
+    setTimeout(() => {
+      set((state) => ({
+        currentSide: state.currentSide === 'A' ? 'B' : 'A',
+        isFlipping: false,
+      }));
+    }, 100);
+  },
 
   addTrack: (track) => set((state) => ({
     tracks: [...state.tracks, { ...track, id: `track-${Date.now()}` }]
@@ -170,4 +208,24 @@ export const useStore = create<StoreState>((set) => ({
   })),
 
   selectTrack: (id) => set({ selectedTrackId: id }),
+
+  // Playback actions
+  play: () => set({ isPlaying: true }),
+  stop: () => set({ isPlaying: false, currentTime: 0 }),
+  pause: () => set({ isPlaying: false }),
+  setPosition: (position) => set((state) => ({
+    currentTime: typeof position === 'function' ? position(state.currentTime) : position
+  })),
+
+  // Song intent actions
+  updateSongIntent: (updates) => set((state) => ({
+    songIntent: { ...state.songIntent, ...updates }
+  })),
+  clearSuggestions: () => set({
+    songIntent: {
+      coreEmotion: null,
+      subEmotion: null,
+      ruleToBreak: null,
+    }
+  }),
 }));
