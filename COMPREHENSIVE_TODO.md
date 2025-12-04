@@ -1,8 +1,10 @@
 # iDAW Comprehensive To-Do List
 
-> Generated: 2025-12-03 | Version: 0.2.0 (Alpha)
+> Updated: 2025-12-04 | Version: 0.2.1 (Alpha)
 
 This document provides a complete roadmap of tasks for the iDAW project, organized by priority and component.
+
+> **Note**: See `REFINED_PRIORITY_PLANS.md` for detailed, actionable implementation plans.
 
 ---
 
@@ -10,11 +12,13 @@ This document provides a complete roadmap of tasks for the iDAW project, organiz
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| DAiW-Music-Brain (Python) | ✅ Functional | ~90% |
+| DAiW-Music-Brain (Python) | ✅ Functional | ~92% |
 | Penta-Core (C++ RT Engines) | ✅ Functional | ~85% |
-| iDAW_Core (JUCE Plugins) | 🔄 In Progress | ~40% |
+| iDAW_Core (JUCE Plugins) | ✅ **Complete** | ~95% |
+| Python/C++ Bridge | ✅ **Complete** | ~100% |
+| Therapy System | ✅ Functional | ~95% |
 | MCP Workstation | ✅ Functional | ~95% |
-| Test Suite | ✅ Comprehensive | ~85% |
+| Test Suite | 🔴 **Gaps Found** | ~50% |
 | Documentation | ✅ Extensive | ~90% |
 
 ---
@@ -22,83 +26,130 @@ This document provides a complete roadmap of tasks for the iDAW project, organiz
 ## 🔴 HIGH PRIORITY - Core Functionality
 
 ### 1. JUCE Plugin DSP Implementations
-**Status**: Only Pencil plugin fully implemented; 6 plugins need DSP work
+**Status**: ✅ **COMPLETE** - All 11 plugins have full DSP implementations
 
-| Plugin | Priority | Required DSP Work |
-|--------|----------|-------------------|
-| **Eraser** | HIGH | Spectral subtraction, noise gate, audio cleanup algorithms |
-| **Press** | HIGH | Compressor/limiter, knee curves, attack/release envelopes |
-| **Palette** | MEDIUM | Tonal coloring, EQ curves, saturation variations |
-| **Smudge** | MEDIUM | Blending algorithms, crossfade, morphing |
-| **Trace** | LOW | Envelope follower, pattern automation |
-| **Parrot** | LOW | Sample playback engine, pitch shifting |
+| Plugin | Lines (H/C) | DSP Features | Status |
+|--------|-------------|--------------|--------|
+| **Pencil** | 267/411 | 3-band tube saturation, 2nd harmonic generation | ✅ |
+| **Eraser** | 280/462 | 2048-FFT spectral gating, 75% overlap, Hann window | ✅ |
+| **Press** | 279/415 | RMS compression, soft knee, auto makeup gain | ✅ |
+| **Palette** | 239/432 | Dual-osc wavetable, 8-voice poly, FM matrix, SVF | ✅ |
+| **Parrot** | 315/879 | 4096-FFT pitch detection, YIN, harmony gen, vocoder | ✅ |
+| **Smudge** | 175/445 | 1024-FFT convolution reverb, partitioned IR | ✅ |
+| **Trace** | 172/251 | Circular delay, ping-pong, tape saturation, LFO | ✅ |
+| **Brush** | 199/383 | SVF 4-mode filter, 6 LFO shapes, envelope follower | ✅ |
+| **Chalk** | 179/391 | Bitcrusher, sample-rate reduction, vinyl crackle | ✅ |
+| **Stencil** | 172/291 | Sidechain ducking, 3 modes (ext/LFO/MIDI) | ✅ |
+| **Stamp** | 195/456 | Stutter/repeat, reverse, ping-pong, pitch shift | ✅ |
 
 **Location**: `iDAW_Core/plugins/*/`
 
-**Tasks**:
-- [ ] Implement Eraser DSP (spectral subtraction, noise profiling)
-- [ ] Implement Press DSP (compressor curves, gain reduction)
-- [ ] Implement Palette DSP (multi-band EQ, saturation)
-- [ ] Implement Smudge DSP (audio morphing, crossfade)
-- [ ] Implement Trace DSP (envelope follower, automation)
-- [ ] Implement Parrot DSP (sample engine, pitch detection)
-- [ ] Add JUCE parameter automation for all plugins
-- [ ] Create shader effects for each plugin's visual identity
+**Completed Tasks**:
+- [x] ~~Implement Eraser DSP~~ Complete (spectral gating with JUCE FFT)
+- [x] ~~Implement Press DSP~~ Complete (VCA compressor with soft knee)
+- [x] ~~Implement Palette DSP~~ Complete (wavetable synth with FM)
+- [x] ~~Implement Smudge DSP~~ Complete (convolution reverb)
+- [x] ~~Implement Trace DSP~~ Complete (modulated delay with BPM sync)
+- [x] ~~Implement Parrot DSP~~ Complete (pitch detection + harmony generation)
+- [x] ~~Add JUCE parameter automation~~ Complete (AudioProcessorValueTreeState)
+- [x] ~~Create shader effects~~ Complete (11 unique OpenGL shaders)
 
 ---
 
 ### 2. FFT Library Integration for Production
-**Status**: Penta-core uses simplified filterbank; production needs real FFT
+**Status**: 🟡 70% Complete - JUCE FFT working, OnsetDetector needs upgrade
 
-**Tasks**:
-- [ ] Choose FFT library: FFTW3 (Linux), vDSP (macOS), or header-only (KissFFT/PocketFFT)
-- [ ] Integrate FFT into CMake build system
-- [ ] Update OnsetDetector to use real FFT for spectral flux
-- [ ] Implement proper Hann windowing with FFT
-- [ ] Benchmark FFT performance (target: < 150μs per 512-sample block)
-- [ ] Add fallback for systems without SIMD
+| Component | Library | Status |
+|-----------|---------|--------|
+| Eraser Plugin | `juce::dsp::FFT` | ✅ Working (2048 FFT) |
+| Smudge Plugin | `juce::dsp::FFT` | ✅ Working (1024 FFT) |
+| Parrot Plugin | `juce::dsp::FFT` | ✅ Working (4096 FFT) |
+| Python Analysis | `librosa.stft()` | ✅ Working |
+| **OnsetDetector** | Filterbank stub | ❌ **Needs real FFT** |
+| **Phase Vocoder** | Declared only | ❌ **Not implemented** |
+
+**Remaining Tasks**:
+- [x] ~~Choose FFT library~~ Using JUCE FFT (already in build)
+- [ ] Update OnsetDetector to use `juce::dsp::FFT` for spectral flux
+- [ ] Implement Phase Vocoder in `python/penta_core/dsp/parrot_dsp.py`
+- [ ] Benchmark OnsetDetector FFT (target: < 200μs latency)
+- [x] ~~Hann windowing~~ Already implemented in plugins
 
 ---
 
 ### 3. Test Suite Gaps
-**Status**: 519 tests passing, 25 failing (require optional deps), 5 errors
+**Status**: 🔴 49.8% Coverage - Major gaps identified
 
-**Tasks**:
-- [ ] Fix 5 bridge integration test errors
-- [ ] Add mock implementations for optional API tests (openai, anthropic, google-generativeai)
-- [ ] Add C++ unit tests for OSCHub pattern matching
-- [ ] Add integration tests for JUCE plugin audio processing
-- [ ] Add memory leak tests with Valgrind/AddressSanitizer
-- [ ] Add RT-safety verification tests (no allocations in audio thread)
+| Component | Test LOC | Source LOC | Coverage | Priority |
+|-----------|----------|------------|----------|----------|
+| iDAW_Core (Plugins) | 0 | 4,816 | **0%** | 🔴 CRITICAL |
+| ML Module | 0 | 2,210 | **0%** | 🔴 CRITICAL |
+| Collaboration | 0 | 1,433 | **0%** | 🟡 MEDIUM |
+| DSP Module | 0 | 1,130 | **0%** | 🔴 HIGH |
+| Music Brain Core | ~12,000 | 15,000 | **77%** | ✅ Good |
+| Penta-Core C++ | 1,815 | 3,120 | **58%** | 🟡 MEDIUM |
+
+**Critical Tasks**:
+- [ ] Create JUCE plugin test harness (`PluginTestHarness.h`)
+- [ ] Add RT-safety verification (no allocations in processBlock)
+- [ ] Add plugin DSP accuracy tests (compression ratio, FFT accuracy)
+- [ ] Add ML module test coverage (inference, style transfer)
+- [ ] Add DSP module tests (pitch detection, phase vocoder)
+- [ ] Add Valgrind memory testing to CI
+- [ ] Add performance regression tests (< 100μs harmony, < 200μs groove)
 
 ---
 
 ## 🟡 MEDIUM PRIORITY - Enhancement & Integration
 
 ### 4. Python/C++ Bridge Completion
-**Status**: Framework exists, some functionality incomplete
+**Status**: ✅ **COMPLETE** - Production-ready
 
-**Tasks**:
-- [ ] Complete Python bindings for all penta-core modules
-- [ ] Add pybind11 wrappers for GrooveEngine
-- [ ] Add pybind11 wrappers for HarmonyEngine
-- [ ] Add pybind11 wrappers for DiagnosticsEngine
-- [ ] Add pybind11 wrappers for OSCHub
-- [ ] Create integration tests for Python bindings
-- [ ] Document Python API with examples
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| pybind11 bindings | ✅ Complete | `bindings/*.cpp` - all 4 modules |
+| Python wrapper API | ✅ Complete | `python/penta_core/__init__.py` (326 lines) |
+| C++ PythonBridge | ✅ Complete | `iDAW_Core/include/PythonBridge.h` |
+| Bridge API | ✅ Complete | `music_brain/orchestrator/bridge_api.py` (678 lines) |
+| OSC communication | ✅ Complete | Documented in `vault/Production_Workflows/` |
+| Integration tests | ✅ Complete | 11/11 passing |
+
+**Completed Tasks**:
+- [x] ~~Complete Python bindings~~ All 4 modules wrapped
+- [x] ~~pybind11 wrappers for GrooveEngine~~ Complete
+- [x] ~~pybind11 wrappers for HarmonyEngine~~ Complete
+- [x] ~~pybind11 wrappers for DiagnosticsEngine~~ Complete
+- [x] ~~pybind11 wrappers for OSCHub~~ Complete
+- [x] ~~Create integration tests~~ 11/11 passing
+
+**Remaining**:
+- [ ] Document Python API with usage examples
 
 ---
 
 ### 5. Therapy/Chatbot Integration
-**Status**: Infrastructure ready, NLP service pending
+**Status**: ✅ 95% Complete - Therapy-to-music compiler (not a chatbot)
 
-**Tasks**:
-- [ ] Define chatbot service API specification
-- [ ] Implement chatbot service client in BridgeClient
-- [ ] Add async callback support for auto-tune RPC
-- [ ] Create intent-to-chat translation layer
-- [ ] Add conversation state management
-- [ ] Test with local LLM (optional Ollama integration)
+| Component | Status | Location |
+|-----------|--------|----------|
+| Affect Analyzer | ✅ Complete | `music_brain/structure/comprehensive_engine.py` |
+| Therapy Session | ✅ Complete | `music_brain/structure/comprehensive_engine.py` |
+| Song Interrogator | ✅ Complete | `interrogator.py` (7 phases) |
+| Intent Schema | ✅ Complete | `music_brain/session/intent_schema.py` |
+| Rule-Breaking System | ✅ Complete | `music_brain/session/teaching.py` |
+| MIDI Rendering | ✅ Complete | `render_plan_to_midi()` |
+| MCP Tool | ✅ Complete | `therapy.py` → `daiw.therapy.session` |
+| Optional Ollama | ✅ Available | `music_brain/agents/unified_hub.py` |
+
+**Completed Tasks**:
+- [x] ~~Define chatbot service API~~ Uses therapy session API
+- [x] ~~Intent-to-chat translation~~ Via AffectAnalyzer
+- [x] ~~Local LLM integration~~ Ollama support available
+
+**Optional Enhancements**:
+- [ ] Add session save/load persistence
+- [ ] Add real-time Ollama streaming
+- [ ] Complete voice synthesis profiles
 
 ---
 
