@@ -10,6 +10,8 @@ set(TEST_SOURCES
     osc_test.cpp
     rt_memory_test.cpp
     performance_test.cpp
+    diagnostics_test.cpp
+    plugin_test_harness.cpp
 )
 
 add_executable(penta_tests ${TEST_SOURCES})
