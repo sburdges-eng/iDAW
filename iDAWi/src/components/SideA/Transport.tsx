@@ -22,7 +22,6 @@ export const Transport: React.FC = () => {
     loopEnabled,
     toggleRecord,
     toggleLoop,
-    setTempo,
   } = useStore();
 
   const audio = useTauriAudio();
