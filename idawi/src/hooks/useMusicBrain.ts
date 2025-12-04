@@ -1,6 +1,6 @@
 // Music Brain integration hook
 // In production, this would use Tauri's invoke to call Python
-import React from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 interface Emotion {
   name: string;
@@ -104,9 +104,9 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
 };
 
 export function useMusicBrain() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const getEmotions = React.useCallback(async (): Promise<Emotion[]> => {
+  const getEmotions = useCallback(async (): Promise<Emotion[]> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
@@ -120,9 +120,9 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  }, []); // Empty deps: setIsLoading is stable, no external dependencies
+  }, []); // setIsLoading is stable, no external dependencies
 
-  const suggestRuleBreak = React.useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
+  const suggestRuleBreak = useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
@@ -144,9 +144,9 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  }, []); // Empty deps: setIsLoading is stable, ruleBreakingDatabase is constant
+  }, []); // setIsLoading is stable, ruleBreakingDatabase is constant
 
-  const processIntent = React.useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
+  const processIntent = useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
     setIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
@@ -191,12 +191,16 @@ export function useMusicBrain() {
       setIsLoading(false);
       throw error;
     }
-  }, []); // Empty deps: setIsLoading is stable, all data is constant
+  }, []); // setIsLoading is stable, all data is constant
 
-  return {
-    getEmotions,
-    suggestRuleBreak,
-    processIntent,
-    isLoading,
-  };
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      getEmotions,
+      suggestRuleBreak,
+      processIntent,
+      isLoading,
+    }),
+    [getEmotions, suggestRuleBreak, processIntent, isLoading]
+  );
 }
