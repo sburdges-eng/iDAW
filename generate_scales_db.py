@@ -756,22 +756,22 @@ def extract_all_emotions(taxonomy: Dict) -> List[str]:
         sub_emotions = data.get("sub_emotions", {})
         if isinstance(sub_emotions, dict):
             # Add sub-emotions
-            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions.keys())
+            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions)
             
             # Add sub-sub-emotions in one pass
             for sub_data in sub_emotions.values():
                 sub_sub_emotions = sub_data.get("sub_sub_emotions", {})
                 if isinstance(sub_sub_emotions, dict):
-                    all_emotions.extend(subsub_name.lower() for subsub_name in sub_sub_emotions.keys())
+                    all_emotions.extend(subsub_name.lower() for subsub_name in sub_sub_emotions)
             # Use list comprehension instead of nested loops
-            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions.keys())
+            all_emotions.extend(sub_name.lower() for sub_name in sub_emotions)
             
             # Add all sub-sub-emotions - flattened comprehension
             all_emotions.extend(
                 subsub_name.lower()
                 for sub_data in sub_emotions.values()
                 if isinstance(sub_data.get("sub_sub_emotions"), dict)
-                for subsub_name in sub_data["sub_sub_emotions"].keys()
+                for subsub_name in sub_data["sub_sub_emotions"]
             )
 
     return all_emotions

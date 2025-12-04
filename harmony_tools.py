@@ -358,7 +358,7 @@ def _optimize_voice_leading(chords: List[str], key: str) -> Tuple[List[Dict[str,
         
         # Generate different voicing options (close position, open position, inversions)
         for octave_shift in [-1, 0, 1]:
-            for inversion in range(len(base_notes)):
+            for inversion, _ in enumerate(base_notes):
                 voicing = []
                 for i, note in enumerate(base_notes):
                     idx = (i + inversion) % len(base_notes)

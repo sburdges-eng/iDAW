@@ -163,7 +163,7 @@ def apply_genre_pocket(midi_path, genre, output_path=None, intensity=1.0):
     
     pocket_maps = load_pocket_maps()
     if genre not in pocket_maps:
-        print(f"Genre '{genre}' not found. Available: {[k for k in pocket_maps.keys() if not k.startswith('_')]}")
+        print(f"Genre '{genre}' not found. Available: {[k for k in pocket_maps if not k.startswith('_')]}")
         return
     
     pocket = pocket_maps[genre]

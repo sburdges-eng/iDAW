@@ -63,13 +63,13 @@ class PolyrhythmPattern:
         """Get beat positions for all layers."""
         return {
             i: self.get_beat_positions(i)
-            for i in range(len(self.ratios))
+            for i, _ in enumerate(self.ratios)
         }
 
     def get_coincident_points(self) -> List[float]:
         """Find positions where multiple layers align."""
         all_positions = []
-        for layer in range(len(self.ratios)):
+        for layer, _ in enumerate(self.ratios):
             all_positions.extend(self.get_beat_positions(layer))
 
         # Find positions that appear multiple times
@@ -193,7 +193,8 @@ def detect_polyrhythm(
 
     # Calculate inter-onset intervals
     times = [e.get("time", 0) for e in sorted_events]
-    intervals = [times[i+1] - times[i] for i in range(len(times) - 1)]
+    # More efficient: use zip to create pairs
+    intervals = [t2 - t1 for t1, t2 in zip(times[:-1], times[1:])]
 
     if not intervals:
         return None

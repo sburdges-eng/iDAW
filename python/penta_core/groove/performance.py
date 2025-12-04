@@ -219,7 +219,8 @@ def _estimate_tempo(events: List[Dict]) -> float:
         return 120.0
 
     times = [e.get("time", 0) for e in events]
-    intervals = [times[i+1] - times[i] for i in range(len(times) - 1)]
+    # More efficient: use zip to create pairs
+    intervals = [t2 - t1 for t1, t2 in zip(times[:-1], times[1:])]
 
     # Filter out very short intervals (grace notes) and long ones (rests)
     valid_intervals = [i for i in intervals if 0.1 < i < 2.0]
@@ -375,10 +376,11 @@ def _detect_breath_points(
     breath_points = []
     times = sorted(e.get("time", 0) for e in events)
 
-    for i in range(len(times) - 1):
-        gap = times[i + 1] - times[i]
+    # More efficient: use zip to create pairs
+    for t1, t2 in zip(times[:-1], times[1:]):
+        gap = t2 - t1
         if gap > min_gap * beat_duration:
-            breath_points.append(times[i + 1])
+            breath_points.append(t2)
 
     return breath_points
 
@@ -454,9 +456,10 @@ def detect_tempo_variations(
     times = sorted(e.get("time", 0) for e in events)
 
     # Calculate local tempo at each point
-    for i in range(len(times) - window_beats):
+    for i, _ in enumerate(times[:-window_beats]):
         window_times = times[i:i + window_beats + 1]
-        intervals = [window_times[j+1] - window_times[j] for j in range(len(window_times) - 1)]
+        # More efficient: use zip to create pairs
+        intervals = [t2 - t1 for t1, t2 in zip(window_times[:-1], window_times[1:])]
 
         if intervals:
             avg_interval = sum(intervals) / len(intervals)

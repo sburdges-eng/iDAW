@@ -458,7 +458,7 @@ class VoiceModulator:
     def _get_envelope(self, samples: np.ndarray, window_size: int) -> np.ndarray:
         """Get amplitude envelope of signal."""
         envelope = np.zeros_like(samples)
-        for i in range(len(samples)):
+        for i, _ in enumerate(samples):
             start = max(0, i - window_size // 2)
             end = min(len(samples), i + window_size // 2)
             envelope[i] = np.max(np.abs(samples[start:end]))
