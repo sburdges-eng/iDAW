@@ -264,7 +264,9 @@ class HarmonyEnginePluginTest : public PluginTestHarness {
 protected:
     void SetUp() override {
         PluginTestHarness::SetUp();
-        engine_ = std::make_unique<harmony::HarmonyEngine>(44100.0);
+        harmony::HarmonyEngine::Config config;
+        config.sampleRate = 44100.0;
+        engine_ = std::make_unique<harmony::HarmonyEngine>(config);
     }
 
     std::unique_ptr<harmony::HarmonyEngine> engine_;
@@ -272,14 +274,16 @@ protected:
 
 TEST_F(HarmonyEnginePluginTest, RTSafeProcessing) {
     constexpr size_t blockSize = 512;
-    std::array<float, blockSize> audioIn;
-    std::array<float, blockSize> audioOut;
     
-    generateSineWave(audioIn.data(), blockSize, 440.0, 44100.0);
+    // Create test MIDI notes
+    std::vector<Note> notes;
+    notes.push_back({60, 100, 0});  // Middle C, velocity 100
+    notes.push_back({64, 90, 0});   // E
+    notes.push_back({67, 95, 0});   // G
 
     rtValidator_->beginRTContext();
     
-    engine_->processBlock(audioIn.data(), audioOut.data(), blockSize);
+    engine_->processNotes(notes.data(), notes.size());
     
     rtValidator_->endRTContext();
     
@@ -289,19 +293,22 @@ TEST_F(HarmonyEnginePluginTest, RTSafeProcessing) {
 TEST_F(HarmonyEnginePluginTest, IntegrationWithMockDevice) {
     std::atomic<int> processedBlocks{0};
     
-    mockDevice_->setCallback([this, &processedBlocks](
+    // Create test MIDI notes
+    std::vector<Note> notes;
+    notes.push_back({60, 100, 0});  // C major chord
+    notes.push_back({64, 90, 0});
+    notes.push_back({67, 95, 0});
+    
+    mockDevice_->setCallback([this, &processedBlocks, &notes](
         const float* input, float* output, size_t numFrames, size_t numChannels) {
         
         rtValidator_->beginRTContext();
         
-        // Process each channel
-        for (size_t ch = 0; ch < numChannels; ++ch) {
-            engine_->processBlock(
-                input + (ch * numFrames),
-                output + (ch * numFrames),
-                numFrames
-            );
-        }
+        // Process MIDI notes for harmony analysis
+        engine_->processNotes(notes.data(), notes.size());
+        
+        // Pass through audio
+        std::memcpy(output, input, numFrames * numChannels * sizeof(float));
         
         rtValidator_->endRTContext();
         processedBlocks++;
@@ -323,7 +330,9 @@ class GrooveEnginePluginTest : public PluginTestHarness {
 protected:
     void SetUp() override {
         PluginTestHarness::SetUp();
-        engine_ = std::make_unique<groove::GrooveEngine>(44100.0);
+        groove::GrooveEngine::Config config;
+        config.sampleRate = 44100.0;
+        engine_ = std::make_unique<groove::GrooveEngine>(config);
     }
 
     std::unique_ptr<groove::GrooveEngine> engine_;
@@ -339,7 +348,7 @@ TEST_F(GrooveEnginePluginTest, RTSafeOnsetDetection) {
 
     rtValidator_->beginRTContext();
     
-    engine_->processBlock(audioIn.data(), blockSize);
+    engine_->processAudio(audioIn.data(), blockSize);
     
     rtValidator_->endRTContext();
     
@@ -367,10 +376,10 @@ TEST_F(GrooveEnginePluginTest, TempoEstimationAccuracy) {
             audioBuffer[0] = 1.0f;
         }
         
-        engine_->processBlock(audioBuffer.data(), blockSize);
+        engine_->processAudio(audioBuffer.data(), blockSize);
     }
 
-    double estimatedTempo = engine_->getEstimatedTempo();
+    double estimatedTempo = engine_->getAnalysis().currentTempo;
     
     // Allow 5% tolerance
     EXPECT_NEAR(estimatedTempo, bpm, bpm * 0.05);
@@ -396,14 +405,15 @@ TEST_F(DiagnosticsEnginePluginTest, MonitorsRealTimePerformance) {
     mockDevice_->setCallback([this, &processedBlocks](
         const float* input, float* output, size_t numFrames, size_t numChannels) {
         
-        engine_->beginProcessing();
+        engine_->beginMeasurement();
         
-        // Simulate some processing
+        // Simulate some processing and analyze audio
         for (size_t i = 0; i < numFrames * numChannels; ++i) {
             output[i] = input[i] * 0.5f;
         }
         
-        engine_->endProcessing(numFrames, 44100.0);
+        engine_->analyzeAudio(input, numFrames, numChannels);
+        engine_->endMeasurement();
         processedBlocks++;
     });
 
@@ -411,10 +421,10 @@ TEST_F(DiagnosticsEnginePluginTest, MonitorsRealTimePerformance) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     mockDevice_->stop();
 
-    auto stats = engine_->getStatistics();
+    auto stats = engine_->getStats();
     
     EXPECT_GT(processedBlocks.load(), 0);
-    EXPECT_GE(stats.avgLatencyUs, 0.0f);
+    EXPECT_GE(stats.averageLatencyMs, 0.0f);
     EXPECT_LE(stats.cpuUsagePercent, 100.0f);
 }
 
@@ -493,8 +503,14 @@ protected:
     void SetUp() override {
         PluginTestHarness::SetUp();
         
-        harmonyEngine_ = std::make_unique<harmony::HarmonyEngine>(44100.0);
-        grooveEngine_ = std::make_unique<groove::GrooveEngine>(44100.0);
+        harmony::HarmonyEngine::Config harmonyConfig;
+        harmonyConfig.sampleRate = 44100.0;
+        harmonyEngine_ = std::make_unique<harmony::HarmonyEngine>(harmonyConfig);
+        
+        groove::GrooveEngine::Config grooveConfig;
+        grooveConfig.sampleRate = 44100.0;
+        grooveEngine_ = std::make_unique<groove::GrooveEngine>(grooveConfig);
+        
         diagnostics_ = std::make_unique<diagnostics::DiagnosticsEngine>();
         memoryPool_ = std::make_unique<RTMemoryPool>(512, 1000);
     }
@@ -508,29 +524,37 @@ protected:
 TEST_F(FullPluginIntegrationTest, CompleteProcessingChain) {
     constexpr size_t blockSize = 512;
     std::array<float, blockSize> audioIn;
-    std::array<float, blockSize> audioOut;
     
     // Generate test audio
     generateSineWave(audioIn.data(), blockSize, 440.0, 44100.0);
+    
+    // Create test MIDI notes
+    std::vector<Note> notes;
+    notes.push_back({60, 100, 0});
+    notes.push_back({64, 90, 0});
+    notes.push_back({67, 95, 0});
 
     rtValidator_->beginRTContext();
     
-    diagnostics_->beginProcessing();
+    diagnostics_->beginMeasurement();
     
     // Process through groove engine
-    grooveEngine_->processBlock(audioIn.data(), blockSize);
+    grooveEngine_->processAudio(audioIn.data(), blockSize);
     
     // Process through harmony engine
-    harmonyEngine_->processBlock(audioIn.data(), audioOut.data(), blockSize);
+    harmonyEngine_->processNotes(notes.data(), notes.size());
     
-    diagnostics_->endProcessing(blockSize, 44100.0);
+    // Analyze audio
+    diagnostics_->analyzeAudio(audioIn.data(), blockSize, 1);
+    
+    diagnostics_->endMeasurement();
     
     rtValidator_->endRTContext();
     
     validateRTSafety();
     
-    auto stats = diagnostics_->getStatistics();
-    EXPECT_GT(stats.avgLatencyUs, 0.0f);
+    auto stats = diagnostics_->getStats();
+    EXPECT_GT(stats.averageLatencyMs, 0.0f);
     EXPECT_LT(stats.cpuUsagePercent, 50.0f);  // Should be efficient
 }
 
@@ -545,33 +569,41 @@ TEST_F(FullPluginIntegrationTest, StressTestWithMockDevice) {
     config.jitterAmountMs = 1.0;
     mockDevice_ = std::make_unique<MockAudioDevice>(config);
     
-    mockDevice_->setCallback([this, &processedBlocks, &xruns](
+    // Create test MIDI notes
+    std::vector<Note> notes;
+    notes.push_back({60, 100, 0});
+    notes.push_back({64, 90, 0});
+    notes.push_back({67, 95, 0});
+    
+    mockDevice_->setCallback([this, &processedBlocks, &xruns, &notes](
         const float* input, float* output, size_t numFrames, size_t numChannels) {
         
         rtValidator_->beginRTContext();
-        diagnostics_->beginProcessing();
+        diagnostics_->beginMeasurement();
         
         // Process through all engines
-        std::vector<float> tempBuffer(numFrames);
-        
         for (size_t ch = 0; ch < numChannels; ++ch) {
             const float* in = input + (ch * numFrames);
             float* out = output + (ch * numFrames);
             
             // Groove analysis
-            grooveEngine_->processBlock(in, numFrames);
+            grooveEngine_->processAudio(in, numFrames);
             
             // Harmony processing
-            harmonyEngine_->processBlock(in, out, numFrames);
+            harmonyEngine_->processNotes(notes.data(), notes.size());
+            
+            // Pass through audio
+            std::memcpy(out, in, numFrames * sizeof(float));
         }
         
-        diagnostics_->endProcessing(numFrames, 44100.0);
+        diagnostics_->analyzeAudio(input, numFrames, numChannels);
+        diagnostics_->endMeasurement();
         rtValidator_->endRTContext();
         
         processedBlocks++;
         
         // Check for xruns
-        if (diagnostics_->getStatistics().xrunCount > 0) {
+        if (diagnostics_->getStats().xrunCount > 0) {
             xruns++;
         }
     });
@@ -597,15 +629,17 @@ protected:
 };
 
 TEST_F(PluginPerformanceBenchmark, HarmonyEngineLatency) {
-    harmony::HarmonyEngine engine(44100.0);
-    std::array<float, BLOCK_SIZE> input, output;
+    harmony::HarmonyEngine engine;
     
-    generateSineWave(input.data(), BLOCK_SIZE, 440.0, 44100.0);
+    std::vector<Note> notes;
+    notes.push_back({60, 100, 0});
+    notes.push_back({64, 90, 0});
+    notes.push_back({67, 95, 0});
     
     auto start = std::chrono::high_resolution_clock::now();
     
     for (size_t i = 0; i < BENCHMARK_ITERATIONS; ++i) {
-        engine.processBlock(input.data(), output.data(), BLOCK_SIZE);
+        engine.processNotes(notes.data(), notes.size());
     }
     
     auto end = std::chrono::high_resolution_clock::now();
@@ -620,7 +654,7 @@ TEST_F(PluginPerformanceBenchmark, HarmonyEngineLatency) {
 }
 
 TEST_F(PluginPerformanceBenchmark, GrooveEngineLatency) {
-    groove::GrooveEngine engine(44100.0);
+    groove::GrooveEngine engine;
     std::array<float, BLOCK_SIZE> input;
     
     generateSineWave(input.data(), BLOCK_SIZE, 440.0, 44100.0);
@@ -628,7 +662,7 @@ TEST_F(PluginPerformanceBenchmark, GrooveEngineLatency) {
     auto start = std::chrono::high_resolution_clock::now();
     
     for (size_t i = 0; i < BENCHMARK_ITERATIONS; ++i) {
-        engine.processBlock(input.data(), BLOCK_SIZE);
+        engine.processAudio(input.data(), BLOCK_SIZE);
     }
     
     auto end = std::chrono::high_resolution_clock::now();
