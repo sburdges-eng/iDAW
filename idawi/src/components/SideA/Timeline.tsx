@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 
 export const Timeline: React.FC = () => {
-  const { tracks, currentTime, isPlaying, tempo, timeSignature } = useStore();
+  const { tracks, currentTime, tempo, timeSignature } = useStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Calculate grid based on tempo and time signature

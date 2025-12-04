@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
 interface Emotion {
@@ -9,22 +9,30 @@ interface Emotion {
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
-  selectedEmotion?: string | null; // Controlled prop to sync with parent state
 }
 
-export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, selectedEmotion: selectedEmotionProp = null }) => {
+export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) => {
   const [emotions, setEmotions] = useState<Emotion[]>([]);
+  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { getEmotions } = useMusicBrain();
 
-  useEffect(() => {
+  const loadEmotions = useCallback(async () => {
     setIsLoading(true);
-    getEmotions()
-      .then(setEmotions)
-      .finally(() => setIsLoading(false));
-  }, []);
+    try {
+      const data = await getEmotions();
+      setEmotions(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getEmotions]);
+
+  useEffect(() => {
+    loadEmotions();
+  }, [loadEmotions]);
 
   const handleSelect = (emotion: string) => {
+    setSelectedEmotion(emotion);
     onSelectEmotion(emotion);
   };
 
@@ -78,7 +86,7 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, sel
             onClick={() => handleSelect(emotion.name)}
             className={`
               p-4 rounded border transition-all text-left
-              ${selectedEmotionProp === emotion.name
+              ${selectedEmotion === emotion.name
                 ? 'border-ableton-accent bg-ableton-accent bg-opacity-20 scale-105'
                 : `border-ableton-border hover:bg-ableton-surface ${categoryHoverColors[emotion.category] || ''}`
               }

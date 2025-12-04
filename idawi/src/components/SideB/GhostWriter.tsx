@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sparkles, Copy, RefreshCw, Check } from 'lucide-react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
@@ -28,19 +28,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
   const [copied, setCopied] = useState(false);
   const { suggestRuleBreak, processIntent } = useMusicBrain();
 
-  useEffect(() => {
-    if (emotion) {
-      loadSuggestions();
-    }
-  }, [emotion]);
-
-  useEffect(() => {
-    if (intent) {
-      generateMusic();
-    }
-  }, [intent]);
-
-  const loadSuggestions = async () => {
+  const loadSuggestions = useCallback(async () => {
     if (!emotion) return;
 
     setLoading(true);
@@ -52,9 +40,9 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [emotion, suggestRuleBreak]);
 
-  const generateMusic = async () => {
+  const generateMusic = useCallback(async () => {
     if (!intent) return;
 
     setLoading(true);
@@ -66,7 +54,19 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [intent, processIntent]);
+
+  useEffect(() => {
+    if (emotion) {
+      loadSuggestions();
+    }
+  }, [emotion, loadSuggestions]);
+
+  useEffect(() => {
+    if (intent) {
+      generateMusic();
+    }
+  }, [intent, generateMusic]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
