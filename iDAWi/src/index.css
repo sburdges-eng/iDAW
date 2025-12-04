@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Variables for colors (also defined in Tailwind) */
+:root {
+  --ableton-bg: #1a1a1a;
+  --ableton-surface: #2a2a2a;
+  --ableton-surface-light: #333333;
+  --ableton-border: #3a3a3a;
+  --ableton-text: #e0e0e0;
+  --ableton-text-dim: #999999;
+  --ableton-accent: #ff7e3e;
+  --ableton-green: #00cc00;
+  --ableton-yellow: #ffcc00;
+  --ableton-red: #ff3333;
+
+  /* Emotion colors */
+  --emotion-grief: #4a6fa5;
+  --emotion-joy: #ffd700;
+  --emotion-anger: #dc143c;
+  --emotion-fear: #8b008b;
+  --emotion-love: #ff69b4;
+  --emotion-hope: #34d399;
+  --emotion-melancholy: #6366f1;
+  --emotion-rage: #dc2626;
+}
+
 @layer base {
   * {
     @apply border-ableton-border;
@@ -137,6 +161,41 @@
     @apply p-3 bg-ableton-surface-light rounded border border-ableton-border
            hover:border-ableton-accent transition-colors cursor-pointer;
   }
+
+  /* Vertical Fader from idawi */
+  .fader-vertical {
+    writing-mode: bt-lr;
+    -webkit-appearance: slider-vertical;
+    width: 8px;
+    height: 120px;
+    background: var(--ableton-border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .fader-vertical::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 10px;
+    background: var(--ableton-text);
+    border-radius: 2px;
+    cursor: grab;
+  }
+
+  .fader-vertical::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    background: var(--ableton-accent);
+  }
+
+  /* Emotion color utilities */
+  .bg-emotion-grief { background-color: var(--emotion-grief); }
+  .bg-emotion-joy { background-color: var(--emotion-joy); }
+  .bg-emotion-anger { background-color: var(--emotion-anger); }
+  .bg-emotion-fear { background-color: var(--emotion-fear); }
+  .bg-emotion-love { background-color: var(--emotion-love); }
+  .bg-emotion-hope { background-color: var(--emotion-hope); }
+  .bg-emotion-melancholy { background-color: var(--emotion-melancholy); }
+  .bg-emotion-rage { background-color: var(--emotion-rage); }
 }
 
 /* Scrollbar styling */
