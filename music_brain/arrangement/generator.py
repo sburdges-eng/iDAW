@@ -241,7 +241,7 @@ class ArrangementGenerator:
         # Calculate velocity curves based on energy arc
         for inst in instruments:
             velocity_curve = []
-            for i in range(len(template.sections)):
+            for i, _ in enumerate(template.sections):
                 if i < inst.entry_section or (
                     inst.exit_section is not None and i >= inst.exit_section
                 ):

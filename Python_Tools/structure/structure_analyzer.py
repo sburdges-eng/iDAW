@@ -362,7 +362,7 @@ def analyze_chords(notes, ppq, beats_per_bar=4):
     current_chord = None
     current_start = 0
     
-    for beat in sorted(beat_groups.keys()):
+    for beat in sorted(beat_groups):
         notes_in_beat = beat_groups[beat]
         pitch_classes = [note_to_pitch_class(n['note']) for n in notes_in_beat]
         

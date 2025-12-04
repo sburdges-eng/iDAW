@@ -342,7 +342,7 @@ class PerformanceBenchmark:
     
     def get_all_stats(self) -> dict:
         """Get statistics for all operations."""
-        return {op: self.get_stats(op) for op in self.timings.keys()}
+        return {op: self.get_stats(op) for op in self.timings}
     
     def export_to_file(self, filepath: str):
         """Export benchmark data to file."""

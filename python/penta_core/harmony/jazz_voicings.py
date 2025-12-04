@@ -343,7 +343,7 @@ def _minimize_voice_movement(
     best_movement = sum(abs(c - p) for c, p in zip(curr_notes, prev_notes) if len(prev_notes) >= len(curr_notes))
 
     for octave_shift in range(-12, 13, 12):
-        for inversion in range(len(curr_notes)):
+        for inversion, _ in enumerate(curr_notes):
             test_notes = curr_notes[:]
             # Apply inversion
             for _ in range(inversion):
