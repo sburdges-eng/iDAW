@@ -1,5 +1,21 @@
 # JUCE plugin targets
-# Supports: FL Studio (VST3), Logic Pro (AU), Ableton Live (VST3/AU), Standalone
+# Supports: FL Studio (VST3), Logic Pro (AU), Ableton Live (VST3/AU), Pro Tools (AAX), Standalone
+
+# AAX SDK path (set via environment or CMake variable)
+# Download AAX SDK from Avid Developer portal: https://developer.avid.com
+if(DEFINED ENV{AAX_SDK_PATH})
+    set(AAX_SDK_PATH $ENV{AAX_SDK_PATH})
+endif()
+
+# Determine available formats based on SDK availability
+set(PLUGIN_FORMATS AU VST3 Standalone)
+if(AAX_SDK_PATH AND EXISTS "${AAX_SDK_PATH}")
+    list(APPEND PLUGIN_FORMATS AAX)
+    message(STATUS "AAX SDK found at: ${AAX_SDK_PATH}")
+    message(STATUS "Pro Tools AAX format enabled")
+else()
+    message(STATUS "AAX SDK not found. Set AAX_SDK_PATH to enable Pro Tools support.")
+endif()
 
 juce_add_plugin(PentaCorePlugin
     COMPANY_NAME "Penta"
@@ -11,13 +27,17 @@ juce_add_plugin(PentaCorePlugin
     COPY_PLUGIN_AFTER_BUILD TRUE
     PLUGIN_MANUFACTURER_CODE Pent
     PLUGIN_CODE Pcor
-    FORMATS AU VST3 Standalone
+    FORMATS ${PLUGIN_FORMATS}
     PRODUCT_NAME "Penta Core"
 
     # FL Studio compatibility settings
     VST3_CATEGORIES "Fx|Tools"
     VST_NUM_MIDI_INS 1
     VST_NUM_MIDI_OUTS 1
+
+    # Pro Tools AAX settings
+    AAX_CATEGORY "AAX_ePlugInCategory_Effect"
+    AAX_IDENTIFIER "com.penta.pentacore"
 )
 
 target_sources(PentaCorePlugin PRIVATE
