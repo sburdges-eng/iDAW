@@ -228,15 +228,19 @@ state = core.get_state()  # chord, scale, groove, diagnostics
 Art-themed audio plugins built on JUCE 8.
 
 ### Plugins
-| Plugin | Description | Shader |
-|--------|-------------|--------|
-| **Pencil** | Sketching/drafting audio ideas | Graphite |
-| **Eraser** | Audio removal/cleanup | ChalkDust |
-| **Palette** | Tonal coloring/mixing | Watercolor |
-| **Smudge** | Audio blending/smoothing | Scrapbook |
-| **Press** | Dynamics/compression | Heartbeat |
-| **Trace** | Pattern following/automation | Spirograph |
-| **Parrot** | Sample playback/mimicry | Feather |
+| Plugin | Description | Shader | Priority |
+|--------|-------------|--------|----------|
+| **Pencil** | Sketching/drafting audio ideas | Graphite | HIGH |
+| **Eraser** | Audio removal/cleanup | ChalkDust | HIGH |
+| **Palette** | Tonal coloring/mixing | Watercolor | MID |
+| **Smudge** | Audio blending/smoothing | Scrapbook | MID |
+| **Press** | Dynamics/compression | Heartbeat | HIGH |
+| **Trace** | Pattern following/automation | Spirograph | LOW |
+| **Parrot** | Sample playback/mimicry | Feather | LOW |
+| **Stencil** | Sidechain/ducking effect | Cutout | LOW |
+| **Chalk** | Lo-fi/bitcrusher effect | Dusty | LOW |
+| **Brush** | Modulated filter effect | Brushstroke | LOW |
+| **Stamp** | Stutter/repeater effect | RubberStamp | LOW |
 
 ### Dual-Heap Memory Architecture
 ```
