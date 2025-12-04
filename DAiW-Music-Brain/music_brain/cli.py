@@ -18,6 +18,9 @@ Usage:
     daiw arrange --genre <genre> [--key <key>]  Generate complete arrangement
     daiw bass <chords> --genre <genre>          Generate bass line
     daiw energy --mood <mood>                   Generate energy arc
+
+    daiw app                                    Launch desktop GUI (requires streamlit)
+    daiw server                                 Start DAW integration server
 """
 
 import argparse
@@ -601,6 +604,79 @@ def cmd_genres(args):
     return 0
 
 
+def cmd_app(args):
+    """Launch desktop GUI application."""
+    try:
+        import streamlit.web.cli as stcli
+    except ImportError:
+        print("Error: Streamlit is not installed.")
+        print("Install with: pip install streamlit")
+        print("Or install iDAW with: pip install -e '.[desktop]'")
+        return 1
+
+    # Find the app.py path
+    from pathlib import Path
+    app_path = Path(__file__).parent / "desktop" / "app.py"
+
+    if not app_path.exists():
+        print(f"Error: Desktop app not found at {app_path}")
+        return 1
+
+    print("Launching iDAW Desktop App...")
+    print(f"App path: {app_path}")
+
+    # Build streamlit arguments
+    sys_argv = [
+        "streamlit",
+        "run",
+        str(app_path),
+        "--server.port", str(args.port),
+        "--server.headless", "true" if args.headless else "false",
+    ]
+
+    if args.browser:
+        sys_argv.extend(["--server.browser.serverAddress", "localhost"])
+
+    # Run streamlit
+    import sys
+    sys.argv = sys_argv
+    stcli.main()
+
+    return 0
+
+
+def cmd_server(args):
+    """Start DAW integration server."""
+    try:
+        from music_brain.daw_server import DAWServer, start_server
+    except ImportError as e:
+        print(f"Error: Could not import DAW server: {e}")
+        return 1
+
+    print("=" * 60)
+    print("iDAW Server - DAW Integration")
+    print("=" * 60)
+    print(f"\nHost: {args.host}")
+    print(f"Port: {args.port}")
+    print(f"Workers: {args.workers}")
+    print()
+
+    try:
+        server = DAWServer(
+            host=args.host,
+            port=args.port,
+            max_workers=args.workers,
+        )
+        server.start(blocking=True)
+    except KeyboardInterrupt:
+        print("\nServer stopped by user.")
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='daiw',
@@ -723,6 +799,18 @@ def main():
     # Genres command
     subparsers.add_parser('genres', help='List available genre templates')
 
+    # App command (desktop GUI)
+    app_parser = subparsers.add_parser('app', help='Launch desktop GUI application')
+    app_parser.add_argument('-p', '--port', type=int, default=8501, help='Port for Streamlit server')
+    app_parser.add_argument('--headless', action='store_true', help='Run in headless mode')
+    app_parser.add_argument('--browser', action='store_true', default=True, help='Open browser automatically')
+
+    # Server command (DAW integration)
+    server_parser = subparsers.add_parser('server', help='Start DAW integration server')
+    server_parser.add_argument('--host', default='127.0.0.1', help='Host address (default: 127.0.0.1)')
+    server_parser.add_argument('-p', '--port', type=int, default=8765, help='Port number (default: 8765)')
+    server_parser.add_argument('-w', '--workers', type=int, default=2, help='Number of worker threads (default: 2)')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -741,6 +829,8 @@ def main():
         'bass': cmd_bass,
         'energy': cmd_energy,
         'genres': cmd_genres,
+        'app': cmd_app,
+        'server': cmd_server,
     }
 
     return commands[args.command](args)
