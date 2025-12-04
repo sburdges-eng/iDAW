@@ -289,72 +289,94 @@ This document provides a complete roadmap of tasks for the iDAW project, organiz
 ### Python (DAiW-Music-Brain)
 | Task | Priority | Status |
 |------|----------|--------|
-| Complete Python bindings | MEDIUM | Pending |
-| Chatbot integration | MEDIUM | Pending |
+| Python bindings (pybind11) | MEDIUM | ✅ Complete |
+| Therapy system integration | MEDIUM | ✅ Complete |
+| Document Python API with examples | LOW | Pending |
 | Desktop app polish | LOW | Pending |
 | More intent examples | LOW | Pending |
 
 ### C++ (Penta-Core)
 | Task | Priority | Status |
 |------|----------|--------|
-| FFT library integration | HIGH | Pending |
+| OnsetDetector FFT upgrade | HIGH | Pending |
+| Phase Vocoder implementation | HIGH | Pending |
 | SIMD optimization | MEDIUM | Pending |
-| Memory testing | MEDIUM | Pending |
+| Memory testing (Valgrind) | MEDIUM | Pending |
 | Performance benchmarks | MEDIUM | Pending |
 
 ### C++ (iDAW_Core - JUCE)
 | Task | Priority | Status |
 |------|----------|--------|
-| Eraser DSP | HIGH | Pending |
-| Press DSP | HIGH | Pending |
-| Palette DSP | MEDIUM | Pending |
-| Smudge DSP | MEDIUM | Pending |
-| Trace DSP | LOW | Pending |
-| Parrot DSP | LOW | Pending |
+| Pencil DSP | HIGH | ✅ Complete |
+| Eraser DSP | HIGH | ✅ Complete |
+| Press DSP | HIGH | ✅ Complete |
+| Palette DSP | MEDIUM | ✅ Complete |
+| Smudge DSP | MEDIUM | ✅ Complete |
+| Trace DSP | LOW | ✅ Complete |
+| Parrot DSP | LOW | ✅ Complete |
+| Brush DSP | LOW | ✅ Complete |
+| Chalk DSP | LOW | ✅ Complete |
+| Stencil DSP | LOW | ✅ Complete |
+| Stamp DSP | LOW | ✅ Complete |
 
 ### Testing
 | Task | Priority | Status |
 |------|----------|--------|
-| Fix bridge test errors | HIGH | Pending |
-| RT-safety verification | MEDIUM | Pending |
-| Integration tests | MEDIUM | Pending |
+| JUCE plugin test harness | HIGH | Pending |
+| RT-safety verification | HIGH | Pending |
+| ML module test coverage | HIGH | Pending |
+| DSP module tests | HIGH | Pending |
+| Integration tests | MEDIUM | ✅ Complete (11/11) |
 | Coverage reporting | LOW | Pending |
 
 ### DevOps
 | Task | Priority | Status |
 |------|----------|--------|
 | C++ CI build | MEDIUM | Pending |
-| Memory testing CI | MEDIUM | Pending |
+| Memory testing CI (Valgrind) | MEDIUM | Pending |
+| Performance regression CI | MEDIUM | Pending |
 | Release automation | LOW | Pending |
 
 ---
 
 ## 🎯 Recommended Sprint Plan
 
-### Sprint A: Plugin Foundation (Weeks 1-2)
-1. Implement Eraser DSP
-2. Implement Press DSP
-3. Add JUCE parameter automation
+### Sprint A: Test Coverage & Quality ✅ (Partially Complete)
+**Completed:**
+- ✅ All 11 JUCE plugin DSP implementations
+- ✅ JUCE parameter automation (AudioProcessorValueTreeState)
+- ✅ Python bindings (pybind11) for all 4 modules
+- ✅ Integration tests (11/11 passing)
 
-### Sprint B: Performance (Weeks 3-4)
-1. Integrate FFT library
-2. Profile and identify hotspots
-3. Implement SIMD optimizations
+**Remaining:**
+1. Create JUCE plugin test harness
+2. Add RT-safety verification tests
+3. Add ML module and DSP module test coverage
 
-### Sprint C: Integration (Weeks 5-6)
-1. Complete Python bindings
-2. Fix test suite gaps
-3. Add memory/RT-safety tests
+### Sprint B: Performance & FFT
+1. Upgrade OnsetDetector to use `juce::dsp::FFT`
+2. Implement Phase Vocoder in Python DSP module
+3. Profile hot paths and identify bottlenecks
+4. Implement SIMD optimizations (AVX2 with scalar fallback)
+5. Benchmark: < 100μs harmony, < 200μs groove latency
 
-### Sprint D: Polish (Weeks 7-8)
-1. Remaining plugin DSP (Palette, Smudge)
-2. Desktop app packaging
-3. Documentation and tutorials
+### Sprint C: CI/CD & Memory Safety
+1. Add C++ build to main CI workflow
+2. Add Valgrind memory testing stage
+3. Add performance regression testing
+4. Add code coverage reporting (lcov + coverage.py)
 
-### Sprint E: Future (Weeks 9+)
-1. ML model integration research
-2. Collaboration features
-3. Mobile/web expansion
+### Sprint D: Documentation & Polish
+1. Document Python API with usage examples
+2. Generate C++ API docs with Doxygen
+3. Complete desktop app packaging (macOS/Windows/Linux)
+4. Add more intent schema examples
+
+### Sprint E: Future Enhancements
+1. ML model integration (ONNX Runtime evaluation)
+2. Collaboration features (real-time session sharing)
+3. Mobile/web expansion (PWA, native mobile)
+4. Advanced harmony/groove features
 
 ---
 
@@ -392,4 +414,4 @@ This document provides a complete roadmap of tasks for the iDAW project, organiz
 
 *"Interrogate Before Generate" - The tool shouldn't finish art for people. It should make them braver.*
 
-*Last updated: 2025-12-03*
+*Last updated: 2025-12-04*
