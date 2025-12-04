@@ -271,6 +271,11 @@ private:
     float sampleRate_ = 44100.0f;
     AUAudioFrameCount bufferSize_ = 512;
 
+    // Parameter storage
+    float volume_ = 1.0f;
+    float pan_ = 0.0f;
+    float mix_ = 1.0f;
+
     // Add DSP state here
     std::vector<float> tempBuffer_;
 }};
@@ -321,12 +326,32 @@ void {config.name}DSPKernel::process(float* inBufferL, float* inBufferR,
 {"}" if config.midi_input else ""}
 
 void {config.name}DSPKernel::setParameter(AUParameterAddress address, float value) {{
-    // TODO: Handle parameter changes
+    switch (address) {{
+        case 0:  // volume
+            volume_ = std::clamp(value, 0.0f, 1.0f);
+            break;
+        case 1:  // pan
+            pan_ = std::clamp(value, -1.0f, 1.0f);
+            break;
+        case 2:  // mix
+            mix_ = std::clamp(value, 0.0f, 1.0f);
+            break;
+        default:
+            break;
+    }}
 }}
 
 float {config.name}DSPKernel::getParameter(AUParameterAddress address) {{
-    // TODO: Return parameter values
-    return 0.0f;
+    switch (address) {{
+        case 0:  // volume
+            return volume_;
+        case 1:  // pan
+            return pan_;
+        case 2:  // mix
+            return mix_;
+        default:
+            return 0.0f;
+    }}
 }}
 '''
 
