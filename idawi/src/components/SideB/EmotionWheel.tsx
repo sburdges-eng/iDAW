@@ -9,11 +9,11 @@ interface Emotion {
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
+  selectedEmotion?: string | null; // Controlled prop to sync with parent state
 }
 
-export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) => {
+export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, selectedEmotion: selectedEmotionProp = null }) => {
   const [emotions, setEmotions] = useState<Emotion[]>([]);
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { getEmotions } = useMusicBrain();
 
@@ -25,7 +25,6 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
   }, []);
 
   const handleSelect = (emotion: string) => {
-    setSelectedEmotion(emotion);
     onSelectEmotion(emotion);
   };
 
@@ -79,7 +78,7 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
             onClick={() => handleSelect(emotion.name)}
             className={`
               p-4 rounded border transition-all text-left
-              ${selectedEmotion === emotion.name
+              ${selectedEmotionProp === emotion.name
                 ? 'border-ableton-accent bg-ableton-accent bg-opacity-20 scale-105'
                 : `border-ableton-border hover:bg-ableton-surface ${categoryHoverColors[emotion.category] || ''}`
               }

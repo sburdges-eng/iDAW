@@ -67,9 +67,9 @@ export const Knob: React.FC<KnobProps> = ({
           style={{ transform: `translateX(-50%) rotate(${rotation}deg)` }}
         />
       </div>
-      {label && (
+      {label ? (
         <span className="text-xs text-ableton-text-dim">{label}</span>
-      )}
+      ) : null}
     </div>
   );
-};
+}

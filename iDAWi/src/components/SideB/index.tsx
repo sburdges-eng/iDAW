@@ -55,7 +55,10 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Core Emotion</div>
             <div className="flex-1 p-4 overflow-auto">
-              <EmotionWheel onSelectEmotion={handleSelectEmotion} />
+              <EmotionWheel 
+                onSelectEmotion={handleSelectEmotion} 
+                selectedEmotion={selectedEmotion}
+              />
             </div>
           </div>
         </div>
