@@ -22,6 +22,19 @@ from music_brain.daw.logic import (
     LOGIC_PPQ,
 )
 
+# Mixer Parameters (Emotion -> DAW automation)
+from music_brain.daw.mixer_params import (
+    MixerParameters,
+    EmotionMapper,
+    export_to_logic_automation,
+    export_mixer_settings,
+    describe_mixer_params,
+    MIXER_PRESETS,
+    SaturationType,
+    FilterType,
+    ReverbType,
+)
+
 # FL Studio
 from music_brain.daw.fl_studio import (
     FLProject,
@@ -82,6 +95,16 @@ __all__ = [
     "import_from_logic",
     "create_logic_template",
     "LOGIC_PPQ",
+    # Mixer Parameters
+    "MixerParameters",
+    "EmotionMapper",
+    "export_to_logic_automation",
+    "export_mixer_settings",
+    "describe_mixer_params",
+    "MIXER_PRESETS",
+    "SaturationType",
+    "FilterType",
+    "ReverbType",
     # FL Studio
     "FLProject",
     "FLPattern",

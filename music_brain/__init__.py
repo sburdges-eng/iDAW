@@ -32,6 +32,36 @@ from music_brain.structure.comprehensive_engine import (
 from music_brain.groove_engine import apply_groove as apply_groove_events
 from music_brain.text.lyrical_mirror import generate_lyrical_fragments
 
+# Emotion API (Emotion -> Music -> Mixer)
+from music_brain.emotion_api import (
+    MusicBrain,
+    GeneratedMusic,
+    FluentChain,
+    quick_generate,
+    quick_export,
+    INTENT_EXAMPLES,
+)
+
+# Emotional mapping
+from music_brain.data.emotional_mapping import (
+    EmotionalState,
+    MusicalParameters,
+    Valence,
+    Arousal,
+    TimingFeel,
+    Mode,
+    EMOTIONAL_PRESETS,
+    get_parameters_for_state,
+)
+
+# Mixer parameters
+from music_brain.daw.mixer_params import (
+    MixerParameters,
+    EmotionMapper,
+    export_to_logic_automation,
+    MIXER_PRESETS,
+)
+
 __all__ = [
     # Groove (file-based)
     "extract_groove",
@@ -57,4 +87,25 @@ __all__ = [
     "render_plan_to_midi",
     # Text/Lyrical
     "generate_lyrical_fragments",
+    # Emotion API
+    "MusicBrain",
+    "GeneratedMusic",
+    "FluentChain",
+    "quick_generate",
+    "quick_export",
+    "INTENT_EXAMPLES",
+    # Emotional mapping
+    "EmotionalState",
+    "MusicalParameters",
+    "Valence",
+    "Arousal",
+    "TimingFeel",
+    "Mode",
+    "EMOTIONAL_PRESETS",
+    "get_parameters_for_state",
+    # Mixer parameters
+    "MixerParameters",
+    "EmotionMapper",
+    "export_to_logic_automation",
+    "MIXER_PRESETS",
 ]
