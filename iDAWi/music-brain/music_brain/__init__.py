@@ -1,134 +1,111 @@
 """
-iDAWi Music Brain
-Full-featured Python music intelligence toolkit for emotion-driven music production.
+Music Brain - Intelligent Music Analysis Toolkit
 
-This package provides:
+A Python package for music production analysis:
 - Groove extraction and application
-- Chord and progression analysis
-- Intent-based music generation
-- Rule-breaking suggestions for emotional expression
-- DAW integration (Logic Pro, Pro Tools, Reaper, FL Studio)
-- Multi-AI collaboration tools
+- Chord progression analysis
+- Section detection
+- Feel/timing analysis
+- DAW integration
+- Therapy-to-music pipeline (Comprehensive Engine)
+- Lyrical fragment generation
+- Reference track DNA analysis
 """
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 __author__ = "Sean Burdges"
 
-from pathlib import Path
+from music_brain.groove import extract_groove, apply_groove, GrooveTemplate
+from music_brain.structure import analyze_chords, detect_sections, ChordProgression
+from music_brain.audio import analyze_feel, AudioFeatures
 
-# Package root directory
-PACKAGE_ROOT = Path(__file__).parent
-DATA_ROOT = PACKAGE_ROOT.parent.parent / "data"
+# Harmony generation
+from music_brain.harmony import HarmonyGenerator, HarmonyResult, generate_midi_from_harmony
 
-# Lazy imports for better startup performance
-def __getattr__(name):
-    """Lazy import modules on first access."""
+# New comprehensive engine exports
+from music_brain.structure.comprehensive_engine import (
+    AffectAnalyzer,
+    TherapySession,
+    HarmonyPlan,
+    render_plan_to_midi,
+)
+from music_brain.groove_engine import apply_groove as apply_groove_events
+from music_brain.text.lyrical_mirror import generate_lyrical_fragments
 
-    # Core modules
-    if name == "GrooveExtractor":
-        from .groove.extractor import GrooveExtractor
-        return GrooveExtractor
-    elif name == "GrooveApplicator":
-        from .groove.applicator import GrooveApplicator
-        return GrooveApplicator
-    elif name == "GrooveEngine":
-        from .groove.groove_engine import GrooveEngine
-        return GrooveEngine
+# Emotion API (Emotion -> Music -> Mixer)
+from music_brain.emotion_api import (
+    MusicBrain,
+    GeneratedMusic,
+    FluentChain,
+    quick_generate,
+    quick_export,
+    INTENT_EXAMPLES,
+)
 
-    # Structure modules
-    elif name == "ChordAnalyzer":
-        from .structure.chord import ChordAnalyzer
-        return ChordAnalyzer
-    elif name == "ProgressionAnalyzer":
-        from .structure.progression import ProgressionAnalyzer
-        return ProgressionAnalyzer
+# Emotional mapping
+from music_brain.data.emotional_mapping import (
+    EmotionalState,
+    MusicalParameters,
+    Valence,
+    Arousal,
+    TimingFeel,
+    Mode,
+    EMOTIONAL_PRESETS,
+    get_parameters_for_state,
+)
 
-    # Session modules
-    elif name == "IntentSchema":
-        from .session.intent_schema import IntentSchema
-        return IntentSchema
-    elif name == "IntentProcessor":
-        from .session.intent_processor import IntentProcessor
-        return IntentProcessor
-    elif name == "Interrogator":
-        from .session.interrogator import Interrogator
-        return Interrogator
+# Mixer parameters
+from music_brain.daw.mixer_params import (
+    MixerParameters,
+    EmotionMapper,
+    export_to_logic_automation,
+    MIXER_PRESETS,
+)
 
-    # Audio modules
-    elif name == "AudioAnalyzer":
-        from .audio.analyzer import AudioAnalyzer
-        return AudioAnalyzer
-    elif name == "FeelAnalyzer":
-        from .audio.feel import FeelAnalyzer
-        return FeelAnalyzer
-
-    # Bridge functions (for Tauri IPC)
-    elif name in ("suggest_rule_break", "process_intent", "get_emotions",
-                  "RULE_BREAKING_EFFECTS", "EMOTION_RULE_MAPPING", "EMOTIONS_DATABASE"):
-        import sys
-        sys.path.insert(0, str(PACKAGE_ROOT.parent))
-        try:
-            from bridge import (
-                suggest_rule_break,
-                process_intent,
-                get_emotions,
-                RULE_BREAKING_EFFECTS,
-                EMOTION_RULE_MAPPING,
-                EMOTIONS_DATABASE,
-            )
-            return {
-                "suggest_rule_break": suggest_rule_break,
-                "process_intent": process_intent,
-                "get_emotions": get_emotions,
-                "RULE_BREAKING_EFFECTS": RULE_BREAKING_EFFECTS,
-                "EMOTION_RULE_MAPPING": EMOTION_RULE_MAPPING,
-                "EMOTIONS_DATABASE": EMOTIONS_DATABASE,
-            }[name]
-        except ImportError:
-            # Fallback if bridge not available
-            if name == "suggest_rule_break":
-                return lambda emotion: []
-            elif name == "process_intent":
-                return lambda intent: {"harmony": ["I", "IV", "V", "I"], "tempo": 120, "key": "C major", "mixer_params": {}}
-            elif name == "get_emotions":
-                return lambda: []
-            else:
-                return {}
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-# Subpackage exports
 __all__ = [
-    # Version info
-    "__version__",
-    "__author__",
-    "PACKAGE_ROOT",
-    "DATA_ROOT",
-
-    # Groove
-    "GrooveExtractor",
-    "GrooveApplicator",
-    "GrooveEngine",
-
+    # Groove (file-based)
+    "extract_groove",
+    "apply_groove",
+    "GrooveTemplate",
+    # Groove (event-based)
+    "apply_groove_events",
     # Structure
-    "ChordAnalyzer",
-    "ProgressionAnalyzer",
-
-    # Session
-    "IntentSchema",
-    "IntentProcessor",
-    "Interrogator",
-
+    "analyze_chords",
+    "detect_sections",
+    "ChordProgression",
     # Audio
-    "AudioAnalyzer",
-    "FeelAnalyzer",
-
-    # Bridge functions
-    "suggest_rule_break",
-    "process_intent",
-    "get_emotions",
-    "RULE_BREAKING_EFFECTS",
-    "EMOTION_RULE_MAPPING",
-    "EMOTIONS_DATABASE",
+    "analyze_feel",
+    "AudioFeatures",
+    # Harmony
+    "HarmonyGenerator",
+    "HarmonyResult",
+    "generate_midi_from_harmony",
+    # Comprehensive Engine
+    "AffectAnalyzer",
+    "TherapySession",
+    "HarmonyPlan",
+    "render_plan_to_midi",
+    # Text/Lyrical
+    "generate_lyrical_fragments",
+    # Emotion API
+    "MusicBrain",
+    "GeneratedMusic",
+    "FluentChain",
+    "quick_generate",
+    "quick_export",
+    "INTENT_EXAMPLES",
+    # Emotional mapping
+    "EmotionalState",
+    "MusicalParameters",
+    "Valence",
+    "Arousal",
+    "TimingFeel",
+    "Mode",
+    "EMOTIONAL_PRESETS",
+    "get_parameters_for_state",
+    # Mixer parameters
+    "MixerParameters",
+    "EmotionMapper",
+    "export_to_logic_automation",
+    "MIXER_PRESETS",
 ]
