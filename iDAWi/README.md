@@ -1,37 +1,25 @@
-# iDAWi - intelligent Digital Audio Workstation (interface)
+# iDAWi - intelligent Digital Audio Workstation
 
-> Professional DAW UI with emotion-driven music production
->
-> **Philosophy: "Interrogate Before Generate"** - The tool shouldn't finish art for people. It should make them braver.
+> "Interrogate Before Generate" - The tool shouldn't finish art for people. It should make them braver.
 
-## What is iDAWi?
-
-iDAWi (lowercase 'i' = intelligent) is a standalone DAW interface that combines:
-- **Side A**: Professional timeline, mixer with real-time VU meters, and transport controls
-- **Side B**: Emotion-driven interrogation, emotion wheel, and AI Ghost Writer
-- **Flip Toggle**: Press `Cmd+E` (Mac) or `Ctrl+E` (Windows/Linux) to switch between sides
+iDAWi is a dual-interface DAW that combines professional audio production (Side A) with emotion-driven AI composition (Side B).
 
 ## Features
 
 ### Side A: Professional DAW
-- Timeline with multi-track editing and clip arrangement
-- 8-channel mixer with:
-  - Real-time stereo VU meters with peak hold
-  - Draggable pan knobs (double-click to center)
-  - Vertical faders with dB readout
-  - Mute/Solo buttons per channel
-  - Master channel with summed levels
+- Timeline with multi-track editing
+- 8-channel mixer with real-time VU meters
 - Transport controls (Play, Pause, Stop, Record)
 - Tempo and time signature control
-- Loop points and playhead
+- Pan knobs with smooth drag interaction
 
 ### Side B: Emotion Interface
 - Emotion Wheel with 15+ categorized emotions
 - 3-Phase Interrogation System:
-  - **Phase 0: Core Wound/Desire** - `core_event`, `core_resistance`, `core_longing`
-  - **Phase 1: Emotional Intent** - `mood_primary`, `vulnerability_scale`, `narrative_arc`
-  - **Phase 2: Technical Constraints** - `technical_genre`, `technical_key`, `technical_rule_to_break`
-- Ghost Writer AI suggestions with emotional rationale
+  - Phase 0: Core Wound/Desire
+  - Phase 1: Emotional Intent
+  - Phase 2: Technical Constraints
+- Ghost Writer AI suggestions
 - Rule-breaking recommendations with justifications
 
 ## Tech Stack
