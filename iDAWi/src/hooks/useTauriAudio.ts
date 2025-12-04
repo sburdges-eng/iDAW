@@ -1,6 +1,16 @@
 import { useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useStore } from '../store/useStore';
+
+// Tauri API - optional, will fallback if not available
+let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
+try {
+  // Dynamic import for optional Tauri dependency
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const tauriApi = require('@tauri-apps/api/core');
+  invoke = tauriApi.invoke;
+} catch {
+  // Tauri not available, will use fallbacks
+}
 
 interface AudioEngineState {
   is_playing: boolean;
@@ -22,7 +32,9 @@ export function useTauriAudio() {
 
   const handlePlay = useCallback(async () => {
     try {
-      await invoke('audio_play');
+      if (invoke) {
+        await invoke('audio_play');
+      }
       play();
     } catch (error) {
       console.error('Failed to play:', error);
@@ -33,7 +45,9 @@ export function useTauriAudio() {
 
   const handleStop = useCallback(async () => {
     try {
-      await invoke('audio_stop');
+      if (invoke) {
+        await invoke('audio_stop');
+      }
       stop();
     } catch (error) {
       console.error('Failed to stop:', error);
@@ -43,7 +57,9 @@ export function useTauriAudio() {
 
   const handlePause = useCallback(async () => {
     try {
-      await invoke('audio_pause');
+      if (invoke) {
+        await invoke('audio_pause');
+      }
       pause();
     } catch (error) {
       console.error('Failed to pause:', error);
@@ -53,7 +69,9 @@ export function useTauriAudio() {
 
   const handleSetTempo = useCallback(async (bpm: number) => {
     try {
-      await invoke('audio_set_tempo', { bpm });
+      if (invoke) {
+        await invoke('audio_set_tempo', { bpm });
+      }
       setTempo(bpm);
     } catch (error) {
       console.error('Failed to set tempo:', error);
@@ -75,8 +93,13 @@ export function useTauriAudio() {
 
     const interval = setInterval(async () => {
       try {
-        const state = await invoke<AudioEngineState>('audio_get_state');
-        setPosition(state.position_samples);
+        if (invoke) {
+          const state = await invoke('audio_get_state') as AudioEngineState;
+          setPosition(state.position_samples);
+        } else {
+          // Fallback: simulate position advancement
+          setPosition((prev: number) => prev + (tempo / 60) * 44100 * 0.1);
+        }
       } catch {
         // Fallback: simulate position advancement
         const currentPosition = useStore.getState().position;

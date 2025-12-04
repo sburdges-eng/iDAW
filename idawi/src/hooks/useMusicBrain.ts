@@ -1,5 +1,6 @@
 // Music Brain integration hook
 // In production, this would use Tauri's invoke to call Python
+import React from 'react';
 
 interface Emotion {
   name: string;
@@ -103,72 +104,99 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
 };
 
 export function useMusicBrain() {
+  const [isLoading, setIsLoading] = React.useState(false);
+
   const getEmotions = async (): Promise<Emotion[]> => {
-    // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(defaultEmotions), 300);
-    });
+    setIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          setIsLoading(false);
+          resolve(defaultEmotions);
+        }, 300);
+      });
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
   };
 
   const suggestRuleBreak = async (emotion: string): Promise<RuleBreakSuggestion[]> => {
-    // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const suggestions = ruleBreakingDatabase[emotion] || [
-          {
-            rule: 'HARMONY_ModalInterchange',
-            effect: 'Unexpected harmonic color',
-            use_when: 'You want to surprise the listener',
-            justification: 'Breaking expectations creates emotional impact.',
-          },
-        ];
-        resolve(suggestions);
-      }, 500);
-    });
+    setIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const suggestions = ruleBreakingDatabase[emotion] || [
+            {
+              rule: 'HARMONY_ModalInterchange',
+              effect: 'Unexpected harmonic color',
+              use_when: 'You want to surprise the listener',
+              justification: 'Breaking expectations creates emotional impact.',
+            },
+          ];
+          setIsLoading(false);
+          resolve(suggestions);
+        }, 500);
+      });
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
   };
 
-  const processIntent = async (intent: Record<string, unknown>): Promise<ProcessIntentResult> => {
-    // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Generate contextual results based on intent
-        const emotion = (intent.song_intent as Record<string, string>)?.mood_primary || 'neutral';
-        const key = (intent.technical_constraints as Record<string, string>)?.technical_key || 'C';
+  const processIntent = async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
+    setIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Generate contextual results based on intent
+          const intentData = intent || {};
+          const emotion = (intentData.song_intent as Record<string, string>)?.mood_primary || 'neutral';
+          const key = (intentData.technical_constraints as Record<string, string>)?.technical_key || 'C';
 
-        const harmonyByEmotion: Record<string, string[]> = {
-          Grief: ['Am', 'F', 'C', 'G'],
-          Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
-          Rage: ['Em', 'C', 'G', 'D'],
-          Joy: ['C', 'G', 'Am', 'F'],
-          Love: ['F', 'Am', 'Dm', 'C'],
-        };
+          const harmonyByEmotion: Record<string, string[]> = {
+            Grief: ['Am', 'F', 'C', 'G'],
+            Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
+            Rage: ['Em', 'C', 'G', 'D'],
+            Joy: ['C', 'G', 'Am', 'F'],
+            Love: ['F', 'Am', 'Dm', 'C'],
+          };
 
-        const tempoByEmotion: Record<string, number> = {
-          Grief: 72,
-          Anxiety: 140,
-          Rage: 160,
-          Joy: 120,
-          Love: 90,
-        };
+          const tempoByEmotion: Record<string, number> = {
+            Grief: 72,
+            Anxiety: 140,
+            Rage: 160,
+            Joy: 120,
+            Love: 90,
+          };
 
-        resolve({
-          harmony: harmonyByEmotion[emotion] || ['C', 'Am', 'F', 'G'],
-          tempo: tempoByEmotion[emotion] || 120,
-          key,
-          mixer_params: {
-            reverb: emotion === 'Grief' ? 0.7 : 0.3,
-            delay: emotion === 'Anxiety' ? 0.5 : 0.2,
-            compression: emotion === 'Rage' ? 0.8 : 0.4,
-            warmth: emotion === 'Love' ? 0.6 : 0.3,
-          },
-        });
-      }, 800);
-    });
+          setIsLoading(false);
+          resolve({
+            harmony: harmonyByEmotion[emotion] || ['C', 'Am', 'F', 'G'],
+            tempo: tempoByEmotion[emotion] || 120,
+            key,
+            mixer_params: {
+              reverb: emotion === 'Grief' ? 0.7 : 0.3,
+              delay: emotion === 'Anxiety' ? 0.5 : 0.2,
+              compression: emotion === 'Rage' ? 0.8 : 0.4,
+              warmth: emotion === 'Love' ? 0.6 : 0.3,
+            },
+          });
+        }, 800);
+      });
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
   };
 
   return {
     getEmotions,
     suggestRuleBreak,
     processIntent,
+    isLoading,
   };
 }

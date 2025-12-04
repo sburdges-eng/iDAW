@@ -89,7 +89,9 @@ export const RuleBreaker: React.FC = () => {
   };
 
   const handleSuggest = async () => {
-    await suggestRuleBreak(songIntent.coreEmotion);
+    if (songIntent.coreEmotion) {
+      await suggestRuleBreak(songIntent.coreEmotion);
+    }
   };
 
   return (
@@ -99,9 +101,9 @@ export const RuleBreaker: React.FC = () => {
           Select a rule to intentionally break:
         </div>
         <button
-          className="text-xs text-ableton-accent hover:underline"
+          className="text-xs text-ableton-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleSuggest}
-          disabled={isLoading}
+          disabled={isLoading || !songIntent.coreEmotion}
         >
           {isLoading ? 'Suggesting...' : 'Suggest for emotion'}
         </button>

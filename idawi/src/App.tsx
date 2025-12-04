@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from './store/useStore';
 import { SideA } from './components/SideA/SideA';
 import { SideB } from './components/SideB/SideB';
 
 function App() {
-  const { currentSide, toggleSide, isPlaying, setPlaying, setCurrentTime, currentTime, tempo } = useStore();
+  const { currentSide, toggleSide, isPlaying, setPlaying, setCurrentTime } = useStore();
+  const lastTimeRef = useRef<number>(0);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -31,14 +32,14 @@ function App() {
     let animationFrame: number;
 
     if (isPlaying) {
-      let lastTime = performance.now();
+      lastTimeRef.current = performance.now();
 
       const tick = () => {
         const now = performance.now();
-        const delta = (now - lastTime) / 1000;
-        lastTime = now;
+        const delta = (now - lastTimeRef.current) / 1000;
+        lastTimeRef.current = now;
 
-        setCurrentTime(currentTime + delta);
+        setCurrentTime((prevTime: number) => prevTime + delta);
         animationFrame = requestAnimationFrame(tick);
       };
 
@@ -50,7 +51,7 @@ function App() {
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [isPlaying, currentTime, setCurrentTime]);
+  }, [isPlaying, setCurrentTime]);
 
   return (
     <div className="w-screen h-screen bg-ableton-bg overflow-hidden">

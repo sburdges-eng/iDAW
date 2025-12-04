@@ -114,7 +114,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
       {suggestions.length > 0 && (
         <div className="mb-6">
           <h4 className="text-sm font-medium mb-3 text-ableton-text-dim">
-            Suggested Rule Violations for "{emotion}"
+            Suggested Rule Violations for &ldquo;{emotion}&rdquo;
           </h4>
           <div className="space-y-2">
             {suggestions.map((suggestion, i) => (
@@ -129,7 +129,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
                   <span className="text-ableton-text">Effect:</span> {suggestion.effect}
                 </div>
                 <div className="text-xs italic text-ableton-text-dim border-l-2 border-ableton-accent pl-2">
-                  "{suggestion.justification}"
+                  &ldquo;{suggestion.justification}&rdquo;
                 </div>
               </div>
             ))}
@@ -196,7 +196,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
 
       {/* Philosophy Quote */}
       <div className="mt-6 p-3 bg-ableton-bg bg-opacity-50 rounded text-xs text-ableton-text-dim italic border-l-2 border-ableton-accent">
-        "Interrogate Before Generate" - Every suggestion is
+        &ldquo;Interrogate Before Generate&rdquo; - Every suggestion is
         justified by emotional intent, not arbitrary technical choices.
       </div>
     </div>
