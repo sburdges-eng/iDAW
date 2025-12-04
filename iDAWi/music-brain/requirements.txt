@@ -1,0 +1,4 @@
+# Minimal dependencies for iDAWi Music Brain bridge
+mido>=1.3.0
+numpy>=1.24.0
+pyyaml>=6.0
