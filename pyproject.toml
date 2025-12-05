@@ -100,7 +100,7 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-testpaths = ["tests_music-brain"]
+testpaths = ["DAiW-Music-Brain/tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 

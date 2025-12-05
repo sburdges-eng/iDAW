@@ -37,19 +37,19 @@ export const EmotionWheel = ({ onSelectEmotion, selectedEmotion: selectedEmotion
   };
 
   const categoryColors = {
-    'Sadness': 'bg-blue-500',
-    'Happiness': 'bg-yellow-500',
-    'Anger': 'bg-red-500',
-    'Fear': 'bg-emotion-fear',
-    'Love': 'bg-emotion-love',
+    'grief': 'bg-blue-500',
+    'joy': 'bg-yellow-500',
+    'anger': 'bg-red-500',
+    'fear': 'bg-emotion-fear',
+    'love': 'bg-emotion-love',
   };
 
   const categoryHoverColors = {
-    'Sadness': 'hover:border-blue-500',
-    'Happiness': 'hover:border-yellow-500',
-    'Anger': 'hover:border-red-500',
-    'Fear': 'hover:border-purple-500',
-    'Love': 'hover:border-pink-500',
+    'grief': 'hover:border-blue-500',
+    'joy': 'hover:border-yellow-500',
+    'anger': 'hover:border-red-500',
+    'fear': 'hover:border-purple-500',
+    'love': 'hover:border-pink-500',
   };
 
   if (isLoading) {

@@ -8,9 +8,16 @@ interface VUMeterProps {
 export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
   const [peakHold, setPeakHold] = useState(0);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peakHoldRef = React.useRef(0);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    peakHoldRef.current = peakHold;
+  }, [peakHold]);
 
   useEffect(() => {
-    if (peak > peakHold) {
+    // Use ref to get current peakHold value without adding it to dependency array
+    if (peak > peakHoldRef.current) {
       // Clear any existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
