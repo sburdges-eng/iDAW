@@ -149,7 +149,7 @@ public:
      * @param targetRate Target sample rate
      * @return true if successful
      *
-     * TODO: Implement actual sample rate conversion
+     * Basic sample rate conversion implemented using linear interpolation - for production, use libsamplerate
      * Options: libsamplerate, libresample, or simple linear interpolation
      */
     bool convertSampleRate(SampleRate targetRate);

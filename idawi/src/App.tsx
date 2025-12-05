@@ -1,20 +1,14 @@
-<<<<<<< Current (Your changes)
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from './store/useStore';
 import { SideA } from './components/SideA/SideA';
-import { SideB } from './components/SideB/SideB';
-=======
-import React, { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useStore } from './store/useStore';
-import { SideA } from './components/SideA/SideA';
 import { SideB } from './components/SideB';
->>>>>>> Incoming (Background Agent changes)
 
 function App() {
   const { currentSide, toggleSide, isPlaying, setPlaying, setCurrentTime } = useStore();
   const lastTimeRef = useRef<number>(0);
+  const wasPlayingRef = useRef<boolean>(false);
+  const animationFrameRef = useRef<number>();
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -37,10 +31,12 @@ function App() {
 
   // Playback timer
   useEffect(() => {
-    let animationFrame: number;
-
     if (isPlaying) {
-      lastTimeRef.current = performance.now();
+      // Only initialize lastTimeRef when transitioning from stopped to playing
+      if (!wasPlayingRef.current) {
+        lastTimeRef.current = performance.now();
+        wasPlayingRef.current = true;
+      }
 
       const tick = () => {
         const now = performance.now();
@@ -48,15 +44,19 @@ function App() {
         lastTimeRef.current = now;
 
         setCurrentTime((prevTime: number) => prevTime + delta);
-        animationFrame = requestAnimationFrame(tick);
+        animationFrameRef.current = requestAnimationFrame(tick);
       };
 
-      animationFrame = requestAnimationFrame(tick);
+      animationFrameRef.current = requestAnimationFrame(tick);
+    } else {
+      // Reset tracking when playback stops
+      wasPlayingRef.current = false;
     }
 
     return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
       }
     };
   }, [isPlaying, setCurrentTime]);

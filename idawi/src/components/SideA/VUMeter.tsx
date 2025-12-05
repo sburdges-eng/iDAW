@@ -11,14 +11,10 @@ export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
 
   useEffect(() => {
     if (peak > peakHold) {
-<<<<<<< Current (Your changes)
-=======
       // Clear any existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
->>>>>>> Incoming (Background Agent changes)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPeakHold(peak);
       // Reset peak after 1 second
       timeoutRef.current = setTimeout(() => {
@@ -29,6 +25,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [peak, peakHold]);
