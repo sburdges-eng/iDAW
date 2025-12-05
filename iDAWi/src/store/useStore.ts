@@ -18,227 +18,228 @@ export interface Track {
   muted: boolean;
   solo: boolean;
   armed: boolean;
-  volume: number;
-  pan: number;
-  type: 'audio' | 'midi' | 'bus';
-}
-
-export interface Clip {
-  id: string;
-  trackId: string;
-  name: string;
-  startBar: number;
-  lengthBars: number;
-  color: string;
+  clips: Clip[];
 }
 
 export interface SongIntent {
-  coreEmotion: string;
-  subEmotion: string;
-  vulnerabilityScale: number;
-  narrativeArc: 'ascending' | 'descending' | 'circular' | 'static';
+  coreEmotion: string | null;
+  subEmotion: string | null;
   ruleToBreak: string | null;
+  intent: Record<string, unknown> | null;
 }
 
-export interface GhostWriterSuggestion {
-  id: string;
-  type: 'harmony' | 'rhythm' | 'production' | 'arrangement';
-  description: string;
-  emotionalRationale: string;
-  applied: boolean;
-}
-
-interface AppState {
-  // UI State
-  currentSide: 'A' | 'B';
-  isFlipping: boolean;
-  toggleSide: () => void;
-
-  // Audio State
+interface StoreState {
+  // Playback state
   isPlaying: boolean;
   isRecording: boolean;
-  position: number;  // in samples
+  currentTime: number;
   tempo: number;
-  timeSignature: { numerator: number; denominator: number };
-  loopEnabled: boolean;
-  loopStart: number;
-  loopEnd: number;
+  timeSignature: [number, number];
 
-  // Tracks
+  // Project state
+  projectName: string;
   tracks: Track[];
+  masterVolume: number;
+
+  // UI state
+  currentSide: 'A' | 'B';
   selectedTrackId: string | null;
-  addTrack: (type: Track['type']) => void;
-  removeTrack: (id: string) => void;
+  isFlipping: boolean;
+
+  // Song intent (Side B)
+  songIntent: SongIntent;
+
+  // Actions
+  setPlaying: (playing: boolean) => void;
+  setRecording: (recording: boolean) => void;
+  setCurrentTime: (time: number | ((prev: number) => number)) => void;
+  setTempo: (tempo: number) => void;
+  setMasterVolume: (volume: number) => void;
+  toggleSide: () => void;
+  addTrack: (track: Omit<Track, 'id'>) => void;
   updateTrack: (id: string, updates: Partial<Track>) => void;
+  removeTrack: (id: string) => void;
   selectTrack: (id: string | null) => void;
-
-  // Clips
-  clips: Clip[];
-  selectedClipId: string | null;
-  addClip: (clip: Omit<Clip, 'id'>) => void;
-  removeClip: (id: string) => void;
-  updateClip: (id: string, updates: Partial<Clip>) => void;
-  selectClip: (id: string | null) => void;
-
-  // Transport Actions
+  
+  // Playback actions
   play: () => void;
   stop: () => void;
   pause: () => void;
-  toggleRecord: () => void;
-  setPosition: (pos: number) => void;
-  setTempo: (bpm: number) => void;
-  setTimeSignature: (num: number, den: number) => void;
-  toggleLoop: () => void;
-  setLoopPoints: (start: number, end: number) => void;
-
-  // Side B - Emotion Interface
-  songIntent: SongIntent;
+  setPosition: (position: number | ((prev: number) => number)) => void;
+  
+  // Song intent actions
   updateSongIntent: (updates: Partial<SongIntent>) => void;
-
-  // Ghost Writer
-  ghostWriterSuggestions: GhostWriterSuggestion[];
-  addGhostWriterSuggestion: (suggestion: Omit<GhostWriterSuggestion, 'id' | 'applied'>) => void;
-  applySuggestion: (id: string) => void;
   clearSuggestions: () => void;
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 11);
+const defaultTracks: Track[] = [
+  {
+    id: '1',
+    name: 'Drums',
+    type: 'audio',
+    color: '#ff5500',
+    volume: 0.8,
+    pan: 0,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [
+      { id: 'c1', name: 'Beat 1', startTime: 0, duration: 4 },
+      { id: 'c2', name: 'Beat 2', startTime: 4, duration: 4 },
+    ],
+  },
+  {
+    id: '2',
+    name: 'Bass',
+    type: 'midi',
+    color: '#00aaff',
+    volume: 0.7,
+    pan: 0,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [
+      { id: 'c3', name: 'Bass Line', startTime: 0, duration: 8 },
+    ],
+  },
+  {
+    id: '3',
+    name: 'Synth Lead',
+    type: 'midi',
+    color: '#aa00ff',
+    volume: 0.6,
+    pan: 0.2,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [
+      { id: 'c4', name: 'Melody', startTime: 4, duration: 4 },
+    ],
+  },
+  {
+    id: '4',
+    name: 'Pad',
+    type: 'midi',
+    color: '#00ff88',
+    volume: 0.5,
+    pan: -0.2,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [
+      { id: 'c5', name: 'Atmosphere', startTime: 0, duration: 8 },
+    ],
+  },
+  {
+    id: '5',
+    name: 'Vocals',
+    type: 'audio',
+    color: '#ffaa00',
+    volume: 0.9,
+    pan: 0,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [],
+  },
+  {
+    id: '6',
+    name: 'FX',
+    type: 'aux',
+    color: '#ff00aa',
+    volume: 0.4,
+    pan: 0,
+    muted: false,
+    solo: false,
+    armed: false,
+    clips: [],
+  },
+];
 
-const defaultTrackColors = ['#ff7e3e', '#0066ff', '#00cc00', '#ff3366', '#9933ff', '#ffcc00'];
+// Store timeout ID outside Zustand to track and cancel previous timeouts
+let toggleTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-export const useStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      // UI State
-      currentSide: 'A',
-      isFlipping: false,
-      toggleSide: () => {
-        set({ isFlipping: true });
-        setTimeout(() => {
-          set((state) => ({
-            currentSide: state.currentSide === 'A' ? 'B' : 'A',
-            isFlipping: false,
-          }));
-        }, 300);
-      },
+export const useStore = create<StoreState>((set) => ({
+  // Initial state
+  isPlaying: false,
+  isRecording: false,
+  currentTime: 0,
+  tempo: 120,
+  timeSignature: [4, 4],
+  projectName: 'Untitled Project',
+  tracks: defaultTracks,
+  masterVolume: 0.8,
+  currentSide: 'A',
+  selectedTrackId: null,
+  isFlipping: false,
+  songIntent: {
+    coreEmotion: null,
+    subEmotion: null,
+    ruleToBreak: null,
+    intent: null,
+  },
 
-      // Audio State
-      isPlaying: false,
-      isRecording: false,
-      position: 0,
-      tempo: 120,
-      timeSignature: { numerator: 4, denominator: 4 },
-      loopEnabled: false,
-      loopStart: 0,
-      loopEnd: 8 * 44100 * 4, // 8 bars at 120bpm
+  // Actions
+  setPlaying: (playing) => set({ isPlaying: playing }),
+  setRecording: (recording) => set({ isRecording: recording }),
+  setCurrentTime: (time) => set((state) => ({
+    currentTime: typeof time === 'function' ? time(state.currentTime) : time
+  })),
+  setTempo: (tempo) => set({ tempo }),
+  setMasterVolume: (volume) => set({ masterVolume: volume }),
 
-      // Tracks
-      tracks: [
-        { id: '1', name: 'Drums', color: '#ff7e3e', muted: false, solo: false, armed: false, volume: 0.8, pan: 0, type: 'midi' },
-        { id: '2', name: 'Bass', color: '#0066ff', muted: false, solo: false, armed: false, volume: 0.75, pan: 0, type: 'midi' },
-        { id: '3', name: 'Keys', color: '#00cc00', muted: false, solo: false, armed: false, volume: 0.7, pan: -0.2, type: 'midi' },
-        { id: '4', name: 'Vocal', color: '#ff3366', muted: false, solo: false, armed: false, volume: 0.85, pan: 0, type: 'audio' },
-      ],
-      selectedTrackId: null,
-
-      addTrack: (type) => set((state) => ({
-        tracks: [...state.tracks, {
-          id: generateId(),
-          name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${state.tracks.length + 1}`,
-          color: defaultTrackColors[state.tracks.length % defaultTrackColors.length],
-          muted: false,
-          solo: false,
-          armed: false,
-          volume: 0.8,
-          pan: 0,
-          type,
-        }],
-      })),
-
-      removeTrack: (id) => set((state) => ({
-        tracks: state.tracks.filter((t) => t.id !== id),
-        clips: state.clips.filter((c) => c.trackId !== id),
-        selectedTrackId: state.selectedTrackId === id ? null : state.selectedTrackId,
-      })),
-
-      updateTrack: (id, updates) => set((state) => ({
-        tracks: state.tracks.map((t) => t.id === id ? { ...t, ...updates } : t),
-      })),
-
-      selectTrack: (id) => set({ selectedTrackId: id }),
-
-      // Clips
-      clips: [
-        { id: 'c1', trackId: '1', name: 'Beat', startBar: 0, lengthBars: 4, color: '#ff7e3e' },
-        { id: 'c2', trackId: '2', name: 'Bass Line', startBar: 4, lengthBars: 8, color: '#0066ff' },
-        { id: 'c3', trackId: '3', name: 'Chords', startBar: 0, lengthBars: 8, color: '#00cc00' },
-      ],
-      selectedClipId: null,
-
-      addClip: (clip) => set((state) => ({
-        clips: [...state.clips, { ...clip, id: generateId() }],
-      })),
-
-      removeClip: (id) => set((state) => ({
-        clips: state.clips.filter((c) => c.id !== id),
-        selectedClipId: state.selectedClipId === id ? null : state.selectedClipId,
-      })),
-
-      updateClip: (id, updates) => set((state) => ({
-        clips: state.clips.map((c) => c.id === id ? { ...c, ...updates } : c),
-      })),
-
-      selectClip: (id) => set({ selectedClipId: id }),
-
-      // Transport Actions
-      play: () => set({ isPlaying: true }),
-      stop: () => set({ isPlaying: false, isRecording: false, position: 0 }),
-      pause: () => set({ isPlaying: false }),
-      toggleRecord: () => set((state) => ({ isRecording: !state.isRecording })),
-      setPosition: (pos) => set({ position: pos }),
-      setTempo: (tempo) => set({ tempo: Math.min(300, Math.max(20, tempo)) }),
-      setTimeSignature: (num, den) => set({ timeSignature: { numerator: num, denominator: den } }),
-      toggleLoop: () => set((state) => ({ loopEnabled: !state.loopEnabled })),
-      setLoopPoints: (start, end) => set({ loopStart: start, loopEnd: end }),
-
-      // Side B - Emotion Interface
-      songIntent: {
-        coreEmotion: 'grief',
-        subEmotion: 'yearning',
-        vulnerabilityScale: 7,
-        narrativeArc: 'ascending',
-        ruleToBreak: null,
-      },
-
-      updateSongIntent: (updates) => set((state) => ({
-        songIntent: { ...state.songIntent, ...updates },
-      })),
-
-      // Ghost Writer
-      ghostWriterSuggestions: [],
-
-      addGhostWriterSuggestion: (suggestion) => set((state) => ({
-        ghostWriterSuggestions: [
-          ...state.ghostWriterSuggestions,
-          { ...suggestion, id: generateId(), applied: false },
-        ],
-      })),
-
-      applySuggestion: (id) => set((state) => ({
-        ghostWriterSuggestions: state.ghostWriterSuggestions.map((s) =>
-          s.id === id ? { ...s, applied: true } : s
-        ),
-      })),
-
-      clearSuggestions: () => set({ ghostWriterSuggestions: [] }),
-    }),
-    {
-      name: 'idawi-storage',
-      partialize: (state) => ({
-        tempo: state.tempo,
-        timeSignature: state.timeSignature,
-        songIntent: state.songIntent,
-      }),
+  toggleSide: () => {
+    // Cancel any pending toggle timeout to prevent race conditions
+    if (toggleTimeoutId !== null) {
+      clearTimeout(toggleTimeoutId);
+      toggleTimeoutId = null;
     }
-  )
-);
+
+    set({ isFlipping: true });
+    
+    toggleTimeoutId = setTimeout(() => {
+      set((state) => ({
+        currentSide: state.currentSide === 'A' ? 'B' : 'A',
+        isFlipping: false,
+      }));
+      toggleTimeoutId = null;
+    }, 100);
+  },
+
+  addTrack: (track) => set((state) => ({
+    tracks: [...state.tracks, { ...track, id: `track-${Date.now()}` }]
+  })),
+
+  updateTrack: (id, updates) => set((state) => ({
+    tracks: state.tracks.map((t) =>
+      t.id === id ? { ...t, ...updates } : t
+    )
+  })),
+
+  removeTrack: (id) => set((state) => ({
+    tracks: state.tracks.filter((t) => t.id !== id)
+  })),
+
+  selectTrack: (id) => set({ selectedTrackId: id }),
+
+  // Playback actions
+  play: () => set({ isPlaying: true }),
+  stop: () => set({ isPlaying: false, currentTime: 0 }),
+  pause: () => set({ isPlaying: false }),
+  setPosition: (position) => set((state) => ({
+    currentTime: typeof position === 'function' ? position(state.currentTime) : position
+  })),
+
+  // Song intent actions
+  updateSongIntent: (updates) => set((state) => ({
+    songIntent: { ...state.songIntent, ...updates }
+  })),
+  clearSuggestions: () => set({
+    songIntent: {
+      coreEmotion: null,
+      subEmotion: null,
+      ruleToBreak: null,
+      intent: null,
+    }
+  }),
+}));
