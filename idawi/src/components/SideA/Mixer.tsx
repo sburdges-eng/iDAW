@@ -18,7 +18,6 @@ export const Mixer: React.FC = () => {
       tracks.forEach(track => {
         clearedLevels[track.id] = { left: 0, right: 0 };
       });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLevels(clearedLevels);
       return;
     }
@@ -164,11 +163,16 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
 
         {/* Fader */}
         <div className="h-28 flex flex-col items-center">
+          <label className="sr-only" htmlFor={`fader-${track.name}`}>Volume Fader</label>
           <input
+            id={`fader-${track.name}`}
             type="range"
             min={0}
             max={1}
             step={0.01}
+            title="Channel Volume"
+            aria-label="Channel Volume"
+            placeholder="Volume"
             value={track.volume}
             onChange={(e) => onUpdate({ volume: parseFloat(e.target.value) })}
             className="h-24 w-4"
@@ -280,11 +284,17 @@ const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
 
         {/* Fader */}
         <div className="h-28 flex flex-col items-center">
+          <label htmlFor="master-fader" className="sr-only">
+            Master Volume Fader
+          </label>
           <input
+            id="master-fader"
             type="range"
             min={0}
             max={1}
             step={0.01}
+            title="Master Volume"
+            aria-label="Master Volume"
             value={masterVolume}
             onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
             className="h-24 w-4"

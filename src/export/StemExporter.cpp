@@ -144,17 +144,109 @@ audio::AudioFile StemExporter::renderMidiTrack(
     double durationSeconds,
     SampleRate sampleRate) {
     
-    // TODO: Implement MIDI rendering
-    // This requires a synth or sampler engine
-    // For now, generate a test tone if there are MIDI events
+    // Basic MIDI rendering implementation using simple synthesizer
+    // For production: integrate a full synth/sampler engine (JUCE, SFizz, etc.)
     
-    if (track.midiSequence.size() > 0) {
-        // Generate a placeholder sine wave
-        return audio::AudioFile::generateSineWave(440.0f, durationSeconds, sampleRate, 0.3f);
+    if (track.midiSequence.empty()) {
+        // Return empty audio file if no MIDI events
+        audio::AudioFile emptyFile;
+        emptyFile.setData({}, 1, sampleRate);
+        return emptyFile;
     }
     
-    // Return empty audio file
-    return audio::AudioFile();
+    // Calculate duration from MIDI sequence if not provided
+    if (durationSeconds <= 0.0) {
+        // Estimate duration from last MIDI event
+        // Assuming 120 BPM and PPQ of 480
+        const int ppq = track.midiSequence.getPPQ();
+        const double bpm = 120.0;  // Default tempo
+        TickCount lastTick = track.midiSequence.getDuration();
+        durationSeconds = (lastTick / static_cast<double>(ppq)) * (60.0 / bpm);
+        durationSeconds = std::max(durationSeconds, 1.0);  // Minimum 1 second
+    }
+    
+    const size_t numSamples = static_cast<size_t>(durationSeconds * sampleRate);
+    std::vector<audio::Sample> audioData(numSamples, 0.0f);
+    
+    // Simple synthesizer: generate sine waves for each active note
+    struct ActiveNote {
+        MidiNote note;
+        float startTime;
+        float velocity;
+        bool isActive;
+    };
+    
+    std::vector<ActiveNote> activeNotes;
+    const auto& messages = track.midiSequence.getMessages();
+    
+    // Convert MIDI ticks to sample positions
+    const int ppq = track.midiSequence.getPPQ();
+    const double bpm = 120.0;  // Default tempo - in production, get from project
+    const double ticksPerSecond = (ppq * bpm) / 60.0;
+    
+    for (const auto& msg : messages) {
+        double timeInSeconds = msg.getTimestamp() / ticksPerSecond;
+        size_t samplePos = static_cast<size_t>(timeInSeconds * sampleRate);
+        
+        if (samplePos >= numSamples) continue;
+        
+        if (msg.isNoteOn() && msg.getVelocity() > 0) {
+            // Note on
+            ActiveNote note;
+            note.note = msg.getNoteNumber();
+            note.startTime = static_cast<float>(timeInSeconds);
+            note.velocity = static_cast<float>(msg.getVelocity()) / 127.0f;
+            note.isActive = true;
+            activeNotes.push_back(note);
+        } else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0)) {
+            // Note off - find and remove matching note
+            for (auto it = activeNotes.begin(); it != activeNotes.end(); ++it) {
+                if (it->note == msg.getNoteNumber() && it->isActive) {
+                    it->isActive = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Generate audio for active notes
+    for (size_t sample = 0; sample < numSamples; ++sample) {
+        float time = static_cast<float>(sample) / static_cast<float>(sampleRate);
+        float sampleValue = 0.0f;
+        
+        for (auto& note : activeNotes) {
+            if (!note.isActive) continue;
+            
+            float noteDuration = time - note.startTime;
+            if (noteDuration < 0.0f) continue;
+            
+            // Calculate frequency from MIDI note number
+            float frequency = 440.0f * std::pow(2.0f, (static_cast<float>(note.note) - 69.0f) / 12.0f);
+            
+            // Generate sine wave with envelope (simple ADSR-like)
+            float amplitude = note.velocity;
+            if (noteDuration < 0.01f) {
+                // Attack: 10ms
+                amplitude *= noteDuration / 0.01f;
+            } else if (noteDuration > durationSeconds - 0.1f) {
+                // Release: 100ms fade out
+                float releaseTime = durationSeconds - noteDuration;
+                amplitude *= std::max(0.0f, releaseTime / 0.1f);
+            }
+            
+            // Generate sine wave
+            constexpr float PI = 3.14159265358979323846f;
+            float phase = 2.0f * PI * frequency * time;
+            sampleValue += amplitude * std::sin(phase) * 0.2f;  // Scale down to prevent clipping
+        }
+        
+        audioData[sample] = sampleValue;
+    }
+    
+    // Create audio file
+    audio::AudioFile audioFile;
+    audioFile.setData(audioData, 1, sampleRate);  // Mono output
+    return audioFile;
 }
 
 void StemExporter::normalizeAudio(audio::AudioFile& audio, float targetLevel) {

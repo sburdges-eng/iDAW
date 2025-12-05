@@ -1,92 +1,103 @@
-# iDAWi - intelligent Digital Audio Workstation
+# iDAWi - intelligent Digital Audio Workstation (interface)
 
-> "Interrogate Before Generate" - The tool shouldn't finish art for people. It should make them braver.
+> Professional DAW UI with emotion-driven music production
+>
+> **Philosophy: "Interrogate Before Generate"**
 
-iDAWi is a dual-interface DAW that combines professional audio production (Side A) with emotion-driven AI composition (Side B).
+## What is iDAWi?
 
-## Features
+iDAWi (lowercase 'i' = intelligent) is a standalone DAW interface that combines:
 
-### Side A: Professional DAW
-- Timeline with multi-track editing
-- 8-channel mixer with real-time VU meters
-- Transport controls (Play, Pause, Stop, Record)
-- Tempo and time signature control
-- Pan knobs with smooth drag interaction
+- **Side A**: Professional timeline, mixer, and transport (like Ableton)
+- **Side B**: Emotion-driven interrogation and AI Ghost Writer
+- **Flip Toggle**: Press `⌘E` (Mac) or `Ctrl+E` (Windows/Linux) to switch between sides
 
-### Side B: Emotion Interface
-- Emotion Wheel with 15+ categorized emotions
-- 3-Phase Interrogation System:
-  - Phase 0: Core Wound/Desire
-  - Phase 1: Emotional Intent
-  - Phase 2: Technical Constraints
-- Ghost Writer AI suggestions
-- Rule-breaking recommendations with justifications
+## Tech Stack
+
+- **Frontend**: Tauri 2.0 + React 18 + TypeScript
+- **Styling**: Tailwind CSS (Ableton dark theme)
+- **Backend**: Rust (audio engine) + Python (Music Brain)
+- **IPC**: Tauri commands bridge all systems
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  Tauri Window (Press ⌘E to flip)       │
+│                                         │
+│  SIDE A (DAW)          SIDE B (Emotion) │
+│  ├── Timeline          ├── Interrogator │
+│  ├── Mixer             ├── Emotion Wheel│
+│  ├── Transport         ├── Ghost Writer │
+│  └── Plugin Rack       └── Rule Breaker │
+│         ↕                      ↕         │
+│    Tauri IPC           Tauri IPC        │
+│         ↕                      ↕         │
+│  Rust Audio Engine    Python Music Brain│
+└─────────────────────────────────────────┘
+```
 
 ## Quick Start
 
 ```bash
 # Install dependencies
 npm install
+cd src-tauri && cargo build && cd ..
 
-# Start development server
-npm start
+# Run development server
+npm run tauri dev
 
 # Build for production
-npm run build
-
-# Run with Tauri (native app)
-npm run tauri:dev
+npm run tauri build
 ```
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+E` / `Ctrl+E` | Toggle Side A/B |
+| `⌘E / Ctrl+E` | Flip between Side A and Side B |
 | `Space` | Play/Pause |
+| `⌘N` | New project |
+| `⌘S` | Save project |
+| `⌘Z` | Undo |
+| `⌘⇧Z` | Redo |
 
 ## Philosophy
 
-Unlike traditional DAWs where you pick plugins and hope they sound good, iDAWi asks: **"What are you feeling?"** and generates music with justified intent.
+Unlike traditional DAWs:
 
-- Every parameter has emotional reasoning
-- Every rule-break serves authenticity
-- "The wrong note played with conviction is the right note"
+1. ❌ Pick plugin → Tweak knobs → Hope it sounds good
+2. ✅ Describe emotion → AI suggests rules to break → Generate with intent
 
-## Tech Stack
+**Every parameter has emotional justification.**
 
-- **Frontend**: React 18 + TypeScript
-- **State**: Zustand
-- **Styling**: Tailwind CSS (Ableton-style dark theme)
-- **Animation**: Framer Motion
-- **Native**: Tauri 2.0 (Rust)
-- **AI**: Music Brain (Python)
-
-## Architecture
+## Project Structure
 
 ```
-idawi/
-├── src/
+iDAWi/
+├── src/                    # React TypeScript frontend
 │   ├── components/
-│   │   ├── SideA/          # Professional DAW interface
-│   │   │   ├── Timeline.tsx
-│   │   │   ├── Mixer.tsx
-│   │   │   ├── VUMeter.tsx
-│   │   │   ├── Knob.tsx
-│   │   │   └── Transport.tsx
-│   │   └── SideB/          # Emotion interface
-│   │       ├── EmotionWheel.tsx
-│   │       ├── Interrogator.tsx
-│   │       └── GhostWriter.tsx
-│   ├── hooks/
-│   │   └── useMusicBrain.ts
-│   ├── store/
-│   │   └── useStore.ts
-│   └── App.tsx
-├── public/
-└── music-brain/            # Python AI backend
+│   │   ├── SideA/         # DAW interface components
+│   │   ├── SideB/         # Emotion interface components
+│   │   └── shared/        # Shared components
+│   ├── hooks/             # Custom React hooks
+│   ├── store/             # Zustand state management
+│   └── styles/            # CSS and Tailwind config
+├── src-tauri/             # Rust backend
+│   └── src/
+│       ├── main.rs        # Tauri entry point
+│       └── audio_engine.rs # Audio processing
+├── music-brain/           # Python Music Brain bridge
+│   ├── bridge.py          # IPC bridge script
+│   └── music_brain/       # Extracted modules
+└── public/                # Static assets
 ```
 
 ## License
 
-MIT License - Sean Burdges
+MIT
+
+## Credits
+
+Built by Sean Burdges
+Part of the iDAW ecosystem

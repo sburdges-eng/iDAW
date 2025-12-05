@@ -107,11 +107,134 @@ std::string ProjectFile::toJSON() const {
 }
 
 bool ProjectFile::fromJSON(const std::string& json) {
-    // TODO: Implement JSON parsing
-    // For production: use nlohmann::json or similar
-    // Current stub: just validate it's not empty
-    (void)json;
-    return !json.empty();
+    // Basic JSON parsing implementation
+    // For production: use nlohmann::json or similar for robustness
+    
+    if (json.empty()) {
+        return false;
+    }
+    
+    // Simple string extraction helper
+    auto extractString = [](const std::string& str, const std::string& key) -> std::string {
+        size_t pos = str.find("\"" + key + "\"");
+        if (pos == std::string::npos) return "";
+        pos = str.find(":", pos);
+        if (pos == std::string::npos) return "";
+        pos = str.find("\"", pos);
+        if (pos == std::string::npos) return "";
+        size_t start = pos + 1;
+        size_t end = str.find("\"", start);
+        if (end == std::string::npos) return "";
+        return str.substr(start, end - start);
+    };
+    
+    auto extractNumber = [](const std::string& str, const std::string& key) -> float {
+        size_t pos = str.find("\"" + key + "\"");
+        if (pos == std::string::npos) return 0.0f;
+        pos = str.find(":", pos);
+        if (pos == std::string::npos) return 0.0f;
+        pos = str.find_first_not_of(" \t", pos + 1);
+        if (pos == std::string::npos) return 0.0f;
+        size_t end = pos;
+        while (end < str.length() && (std::isdigit(str[end]) || str[end] == '.' || str[end] == '-' || str[end] == 'e' || str[end] == 'E' || str[end] == '+' || str[end] == '-')) {
+            end++;
+        }
+        try {
+            return std::stof(str.substr(pos, end - pos));
+        } catch (...) {
+            return 0.0f;
+        }
+    };
+    
+    auto extractBool = [](const std::string& str, const std::string& key) -> bool {
+        size_t pos = str.find("\"" + key + "\"");
+        if (pos == std::string::npos) return false;
+        pos = str.find(":", pos);
+        if (pos == std::string::npos) return false;
+        pos = str.find_first_not_of(" \t", pos + 1);
+        if (pos == std::string::npos) return false;
+        std::string value = str.substr(pos, 4);
+        return value == "true";
+    };
+    
+    // Parse metadata
+    metadata_.name = extractString(json, "name");
+    metadata_.author = extractString(json, "author");
+    metadata_.createdDate = extractString(json, "created");
+    metadata_.modifiedDate = extractString(json, "modified");
+    
+    // Parse settings
+    tempo_.bpm = extractNumber(json, "tempo");
+    
+    // Parse time signature (format: "4/4")
+    size_t tsPos = json.find("\"timeSignature\"");
+    if (tsPos != std::string::npos) {
+        tsPos = json.find("\"", tsPos + 15);
+        if (tsPos != std::string::npos) {
+            size_t tsStart = tsPos + 1;
+            size_t tsEnd = json.find("\"", tsStart);
+            if (tsEnd != std::string::npos) {
+                std::string tsStr = json.substr(tsStart, tsEnd - tsStart);
+                size_t slashPos = tsStr.find('/');
+                if (slashPos != std::string::npos) {
+                    try {
+                        timeSignature_.numerator = static_cast<uint8_t>(std::stoi(tsStr.substr(0, slashPos)));
+                        timeSignature_.denominator = static_cast<uint8_t>(std::stoi(tsStr.substr(slashPos + 1)));
+                    } catch (...) {
+                        // Keep defaults
+                    }
+                }
+            }
+        }
+    }
+    
+    sampleRate_ = static_cast<SampleRate>(extractNumber(json, "sampleRate"));
+    
+    // Parse mixer
+    mixer_.masterVolume = extractNumber(json, "masterVolume");
+    mixer_.masterMuted = extractBool(json, "masterMuted");
+    
+    // Parse tracks (simplified - just count them for now)
+    // Full implementation would parse each track's properties
+    size_t tracksStart = json.find("\"tracks\"");
+    if (tracksStart != std::string::npos) {
+        tracksStart = json.find("[", tracksStart);
+        if (tracksStart != std::string::npos) {
+            // Count track objects
+            size_t pos = tracksStart + 1;
+            int braceDepth = 0;
+            int trackCount = 0;
+            bool inString = false;
+            
+            while (pos < json.length()) {
+                char c = json[pos];
+                if (c == '"' && (pos == 0 || json[pos-1] != '\\')) {
+                    inString = !inString;
+                } else if (!inString) {
+                    if (c == '{') {
+                        if (braceDepth == 0) trackCount++;
+                        braceDepth++;
+                    } else if (c == '}') {
+                        braceDepth--;
+                        if (braceDepth < 0) break;
+                    } else if (c == ']' && braceDepth == 0) {
+                        break;
+                    }
+                }
+                pos++;
+            }
+            
+            // Create placeholder tracks if needed
+            while (static_cast<int>(tracks_.size()) < trackCount) {
+                Track track;
+                track.name = "Track " + std::to_string(tracks_.size() + 1);
+                track.index = static_cast<int>(tracks_.size());
+                tracks_.push_back(track);
+            }
+        }
+    }
+    
+    return true;
 }
 
 } // namespace project

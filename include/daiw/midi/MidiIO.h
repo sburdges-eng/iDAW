@@ -1,11 +1,8 @@
 /**
  * @file MidiIO.h
- * @brief MIDI input/output device management (STUB)
+ * @brief MIDI input/output device management
  *
- * This is an interface-only stub for MIDI device I/O.
- * Full implementation requires a MIDI library (RtMidi, PortMidi, etc.)
- *
- * TODO: Integrate with a MIDI library for actual device I/O
+ * Implementation using JUCE MIDI classes.
  */
 
 #pragma once
@@ -14,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
 
 namespace daiw {
 namespace midi {
@@ -34,18 +32,13 @@ struct MidiDeviceInfo {
 };
 
 /**
- * @brief MIDI input device interface (STUB)
- *
- * NOTE: This is a stub implementation. Actual device I/O requires
- * integration with a MIDI library such as:
- * - RtMidi (cross-platform, C++)
- * - PortMidi (cross-platform, C)
- * - JUCE MIDI classes (cross-platform, C++)
- *
- * Current status: Interface only - no actual device communication
+ * @brief MIDI input device interface
  */
 class MidiInput {
 public:
+    MidiInput();
+    ~MidiInput();
+
     /**
      * @brief Enumerate available MIDI input devices
      */
@@ -66,14 +59,12 @@ public:
     /**
      * @brief Check if device is open
      */
-    [[nodiscard]] bool isOpen() const { return isOpen_; }
+    [[nodiscard]] bool isOpen() const;
 
     /**
      * @brief Set callback for incoming messages
      */
-    void setCallback(MidiInputCallback callback) {
-        callback_ = callback;
-    }
+    void setCallback(MidiInputCallback callback);
 
     /**
      * @brief Start receiving MIDI messages
@@ -86,20 +77,18 @@ public:
     void stop();
 
 private:
-    bool isOpen_ = false;
-    bool isRunning_ = false;
-    int deviceId_ = -1;
-    MidiInputCallback callback_;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 /**
- * @brief MIDI output device interface (STUB)
- *
- * NOTE: This is a stub implementation. See MidiInput documentation
- * for library integration requirements.
+ * @brief MIDI output device interface
  */
 class MidiOutput {
 public:
+    MidiOutput();
+    ~MidiOutput();
+
     /**
      * @brief Enumerate available MIDI output devices
      */
@@ -120,7 +109,7 @@ public:
     /**
      * @brief Check if device is open
      */
-    [[nodiscard]] bool isOpen() const { return isOpen_; }
+    [[nodiscard]] bool isOpen() const;
 
     /**
      * @brief Send a MIDI message
@@ -135,8 +124,8 @@ public:
     void allNotesOff();
 
 private:
-    bool isOpen_ = false;
-    int deviceId_ = -1;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace midi
