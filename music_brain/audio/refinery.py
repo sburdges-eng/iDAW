@@ -5,8 +5,8 @@ Batch processor to transform raw samples into the C2 Industrial / LoFi palette.
 
 Usage (from repo root):
 
-  python -m music_brain.audio_refinery
-  python -m music_brain.audio_refinery 02_Rhythm_Drums
+  python -m music_brain.audio.refinery
+  python -m music_brain.audio.refinery 02_Rhythm_Drums
 
 If a subfolder name is given, only that category is processed.
 """
