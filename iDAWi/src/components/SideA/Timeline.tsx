@@ -1,255 +1,97 @@
-import React, { useMemo } from 'react';
-import { useStore, Track, Clip } from '../../store/useStore';
-import { Volume2, VolumeX, Headphones, CircleDot, Trash2 } from 'lucide-react';
-import clsx from 'clsx';
-
-const PIXELS_PER_BAR = 80;
-const TOTAL_BARS = 32;
+import React, { useRef, useEffect } from 'react';
+import { useStore } from '../../store/useStore';
 
 export const Timeline: React.FC = () => {
-  const {
-    tracks,
-    clips,
-    selectedTrackId,
-    selectedClipId,
-    selectTrack,
-    selectClip,
-    updateTrack,
-    removeTrack,
-    position,
-    tempo,
-    timeSignature,
-  } = useStore();
+  const { tracks, currentTime, tempo, timeSignature } = useStore();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Calculate playhead position
-  const playheadPosition = useMemo(() => {
-    const sampleRate = 44100;
-    const beatsPerBar = timeSignature.numerator;
-    const samplesPerBeat = (60 / tempo) * sampleRate;
-    const samplesPerBar = samplesPerBeat * beatsPerBar;
-    const bars = position / samplesPerBar;
-    return bars * PIXELS_PER_BAR;
-  }, [position, tempo, timeSignature]);
+  // Calculate grid based on tempo and time signature
+  const beatsPerBar = timeSignature[0];
+  const pixelsPerBeat = 50;
+  const pixelsPerBar = pixelsPerBeat * beatsPerBar;
 
-  // Get clips for a specific track
-  const getTrackClips = (trackId: string): Clip[] => {
-    return clips.filter((c) => c.trackId === trackId);
-  };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // Draw background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid lines
+    const bars = Math.ceil(canvas.width / pixelsPerBar);
+    for (let i = 0; i <= bars * beatsPerBar; i++) {
+      const x = i * pixelsPerBeat;
+      const isBar = i % beatsPerBar === 0;
+
+      ctx.strokeStyle = isBar ? '#444' : '#2a2a2a';
+      ctx.lineWidth = isBar ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+
+      // Bar numbers
+      if (isBar) {
+        ctx.fillStyle = '#666';
+        ctx.font = '10px monospace';
+        ctx.fillText(`${Math.floor(i / beatsPerBar) + 1}`, x + 4, 12);
+      }
+    }
+
+    // Draw playhead
+    const playheadX = (currentTime / 60) * tempo * pixelsPerBeat;
+    ctx.strokeStyle = '#ff5500';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, 0);
+    ctx.lineTo(playheadX, canvas.height);
+    ctx.stroke();
+
+    // Draw tracks
+    const trackHeight = Math.min(80, (canvas.height - 20) / Math.max(tracks.length, 1));
+    tracks.forEach((track, index) => {
+      const y = 20 + index * trackHeight;
+
+      // Track background
+      ctx.fillStyle = track.color + '40';
+      ctx.fillRect(0, y, canvas.width, trackHeight - 2);
+
+      // Track name
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(track.name, 8, y + 16);
+
+      // Draw clips (placeholder)
+      track.clips.forEach(clip => {
+        const clipX = clip.startTime * pixelsPerBeat;
+        const clipWidth = clip.duration * pixelsPerBeat;
+
+        ctx.fillStyle = track.color;
+        ctx.fillRect(clipX, y + 4, clipWidth, trackHeight - 10);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(clip.name, clipX + 4, y + 18);
+      });
+    });
+
+  }, [tracks, currentTime, tempo, beatsPerBar, pixelsPerBeat, pixelsPerBar]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Timeline Header (Bar numbers) */}
-      <div className="h-6 bg-ableton-bg border-b border-ableton-border flex">
-        {/* Track header spacer */}
-        <div className="w-48 bg-ableton-surface border-r border-ableton-border" />
-
-        {/* Bar numbers */}
-        <div className="flex-1 overflow-hidden relative">
-          <div className="flex absolute top-0 left-0">
-            {Array.from({ length: TOTAL_BARS }, (_, i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 text-xs text-ableton-text-dim font-mono px-1 border-r border-ableton-border/30"
-                style={{ width: PIXELS_PER_BAR }}
-              >
-                {i + 1}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Tracks Container */}
-      <div className="flex-1 overflow-auto">
-        {tracks.map((track) => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            clips={getTrackClips(track.id)}
-            isSelected={track.id === selectedTrackId}
-            selectedClipId={selectedClipId}
-            onSelectTrack={() => selectTrack(track.id)}
-            onSelectClip={selectClip}
-            onUpdateTrack={(updates) => updateTrack(track.id, updates)}
-            onRemoveTrack={() => removeTrack(track.id)}
-            playheadPosition={playheadPosition}
-          />
-        ))}
-
-        {/* Empty track placeholder */}
-        {tracks.length === 0 && (
-          <div className="h-32 flex items-center justify-center text-ableton-text-dim">
-            No tracks. Click + to add a track.
-          </div>
-        )}
-      </div>
-
-      {/* Playhead overlay */}
-      <div
-        className="absolute top-6 bottom-14 w-px bg-ableton-accent pointer-events-none z-20"
-        style={{ left: 192 + playheadPosition }} // 192 = track header width (w-48 = 12rem = 192px)
+    <div className="flex-1 bg-ableton-bg overflow-hidden">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        style={{ display: 'block' }}
       />
-    </div>
-  );
-};
-
-interface TrackRowProps {
-  track: Track;
-  clips: Clip[];
-  isSelected: boolean;
-  selectedClipId: string | null;
-  onSelectTrack: () => void;
-  onSelectClip: (id: string | null) => void;
-  onUpdateTrack: (updates: Partial<Track>) => void;
-  onRemoveTrack: () => void;
-  playheadPosition: number;
-}
-
-const TrackRow: React.FC<TrackRowProps> = ({
-  track,
-  clips,
-  isSelected,
-  selectedClipId,
-  onSelectTrack,
-  onSelectClip,
-  onUpdateTrack,
-  onRemoveTrack,
-}) => {
-  return (
-    <div
-      className={clsx(
-        'track flex',
-        isSelected && 'track-selected'
-      )}
-      onClick={onSelectTrack}
-    >
-      {/* Track Header */}
-      <div className="w-48 bg-ableton-surface-light border-r border-ableton-border flex items-center px-2 gap-2 shrink-0">
-        {/* Color indicator */}
-        <div
-          className="w-3 h-10 rounded-sm cursor-pointer"
-          style={{ backgroundColor: track.color }}
-        />
-
-        {/* Track name */}
-        <div className="flex-1 min-w-0">
-          <input
-            type="text"
-            value={track.name}
-            onChange={(e) => onUpdateTrack({ name: e.target.value })}
-            className="w-full bg-transparent text-sm truncate outline-none focus:bg-ableton-bg px-1 rounded"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="text-xs text-ableton-text-dim uppercase">
-            {track.type}
-          </div>
-        </div>
-
-        {/* Track controls */}
-        <div className="flex items-center gap-1">
-          {/* Mute */}
-          <button
-            className={clsx(
-              'p-1 rounded-sm transition-colors',
-              track.muted
-                ? 'bg-ableton-yellow/30 text-ableton-yellow'
-                : 'hover:bg-ableton-surface text-ableton-text-dim'
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdateTrack({ muted: !track.muted });
-            }}
-            title="Mute"
-          >
-            {track.muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-          </button>
-
-          {/* Solo */}
-          <button
-            className={clsx(
-              'p-1 rounded-sm transition-colors',
-              track.solo
-                ? 'bg-ableton-blue/30 text-ableton-blue'
-                : 'hover:bg-ableton-surface text-ableton-text-dim'
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdateTrack({ solo: !track.solo });
-            }}
-            title="Solo"
-          >
-            <Headphones size={14} />
-          </button>
-
-          {/* Arm for recording */}
-          <button
-            className={clsx(
-              'p-1 rounded-sm transition-colors',
-              track.armed
-                ? 'bg-ableton-red/30 text-ableton-red'
-                : 'hover:bg-ableton-surface text-ableton-text-dim'
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdateTrack({ armed: !track.armed });
-            }}
-            title="Arm for Recording"
-          >
-            <CircleDot size={14} />
-          </button>
-
-          {/* Delete */}
-          <button
-            className="p-1 rounded-sm hover:bg-ableton-red/30 hover:text-ableton-red text-ableton-text-dim transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveTrack();
-            }}
-            title="Delete Track"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* Track Content (Clips) */}
-      <div className="flex-1 relative">
-        {/* Grid lines */}
-        <div className="absolute inset-0 flex pointer-events-none">
-          {Array.from({ length: TOTAL_BARS }, (_, i) => (
-            <div
-              key={i}
-              className="border-r border-ableton-border/20"
-              style={{ width: PIXELS_PER_BAR }}
-            />
-          ))}
-        </div>
-
-        {/* Clips */}
-        {clips.map((clip) => (
-          <div
-            key={clip.id}
-            className={clsx(
-              'clip cursor-pointer',
-              selectedClipId === clip.id && 'ring-2 ring-white'
-            )}
-            style={{
-              left: clip.startBar * PIXELS_PER_BAR + 2,
-              width: clip.lengthBars * PIXELS_PER_BAR - 4,
-              backgroundColor: clip.color + '80',
-              borderColor: clip.color,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectClip(clip.id);
-            }}
-          >
-            <div className="px-2 py-1 text-xs truncate font-medium text-white">
-              {clip.name}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
