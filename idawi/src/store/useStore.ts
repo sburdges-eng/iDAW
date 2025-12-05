@@ -156,10 +156,11 @@ const defaultTracks: Track[] = [
   },
 ];
 
-// Store timeout ID outside Zustand to track and cancel previous timeouts
-let toggleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+export const useStore = create<StoreState>((set) => {
+  // Store timeout ID in a closure-scoped variable for proper isolation
+  let toggleTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-export const useStore = create<StoreState>((set) => ({
+  return {
   // Initial state
   isPlaying: false,
   isRecording: false,
@@ -198,10 +199,17 @@ export const useStore = create<StoreState>((set) => ({
     set({ isFlipping: true });
     
     toggleTimeoutId = setTimeout(() => {
-      set((state) => ({
-        currentSide: state.currentSide === 'A' ? 'B' : 'A',
-        isFlipping: false,
-      }));
+      // Use functional update to ensure we're working with the latest state
+      set((state) => {
+        // Double-check we're not in the middle of another flip
+        if (state.isFlipping) {
+          return {
+            currentSide: state.currentSide === 'A' ? 'B' : 'A',
+            isFlipping: false,
+          };
+        }
+        return state; // No change if flip was cancelled
+      });
       toggleTimeoutId = null;
     }, 100);
   },
@@ -242,4 +250,5 @@ export const useStore = create<StoreState>((set) => ({
       intent: null,
     }
   }),
-}));
+  };
+});

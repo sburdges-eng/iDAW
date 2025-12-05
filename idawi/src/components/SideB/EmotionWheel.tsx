@@ -1,11 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
-interface Emotion {
+// Category color mappings with standard Tailwind-safe class tokens.
+export const categoryColors = {
+  grief: "bg-[color:var(--emotion-grief)]",
+  joy: "bg-[color:var(--emotion-joy)]",
+  anger: "bg-[color:var(--emotion-anger)]",
+  fear: "bg-[color:var(--emotion-fear)]",
+  love: "bg-[color:var(--emotion-love)]",
+} as const;
+
+export const categoryHoverColors = {
+  grief: "hover:bg-[color:var(--emotion-grief)] hover:bg-opacity-10",
+  joy: "hover:bg-[color:var(--emotion-joy)] hover:bg-opacity-10",
+  anger: "hover:bg-[color:var(--emotion-anger)] hover:bg-opacity-10",
+  fear: "hover:bg-[color:var(--emotion-fear)] hover:bg-opacity-10",
+  love: "hover:bg-[color:var(--emotion-love)] hover:bg-opacity-10",
+} as const;
+
+export type EmotionCategory = keyof typeof categoryColors;
+
+export type Emotion = {
   name: string;
-  category: string;
-  intensity: number;
-}
+  category: EmotionCategory;
+  intensity: number; // 0.0 - 1.0
+};
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
@@ -34,22 +53,6 @@ export const EmotionWheel = ({ onSelectEmotion, selectedEmotion: selectedEmotion
       setInternalSelectedEmotion(emotion);
     }
     onSelectEmotion(emotion);
-  };
-
-  const categoryColors = {
-    'grief': 'bg-blue-500',
-    'joy': 'bg-yellow-500',
-    'anger': 'bg-red-500',
-    'fear': 'bg-emotion-fear',
-    'love': 'bg-emotion-love',
-  };
-
-  const categoryHoverColors = {
-    'grief': 'hover:border-blue-500',
-    'joy': 'hover:border-yellow-500',
-    'anger': 'hover:border-red-500',
-    'fear': 'hover:border-purple-500',
-    'love': 'hover:border-pink-500',
   };
 
   if (isLoading) {
@@ -104,46 +107,4 @@ export const EmotionWheel = ({ onSelectEmotion, selectedEmotion: selectedEmotion
     </div>
   );
 };
-
-// Category color mappings with standard Tailwind-safe class tokens.
-export const categoryColors = {
-  grief: "bg-[color:var(--emotion-grief)]",
-  joy: "bg-[color:var(--emotion-joy)]",
-  anger: "bg-[color:var(--emotion-anger)]",
-  fear: "bg-[color:var(--emotion-fear)]",
-  love: "bg-[color:var(--emotion-love)]",
-};
-
-export const categoryHoverColors = {
-  grief: "hover:bg-[color:var(--emotion-grief)] hover:bg-opacity-10",
-  joy: "hover:bg-[color:var(--emotion-joy)] hover:bg-opacity-10",
-  anger: "hover:bg-[color:var(--emotion-anger)] hover:bg-opacity-10",
-  fear: "hover:bg-[color:var(--emotion-fear)] hover:bg-opacity-10",
-  love: "hover:bg-[color:var(--emotion-love)] hover:bg-opacity-10",
-} as const;
-
-export type Emotion = {
-  name: string;
-  category: keyof typeof categoryColors;
-  intensity: number; // 0.0 - 1.0
-};
-
-export const emotions: Emotion[] = [
-  { name: "Grief", category: "grief", intensity: 0.7 },
-  { name: "Longing", category: "grief", intensity: 0.6 },
-  { name: "Melancholy", category: "grief", intensity: 0.5 },
-
-  { name: "Joy", category: "joy", intensity: 0.9 },
-  { name: "Hope", category: "joy", intensity: 0.7 },
-  { name: "Peace", category: "joy", intensity: 0.6 },
-
-  { name: "Anger", category: "anger", intensity: 0.85 },
-  { name: "Restlessness", category: "anger", intensity: 0.5 },
-
-  { name: "Fear", category: "fear", intensity: 0.8 },
-  { name: "Anxiety", category: "fear", intensity: 0.5 },
-
-  { name: "Love", category: "love", intensity: 0.8 },
-  { name: "Tenderness", category: "love", intensity: 0.4 },
-];
 

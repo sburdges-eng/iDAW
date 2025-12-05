@@ -23,7 +23,8 @@ interface GhostWriterProps {
 
 export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => {
   const [suggestions, setSuggestions] = useState<RuleBreakSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingMusic, setLoadingMusic] = useState(false);
   const [result, setResult] = useState<ProcessIntentResult | null>(null);
   const [copied, setCopied] = useState(false);
   const { suggestRuleBreak, processIntent } = useMusicBrain();
@@ -31,7 +32,8 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
   // Refs to track what we've already fetched to prevent duplicate requests
   const lastFetchedEmotionRef = useRef<string | null>(null);
   const lastFetchedIntentRef = useRef<string | null>(null);
-  const isFetchingRef = useRef(false);
+  const isFetchingSuggestionsRef = useRef(false);
+  const isFetchingMusicRef = useRef(false);
 
   // Stable refs for the API functions to prevent effect re-runs
   const suggestRuleBreakRef = useRef(suggestRuleBreak);
@@ -44,13 +46,13 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
   }, [suggestRuleBreak, processIntent]);
 
   const loadSuggestions = useCallback(async (emotionToFetch: string) => {
-    // Prevent duplicate fetches
-    if (isFetchingRef.current || lastFetchedEmotionRef.current === emotionToFetch) {
+    // Prevent duplicate fetches for suggestions only
+    if (isFetchingSuggestionsRef.current || lastFetchedEmotionRef.current === emotionToFetch) {
       return;
     }
 
-    isFetchingRef.current = true;
-    setLoading(true);
+    isFetchingSuggestionsRef.current = true;
+    setLoadingSuggestions(true);
     
     try {
       const data = await suggestRuleBreakRef.current(emotionToFetch);
@@ -59,8 +61,8 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
     } catch (error) {
       console.error('Failed to load suggestions:', error);
     } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+      setLoadingSuggestions(false);
+      isFetchingSuggestionsRef.current = false;
     }
   }, []);
 
@@ -68,13 +70,13 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
     // Create a stable key for intent comparison
     const intentKey = JSON.stringify(intentToProcess);
     
-    // Prevent duplicate fetches
-    if (isFetchingRef.current || lastFetchedIntentRef.current === intentKey) {
+    // Prevent duplicate fetches for music generation only
+    if (isFetchingMusicRef.current || lastFetchedIntentRef.current === intentKey) {
       return;
     }
 
-    isFetchingRef.current = true;
-    setLoading(true);
+    isFetchingMusicRef.current = true;
+    setLoadingMusic(true);
     
     try {
       const data = await processIntentRef.current(intentToProcess);
@@ -83,8 +85,8 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
     } catch (error) {
       console.error('Failed to generate music:', error);
     } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+      setLoadingMusic(false);
+      isFetchingMusicRef.current = false;
     }
   }, []);
 
@@ -149,11 +151,11 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
         <button
           onClick={handleRefresh}
           className="btn-ableton p-2"
-          disabled={loading}
+          disabled={loadingSuggestions}
           title="Refresh suggestions"
           type="button"
         >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={loadingSuggestions ? 'animate-spin' : ''} />
         </button>
       </div>
 
