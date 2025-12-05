@@ -3,47 +3,54 @@ import React, { useEffect, useState } from 'react';
 interface VUMeterProps {
   level: number; // 0.0 to 1.0
   peak?: number;
-  height?: string;
 }
 
-export const VUMeter: React.FC<VUMeterProps> = ({
-  level,
-  peak = 0,
-  height = 'h-32'
-}) => {
+export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
   const [peakHold, setPeakHold] = useState(0);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (peak > peakHold) {
+<<<<<<< Current (Your changes)
+=======
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+>>>>>>> Incoming (Background Agent changes)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPeakHold(peak);
       // Reset peak after 1 second
-      setTimeout(() => setPeakHold(0), 1000);
+      timeoutRef.current = setTimeout(() => {
+        setPeakHold(0);
+        timeoutRef.current = null;
+      }, 1000);
     }
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [peak, peakHold]);
 
-  // Also use level for peak if peak not provided
-  useEffect(() => {
-    if (level > peakHold && peak === 0) {
-      setPeakHold(level);
-      setTimeout(() => setPeakHold(0), 1000);
-    }
-  }, [level, peakHold, peak]);
+  const getColor = (value: number) => {
+    if (value > 0.9) return 'bg-ableton-red';
+    if (value > 0.7) return 'bg-ableton-yellow';
+    return 'bg-ableton-green';
+  };
 
   return (
-    <div className={`relative ${height} w-3 bg-ableton-bg border border-ableton-border rounded-sm overflow-hidden`}>
-      {/* Level bar with gradient */}
+    <div className="relative h-32 w-4 bg-ableton-bg border border-ableton-border rounded overflow-hidden">
+      {/* Level bar */}
       <div
-        className="absolute bottom-0 w-full transition-all duration-75 origin-bottom"
-        style={{
-          height: `${Math.min(level, 1) * 100}%`,
-          background: 'linear-gradient(to top, #00ff00 0%, #00ff00 60%, #ffff00 80%, #ff0000 100%)'
-        }}
+        className={`absolute bottom-0 w-full transition-all duration-75 ${getColor(level)}`}
+        style={{ height: `${level * 100}%` }}
       />
 
       {/* Peak indicator */}
-      {peakHold > 0.1 && (
+      {peakHold > 0 && (
         <div
-          className="absolute w-full h-0.5 bg-ableton-red"
+          className="absolute w-full h-1 bg-ableton-red"
           style={{ bottom: `${peakHold * 100}%` }}
         />
       )}
@@ -52,7 +59,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({
       {[0.9, 0.7, 0.5, 0.3].map((mark) => (
         <div
           key={mark}
-          className="absolute w-full h-px bg-ableton-border opacity-30"
+          className="absolute w-full h-px bg-ableton-border opacity-50"
           style={{ bottom: `${mark * 100}%` }}
         />
       ))}
