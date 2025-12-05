@@ -1,181 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from '../../store/useStore';
+import React, { useEffect, useState } from 'react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
-import clsx from 'clsx';
 
-interface EmotionCategory {
+interface Emotion {
   name: string;
-  color: string;
-  emotions: string[];
+  category: string;
+  intensity: number;
 }
 
-const EMOTION_CATEGORIES: EmotionCategory[] = [
-  {
-    name: 'Sadness',
-    color: 'emotion-grief',
-    emotions: ['Grief', 'Yearning', 'Melancholy', 'Loneliness', 'Despair', 'Sorrow'],
-  },
-  {
-    name: 'Joy',
-    color: 'emotion-joy',
-    emotions: ['Happiness', 'Euphoria', 'Contentment', 'Bliss', 'Elation', 'Delight'],
-  },
-  {
-    name: 'Anger',
-    color: 'emotion-anger',
-    emotions: ['Rage', 'Frustration', 'Resentment', 'Fury', 'Irritation', 'Wrath'],
-  },
-  {
-    name: 'Fear',
-    color: 'emotion-fear',
-    emotions: ['Terror', 'Anxiety', 'Dread', 'Panic', 'Unease', 'Paranoia'],
-  },
-  {
-    name: 'Love',
-    color: 'emotion-love',
-    emotions: ['Devotion', 'Passion', 'Tenderness', 'Adoration', 'Longing', 'Desire'],
-  },
-  {
-    name: 'Hope',
-    color: 'emotion-hope',
-    emotions: ['Optimism', 'Faith', 'Anticipation', 'Trust', 'Wonder', 'Aspiration'],
-  },
-];
+interface EmotionWheelProps {
+  onSelectEmotion: (emotion: string) => void;
+  selectedEmotion?: string | null;
+}
 
-export const EmotionWheel: React.FC = () => {
-  const { songIntent, updateSongIntent } = useStore();
-  useMusicBrain(); // Hook for future music brain integration
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [vulnerabilityScale, setVulnerabilityScale] = useState(songIntent.vulnerabilityScale);
+export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, selectedEmotion: propSelectedEmotion = null }) => {
+  const [emotions, setEmotions] = useState<Emotion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { getEmotions } = useMusicBrain();
 
-  // Find the category for the current emotion
   useEffect(() => {
-    for (const category of EMOTION_CATEGORIES) {
-      if (category.emotions.some((e) => e.toLowerCase() === songIntent.subEmotion.toLowerCase())) {
-        setSelectedCategory(category.name);
-        break;
-      }
-    }
-  }, [songIntent.subEmotion]);
+    let isMounted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    getEmotions()
+      .then((emotions) => {
+        if (isMounted) {
+          setEmotions(emotions);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [getEmotions]);
 
-  const handleCategorySelect = (category: EmotionCategory) => {
-    setSelectedCategory(category.name);
-    updateSongIntent({
-      coreEmotion: category.name.toLowerCase(),
-      subEmotion: category.emotions[0].toLowerCase(),
-    });
+  const handleSelect = (emotion: string) => {
+    onSelectEmotion(emotion);
   };
 
-  const handleEmotionSelect = (emotion: string) => {
-    updateSongIntent({
-      subEmotion: emotion.toLowerCase(),
-    });
+  const categoryColors: Record<string, string> = {
+    'Sadness': 'bg-emotion-grief',
+    'Happiness': 'bg-emotion-joy',
+    'Anger': 'bg-emotion-anger',
+    'Fear': 'bg-emotion-fear',
+    'Love': 'bg-emotion-love',
   };
 
-  const handleVulnerabilityChange = (value: number) => {
-    setVulnerabilityScale(value);
-    updateSongIntent({ vulnerabilityScale: value });
+  const categoryHoverColors: Record<string, string> = {
+    'Sadness': 'hover:border-blue-500',
+    'Happiness': 'hover:border-yellow-500',
+    'Anger': 'hover:border-red-500',
+    'Fear': 'hover:border-purple-500',
+    'Love': 'hover:border-pink-500',
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Emotion Categories (Ring) */}
-      <div className="grid grid-cols-3 gap-2">
-        {EMOTION_CATEGORIES.map((category) => (
-          <button
-            key={category.name}
-            className={clsx(
-              'p-3 rounded-lg border transition-all text-sm font-medium',
-              selectedCategory === category.name
-                ? `bg-${category.color}/20 border-${category.color} text-${category.color}`
-                : 'bg-ableton-surface border-ableton-border hover:border-ableton-accent text-ableton-text-dim'
-            )}
-            style={{
-              backgroundColor: selectedCategory === category.name
-                ? `var(--tw-${category.color})`
-                : undefined,
-            }}
-            onClick={() => handleCategorySelect(category)}
-          >
-            {category.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Sub-emotions */}
-      {selectedCategory && (
-        <div className="mt-4">
-          <div className="text-xs text-ableton-text-dim uppercase mb-2">
-            {selectedCategory} Spectrum
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {EMOTION_CATEGORIES.find((c) => c.name === selectedCategory)?.emotions.map((emotion) => (
-              <button
-                key={emotion}
-                className={clsx(
-                  'p-2 rounded border text-sm transition-all',
-                  songIntent.subEmotion.toLowerCase() === emotion.toLowerCase()
-                    ? 'bg-ableton-accent border-ableton-accent text-black font-medium'
-                    : 'bg-ableton-surface border-ableton-border hover:border-ableton-accent text-ableton-text'
-                )}
-                onClick={() => handleEmotionSelect(emotion)}
-              >
-                {emotion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Vulnerability Scale */}
-      <div className="mt-6 pt-4 border-t border-ableton-border">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-ableton-text-dim uppercase">
-            Vulnerability Scale
-          </span>
-          <span className="text-sm font-mono text-ableton-accent">
-            {vulnerabilityScale}/10
-          </span>
-        </div>
-        <input
-          type="range"
-          min={1}
-          max={10}
-          value={vulnerabilityScale}
-          onChange={(e) => handleVulnerabilityChange(parseInt(e.target.value))}
-          className="w-full"
-        />
-        <div className="flex justify-between text-xs text-ableton-text-dim mt-1">
-          <span>Guarded</span>
-          <span>Raw</span>
-        </div>
-      </div>
-
-      {/* Narrative Arc */}
-      <div className="mt-4">
-        <div className="text-xs text-ableton-text-dim uppercase mb-2">
-          Narrative Arc
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {(['ascending', 'descending', 'circular', 'static'] as const).map((arc) => (
-            <button
-              key={arc}
-              className={clsx(
-                'p-2 rounded border text-sm capitalize transition-all',
-                songIntent.narrativeArc === arc
-                  ? 'bg-ableton-accent border-ableton-accent text-black font-medium'
-                  : 'bg-ableton-surface border-ableton-border hover:border-ableton-accent text-ableton-text'
-              )}
-              onClick={() => updateSongIntent({ narrativeArc: arc })}
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <h2 className="text-xl font-bold mb-4">What are you feeling?</h2>
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(9)].map((_, i) => (
+            <div
+              key={i}
+              className="p-4 rounded border border-ableton-border animate-pulse bg-ableton-surface"
             >
-              {arc === 'ascending' && '↗ '}
-              {arc === 'descending' && '↘ '}
-              {arc === 'circular' && '↻ '}
-              {arc === 'static' && '→ '}
-              {arc}
-            </button>
+              <div className="w-3 h-3 rounded-full bg-ableton-border mb-2" />
+              <div className="h-4 bg-ableton-border rounded w-3/4 mb-1" />
+              <div className="h-3 bg-ableton-border rounded w-1/2" />
+            </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-4">What are you feeling?</h2>
+      <p className="text-ableton-text-dim text-sm mb-6">
+        Select an emotion to begin the interrogation process
+      </p>
+
+      <div className="grid grid-cols-3 gap-3">
+        {emotions.map((emotion) => (
+          <button
+            key={emotion.name}
+            onClick={() => handleSelect(emotion.name)}
+            className={`
+              p-4 rounded border transition-all text-left
+              ${propSelectedEmotion === emotion.name
+                ? 'border-ableton-accent bg-ableton-accent bg-opacity-20 scale-105'
+                : `border-ableton-border hover:bg-ableton-surface ${categoryHoverColors[emotion.category] || ''}`
+              }
+            `}
+          >
+            <div
+              className={`w-3 h-3 rounded-full mb-2 ${categoryColors[emotion.category] || 'bg-ableton-text-dim'}`}
+              style={{ opacity: 0.5 + emotion.intensity * 0.5 }}
+            />
+            <div className="text-sm font-medium">{emotion.name}</div>
+            <div className="text-xs text-ableton-text-dim">{emotion.category}</div>
+          </button>
+        ))}
       </div>
     </div>
   );

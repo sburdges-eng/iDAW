@@ -116,7 +116,7 @@ public:
      * @param sampleRate Output sample rate
      * @return Rendered audio file
      *
-     * TODO: Implement MIDI rendering (requires synth/sampler)
+     * Basic MIDI rendering implemented - for production, integrate full synth/sampler engine
      */
     static audio::AudioFile renderMidiTrack(
         const project::Track& track,

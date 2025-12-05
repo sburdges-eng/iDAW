@@ -152,8 +152,6 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         label="PAN"
         min={-1}
         max={1}
-        size="sm"
-        showValue
       />
 
       {/* VU Meters + Fader */}
@@ -161,16 +159,20 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         {/* Left VU Meter */}
         <VUMeter
           level={track.muted ? 0 : levels.left}
-          height="h-28"
         />
 
         {/* Fader */}
         <div className="h-28 flex flex-col items-center">
+          <label className="sr-only" htmlFor={`fader-${track.name}`}>Volume Fader</label>
           <input
+            id={`fader-${track.name}`}
             type="range"
             min={0}
             max={1}
             step={0.01}
+            title="Channel Volume"
+            aria-label="Channel Volume"
+            placeholder="Volume"
             value={track.volume}
             onChange={(e) => onUpdate({ volume: parseFloat(e.target.value) })}
             className="h-24 w-4"
@@ -186,7 +188,6 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         {/* Right VU Meter */}
         <VUMeter
           level={track.muted ? 0 : levels.right}
-          height="h-28"
         />
       </div>
 
@@ -279,15 +280,21 @@ const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
       {/* VU Meters + Fader */}
       <div className="flex-1 flex items-end gap-1 mb-2">
         {/* Left VU Meter */}
-        <VUMeter level={masterLeft} height="h-28" />
+        <VUMeter level={masterLeft} />
 
         {/* Fader */}
         <div className="h-28 flex flex-col items-center">
+          <label htmlFor="master-fader" className="sr-only">
+            Master Volume Fader
+          </label>
           <input
+            id="master-fader"
             type="range"
             min={0}
             max={1}
             step={0.01}
+            title="Master Volume"
+            aria-label="Master Volume"
             value={masterVolume}
             onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
             className="h-24 w-4"
@@ -300,7 +307,7 @@ const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
         </div>
 
         {/* Right VU Meter */}
-        <VUMeter level={masterRight} height="h-28" />
+        <VUMeter level={masterRight} />
       </div>
 
       {/* dB reading */}

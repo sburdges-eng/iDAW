@@ -7,14 +7,35 @@ interface VUMeterProps {
 
 export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
   const [peakHold, setPeakHold] = useState(0);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peakHoldRef = React.useRef(0);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    peakHoldRef.current = peakHold;
+  }, [peakHold]);
 
   useEffect(() => {
-    if (peak > peakHold) {
+    // Use ref to get current peakHold value without adding it to dependency array
+    if (peak > peakHoldRef.current) {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
       setPeakHold(peak);
       // Reset peak after 1 second
-      setTimeout(() => setPeakHold(0), 1000);
+      timeoutRef.current = setTimeout(() => {
+        setPeakHold(0);
+        timeoutRef.current = null;
+      }, 1000);
     }
-  }, [peak, peakHold]);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [peak]);
 
   const getColor = (value: number) => {
     if (value > 0.9) return 'bg-ableton-red';

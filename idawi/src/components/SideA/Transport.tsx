@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Square, SkipBack, SkipForward, Circle } from 'lucide-react';
+import { Play, Pause, Square, SkipBack, Circle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 export const Transport: React.FC = () => {
@@ -38,14 +38,16 @@ export const Transport: React.FC = () => {
           onClick={() => setCurrentTime(0)}
           className="btn-ableton p-2"
           title="Go to start"
+          type="button"
         >
           <SkipBack size={18} />
         </button>
 
         <button
           onClick={() => setPlaying(!isPlaying)}
-          className={`btn-ableton p-2 ${isPlaying ? 'btn-ableton-active' : ''}`}
+          className={`btn-ableton p-2${isPlaying ? ' btn-ableton-active' : ''}`}
           title={isPlaying ? 'Pause' : 'Play'}
+          type="button"
         >
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
@@ -57,14 +59,16 @@ export const Transport: React.FC = () => {
           }}
           className="btn-ableton p-2"
           title="Stop"
+          type="button"
         >
           <Square size={18} />
         </button>
 
         <button
           onClick={() => setRecording(!isRecording)}
-          className={`btn-ableton p-2 ${isRecording ? 'bg-red-600 hover:bg-red-500' : ''}`}
+          className={`btn-ableton p-2${isRecording ? ' bg-red-600 hover:bg-red-500' : ''}`}
           title={isRecording ? 'Stop Recording' : 'Record'}
+          type="button"
         >
           <Circle size={18} fill={isRecording ? '#fff' : 'none'} />
         </button>
@@ -84,21 +88,26 @@ export const Transport: React.FC = () => {
 
       {/* Tempo */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-ableton-text-dim">BPM</span>
+        <label htmlFor="tempo-input" className="text-xs text-ableton-text-dim">
+          BPM
+        </label>
         <input
+          id="tempo-input"
           type="number"
           value={tempo}
           onChange={(e) => setTempo(Math.max(20, Math.min(300, Number(e.target.value))))}
           className="w-16 bg-ableton-bg border border-ableton-border rounded px-2 py-1 text-center font-mono"
           min="20"
           max="300"
+          title="Beats per minute"
+          placeholder="BPM"
+          aria-label="Tempo in beats per minute"
         />
-      </div>
-
-      {/* Time Signature */}
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-ableton-text-dim">Time Sig</span>
-        <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+        {/* Time Signature */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-ableton-text-dim">Time Sig</span>
+          <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+        </div>
       </div>
 
       {/* Spacer */}

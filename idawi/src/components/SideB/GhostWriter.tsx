@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, Copy, RefreshCw, Check } from 'lucide-react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
@@ -23,50 +23,98 @@ interface GhostWriterProps {
 
 export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => {
   const [suggestions, setSuggestions] = useState<RuleBreakSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingMusic, setLoadingMusic] = useState(false);
   const [result, setResult] = useState<ProcessIntentResult | null>(null);
   const [copied, setCopied] = useState(false);
   const { suggestRuleBreak, processIntent } = useMusicBrain();
 
+  // Refs to track what we've already fetched to prevent duplicate requests
+  const lastFetchedEmotionRef = useRef<string | null>(null);
+  const lastFetchedIntentRef = useRef<string | null>(null);
+  const isFetchingSuggestionsRef = useRef(false);
+  const isFetchingMusicRef = useRef(false);
+
+  // Stable refs for the API functions to prevent effect re-runs
+  const suggestRuleBreakRef = useRef(suggestRuleBreak);
+  const processIntentRef = useRef(processIntent);
+  
+  // Update refs when functions change (but don't trigger effects)
   useEffect(() => {
-    if (emotion) {
-      loadSuggestions();
+    suggestRuleBreakRef.current = suggestRuleBreak;
+    processIntentRef.current = processIntent;
+  }, [suggestRuleBreak, processIntent]);
+
+  const loadSuggestions = useCallback(async (emotionToFetch: string) => {
+    // Prevent duplicate fetches for suggestions only
+    if (isFetchingSuggestionsRef.current || lastFetchedEmotionRef.current === emotionToFetch) {
+      return;
     }
-  }, [emotion]);
 
-  useEffect(() => {
-    if (intent) {
-      generateMusic();
-    }
-  }, [intent]);
-
-  const loadSuggestions = async () => {
-    if (!emotion) return;
-
-    setLoading(true);
+    isFetchingSuggestionsRef.current = true;
+    setLoadingSuggestions(true);
+    
     try {
-      const data = await suggestRuleBreak(emotion);
+      const data = await suggestRuleBreakRef.current(emotionToFetch);
       setSuggestions(data);
+      lastFetchedEmotionRef.current = emotionToFetch;
     } catch (error) {
       console.error('Failed to load suggestions:', error);
     } finally {
-      setLoading(false);
+      setLoadingSuggestions(false);
+      isFetchingSuggestionsRef.current = false;
     }
-  };
+  }, []);
 
-  const generateMusic = async () => {
-    if (!intent) return;
+  const generateMusic = useCallback(async (intentToProcess: Record<string, unknown>) => {
+    // Create a stable key for intent comparison
+    const intentKey = JSON.stringify(intentToProcess);
+    
+    // Prevent duplicate fetches for music generation only
+    if (isFetchingMusicRef.current || lastFetchedIntentRef.current === intentKey) {
+      return;
+    }
 
-    setLoading(true);
+    isFetchingMusicRef.current = true;
+    setLoadingMusic(true);
+    
     try {
-      const data = await processIntent(intent);
+      const data = await processIntentRef.current(intentToProcess);
       setResult(data);
+      lastFetchedIntentRef.current = intentKey;
     } catch (error) {
       console.error('Failed to generate music:', error);
     } finally {
-      setLoading(false);
+      setLoadingMusic(false);
+      isFetchingMusicRef.current = false;
     }
-  };
+  }, []);
+
+  // Effect for loading suggestions when emotion changes
+  useEffect(() => {
+    if (emotion && emotion !== lastFetchedEmotionRef.current) {
+      loadSuggestions(emotion);
+    }
+  }, [emotion, loadSuggestions]);
+
+  // Effect for generating music when intent changes
+  useEffect(() => {
+    if (intent) {
+      const intentKey = JSON.stringify(intent);
+      if (intentKey !== lastFetchedIntentRef.current) {
+        generateMusic(intent);
+      }
+    }
+  }, [intent, generateMusic]);
+
+  // Manual refresh handler
+  const handleRefresh = useCallback(() => {
+    if (emotion) {
+      // Clear the cache to force a refresh
+      lastFetchedEmotionRef.current = null;
+      loadSuggestions(emotion);
+    }
+  }, [emotion, loadSuggestions]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -101,12 +149,13 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
           <h3 className="font-bold">Ghost Writer</h3>
         </div>
         <button
-          onClick={loadSuggestions}
+          onClick={handleRefresh}
           className="btn-ableton p-2"
-          disabled={loading}
+          disabled={loadingSuggestions}
           title="Refresh suggestions"
+          type="button"
         >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={16} className={loadingSuggestions ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -155,6 +204,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
               <button
                 onClick={() => copyToClipboard(result.harmony?.join(' - ') || '')}
                 className="btn-ableton mt-2 text-xs flex items-center gap-1"
+                type="button"
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copied!' : 'Copy to Timeline'}

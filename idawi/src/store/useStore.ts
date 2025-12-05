@@ -25,6 +25,7 @@ export interface SongIntent {
   coreEmotion: string | null;
   subEmotion: string | null;
   ruleToBreak: string | null;
+  intent: Record<string, unknown> | null;
 }
 
 interface StoreState {
@@ -155,7 +156,11 @@ const defaultTracks: Track[] = [
   },
 ];
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>((set) => {
+  // Store timeout ID in a closure-scoped variable for proper isolation
+  let toggleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return {
   // Initial state
   isPlaying: false,
   isRecording: false,
@@ -172,6 +177,7 @@ export const useStore = create<StoreState>((set) => ({
     coreEmotion: null,
     subEmotion: null,
     ruleToBreak: null,
+    intent: null,
   },
 
   // Actions
@@ -184,12 +190,27 @@ export const useStore = create<StoreState>((set) => ({
   setMasterVolume: (volume) => set({ masterVolume: volume }),
 
   toggleSide: () => {
+    // Cancel any pending toggle timeout to prevent race conditions
+    if (toggleTimeoutId !== null) {
+      clearTimeout(toggleTimeoutId);
+      toggleTimeoutId = null;
+    }
+
     set({ isFlipping: true });
-    setTimeout(() => {
-      set((state) => ({
-        currentSide: state.currentSide === 'A' ? 'B' : 'A',
-        isFlipping: false,
-      }));
+    
+    toggleTimeoutId = setTimeout(() => {
+      // Use functional update to ensure we're working with the latest state
+      set((state) => {
+        // Double-check we're not in the middle of another flip
+        if (state.isFlipping) {
+          return {
+            currentSide: state.currentSide === 'A' ? 'B' : 'A',
+            isFlipping: false,
+          };
+        }
+        return state; // No change if flip was cancelled
+      });
+      toggleTimeoutId = null;
     }, 100);
   },
 
@@ -226,6 +247,8 @@ export const useStore = create<StoreState>((set) => ({
       coreEmotion: null,
       subEmotion: null,
       ruleToBreak: null,
+      intent: null,
     }
   }),
-}));
+  };
+});

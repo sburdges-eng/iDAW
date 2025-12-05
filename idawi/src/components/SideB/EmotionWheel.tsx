@@ -1,48 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
-interface Emotion {
+// Category color mappings with standard Tailwind-safe class tokens.
+export const categoryColors = {
+  grief: "bg-[color:var(--emotion-grief)]",
+  joy: "bg-[color:var(--emotion-joy)]",
+  anger: "bg-[color:var(--emotion-anger)]",
+  fear: "bg-[color:var(--emotion-fear)]",
+  love: "bg-[color:var(--emotion-love)]",
+} as const;
+
+export const categoryHoverColors = {
+  grief: "hover:bg-[color:var(--emotion-grief)] hover:bg-opacity-10",
+  joy: "hover:bg-[color:var(--emotion-joy)] hover:bg-opacity-10",
+  anger: "hover:bg-[color:var(--emotion-anger)] hover:bg-opacity-10",
+  fear: "hover:bg-[color:var(--emotion-fear)] hover:bg-opacity-10",
+  love: "hover:bg-[color:var(--emotion-love)] hover:bg-opacity-10",
+} as const;
+
+export type EmotionCategory = keyof typeof categoryColors;
+
+export type Emotion = {
   name: string;
-  category: string;
-  intensity: number;
-}
+  category: EmotionCategory;
+  intensity: number; // 0.0 - 1.0
+};
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
+  selectedEmotion?: string | null;
 }
 
-export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) => {
+export const EmotionWheel = ({ onSelectEmotion, selectedEmotion: selectedEmotionProp }: EmotionWheelProps): JSX.Element => {
   const [emotions, setEmotions] = useState<Emotion[]>([]);
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  const [internalSelectedEmotion, setInternalSelectedEmotion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { getEmotions } = useMusicBrain();
+
+  // Use prop if provided, otherwise use internal state
+  const selectedEmotion = selectedEmotionProp !== undefined ? selectedEmotionProp : internalSelectedEmotion;
 
   useEffect(() => {
     setIsLoading(true);
     getEmotions()
       .then(setEmotions)
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [getEmotions]);
 
   const handleSelect = (emotion: string) => {
-    setSelectedEmotion(emotion);
+    // Only update internal state if not controlled by prop
+    if (selectedEmotionProp === undefined) {
+      setInternalSelectedEmotion(emotion);
+    }
     onSelectEmotion(emotion);
-  };
-
-  const categoryColors: Record<string, string> = {
-    'Sadness': 'bg-emotion-grief',
-    'Happiness': 'bg-emotion-joy',
-    'Anger': 'bg-emotion-anger',
-    'Fear': 'bg-emotion-fear',
-    'Love': 'bg-emotion-love',
-  };
-
-  const categoryHoverColors: Record<string, string> = {
-    'Sadness': 'hover:border-blue-500',
-    'Happiness': 'hover:border-yellow-500',
-    'Anger': 'hover:border-red-500',
-    'Fear': 'hover:border-purple-500',
-    'Love': 'hover:border-pink-500',
   };
 
   if (isLoading) {
@@ -73,7 +83,7 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
       </p>
 
       <div className="grid grid-cols-3 gap-3">
-        {emotions.map((emotion) => (
+        {emotions.map((emotion: Emotion) => (
           <button
             key={emotion.name}
             onClick={() => handleSelect(emotion.name)}
@@ -97,3 +107,4 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
     </div>
   );
 };
+
