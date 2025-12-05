@@ -21,7 +21,7 @@ Successfully integrated and pulled latest changes from the main branch. The repo
 
 ```
 Current branch: copilot/integrate-changes-and-pull
-Base branch: main (619939757488b26b65b4dc5cf31d295e3f891104)
+Base branch: main (6199397)
 Status: Up to date with origin/main
 Working tree: Clean
 ```
@@ -75,6 +75,19 @@ iDAW/
 ### Core Python Dependencies
 - mido >= 1.2.10 (MIDI file I/O)
 - numpy >= 1.21.0 (Numerical operations)
+
+### Optional Dependencies
+- librosa >= 0.9.0 (Audio analysis)
+- soundfile >= 0.10.0 (Audio file I/O)
+- music21 >= 7.0.0 (Advanced music theory)
+- streamlit >= 1.28.0 (Web UI framework)
+- pywebview >= 4.0.0 (Native window wrapper)
+
+### Development Dependencies
+- pytest >= 7.0.0 (Testing framework)
+- black >= 22.0.0 (Code formatting)
+- flake8 >= 4.0.0 (Linting)
+- mypy >= 0.900 (Type checking)
 
 ### Build Tools
 - CMake (C++ builds)
