@@ -9,13 +9,17 @@ interface Emotion {
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
+  selectedEmotion?: string | null;
 }
 
-export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) => {
+export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, selectedEmotion: selectedEmotionProp }) => {
   const [emotions, setEmotions] = useState<Emotion[]>([]);
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  const [internalSelectedEmotion, setInternalSelectedEmotion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { getEmotions } = useMusicBrain();
+  const { getEmotions, isLoading: isLoadingMusicBrain } = useMusicBrain();
+
+  // Use prop if provided, otherwise use internal state
+  const selectedEmotion = selectedEmotionProp !== undefined ? selectedEmotionProp : internalSelectedEmotion;
 
   useEffect(() => {
     setIsLoading(true);
@@ -25,14 +29,17 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
   }, [getEmotions]);
 
   const handleSelect = (emotion: string) => {
-    setSelectedEmotion(emotion);
+    // Only update internal state if not controlled by prop
+    if (selectedEmotionProp === undefined) {
+      setInternalSelectedEmotion(emotion);
+    }
     onSelectEmotion(emotion);
   };
 
   const categoryColors: Record<string, string> = {
-    'Sadness': 'bg-emotion-grief',
-    'Happiness': 'bg-emotion-joy',
-    'Anger': 'bg-emotion-anger',
+    'Sadness': 'bg-blue-500',
+    'Happiness': 'bg-yellow-500',
+    'Anger': 'bg-red-500',
     'Fear': 'bg-emotion-fear',
     'Love': 'bg-emotion-love',
   };
