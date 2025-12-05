@@ -12,12 +12,8 @@ try {
 } catch (error) {
   // Tauri not available, will use fallbacks
   invoke = null;
-}
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
->>>>>>> Incoming (Background Agent changes)
-  const tauriApi = require('@tauri-apps/api/core');
-  invoke = tauriApi.invoke;
-} catch {
+// The previous code block was a merge conflict or artifact and should be removed.
+// There is nothing needed here as the try/catch above has already completed.
   // Tauri not available, will use fallbacks
 }
 
