@@ -1,153 +1,237 @@
-import { useCallback, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { useStore, GhostWriterSuggestion } from '../store/useStore';
+// Music Brain integration hook
+// In production, this would use Tauri's invoke to call Python
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
-interface PythonBridgeResponse {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-}
-
-interface RuleBreakSuggestion {
-  rule: string;
-  effect: string;
-  examples: string[];
-  mixer_params?: Record<string, number>;
-}
-
-interface EmotionInfo {
+interface Emotion {
   name: string;
   category: string;
   intensity: number;
 }
 
+interface RuleBreakSuggestion {
+  rule: string;
+  effect: string;
+  use_when: string;
+  justification: string;
+}
+
+interface ProcessIntentResult {
+  harmony: string[];
+  tempo: number;
+  key: string;
+  mixer_params: Record<string, number | string>;
+}
+
+// Default emotions for when Music Brain is not available
+const defaultEmotions: Emotion[] = [
+  { name: 'Grief', category: 'Sadness', intensity: 0.9 },
+  { name: 'Melancholy', category: 'Sadness', intensity: 0.6 },
+  { name: 'Longing', category: 'Sadness', intensity: 0.7 },
+  { name: 'Joy', category: 'Happiness', intensity: 0.8 },
+  { name: 'Euphoria', category: 'Happiness', intensity: 1.0 },
+  { name: 'Contentment', category: 'Happiness', intensity: 0.5 },
+  { name: 'Rage', category: 'Anger', intensity: 1.0 },
+  { name: 'Frustration', category: 'Anger', intensity: 0.6 },
+  { name: 'Resentment', category: 'Anger', intensity: 0.7 },
+  { name: 'Terror', category: 'Fear', intensity: 1.0 },
+  { name: 'Anxiety', category: 'Fear', intensity: 0.6 },
+  { name: 'Dread', category: 'Fear', intensity: 0.8 },
+  { name: 'Passion', category: 'Love', intensity: 0.9 },
+  { name: 'Tenderness', category: 'Love', intensity: 0.5 },
+  { name: 'Devotion', category: 'Love', intensity: 0.8 },
+];
+
+// Rule-breaking suggestions based on emotions
+const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
+  Grief: [
+    {
+      rule: 'HARMONY_AvoidTonicResolution',
+      effect: 'Creates unresolved yearning that mirrors emotional state',
+      use_when: 'The listener should feel the loss is still unprocessed',
+      justification: 'Grief rarely resolves cleanly. Music that refuses resolution honors that truth.',
+    },
+    {
+      rule: 'ARRANGEMENT_BuriedVocals',
+      effect: 'Creates dissociation, words half-heard like fading memories',
+      use_when: 'The subject is too painful to confront directly',
+      justification: 'Sometimes the truth is easier to bear when obscured.',
+    },
+  ],
+  Anxiety: [
+    {
+      rule: 'RHYTHM_ConstantDisplacement',
+      effect: 'Never lets listener settle into comfortable expectation',
+      use_when: 'Representing intrusive thoughts or restlessness',
+      justification: 'Anxiety never follows a predictable pattern.',
+    },
+    {
+      rule: 'HARMONY_UnresolvedSuspensions',
+      effect: 'Creates tension that never fully releases',
+      use_when: 'Showing the impossibility of finding peace',
+      justification: 'The anxious mind cannot find resolution.',
+    },
+  ],
+  Rage: [
+    {
+      rule: 'DYNAMICS_ExtremeContrasts',
+      effect: 'Jarring shifts that mirror emotional volatility',
+      use_when: 'The anger comes in unpredictable waves',
+      justification: 'Rage rarely announces itself politely.',
+    },
+    {
+      rule: 'FORM_StructuralCollapse',
+      effect: 'Traditional form breaks down as control is lost',
+      use_when: 'Representing loss of composure',
+      justification: 'Anger destroys structure by nature.',
+    },
+  ],
+  Joy: [
+    {
+      rule: 'HARMONY_ModalInterchange',
+      effect: 'Unexpected brightness from borrowed chords',
+      use_when: 'Joy that contains complexity and depth',
+      justification: 'Real joy often comes from unexpected places.',
+    },
+  ],
+  Love: [
+    {
+      rule: 'PRODUCTION_PitchImperfection',
+      effect: 'Vulnerability through imperfect tuning',
+      use_when: 'Love that is honest and unpolished',
+      justification: 'Perfect pitch is a lie we tell ourselves.',
+    },
+  ],
+};
+
 export function useMusicBrain() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { songIntent, addGhostWriterSuggestion } = useStore();
+  const isMountedRef = useRef(true);
 
-  const callMusicBrain = useCallback(async (
-    command: string,
-    args: Record<string, unknown> = {}
-  ): Promise<PythonBridgeResponse> => {
-    setIsLoading(true);
-    setError(null);
+  // Track mount status to prevent state updates after unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    try {
-      const response = await invoke<PythonBridgeResponse>('music_brain_command', {
-        command,
-        args,
-      });
-
-      if (!response.success && response.error) {
-        setError(response.error);
-      }
-
-      return response;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
+  // Safe state setter that checks if component is still mounted
+  const safeSetIsLoading = useCallback((value: boolean) => {
+    if (isMountedRef.current) {
+      setIsLoading(value);
     }
   }, []);
 
-  const suggestRuleBreak = useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
-    const response = await callMusicBrain('suggest_rule_break', { emotion });
-
-    if (response.success && response.data) {
-      const suggestions = response.data as RuleBreakSuggestion[];
-
-      // Add suggestions to Ghost Writer
-      suggestions.forEach((suggestion) => {
-        addGhostWriterSuggestion({
-          type: categorizeRuleBreak(suggestion.rule),
-          description: `${suggestion.rule}: ${suggestion.effect}`,
-          emotionalRationale: `Breaking this rule creates ${emotion} through ${suggestion.effect.toLowerCase()}`,
-        });
+  const getEmotions = useCallback(async (): Promise<Emotion[]> => {
+    safeSetIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            safeSetIsLoading(false);
+            resolve(defaultEmotions);
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
+        }, 300);
       });
-
-      return suggestions;
+    } catch (error) {
+      safeSetIsLoading(false);
+      throw error;
     }
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-    return [];
-  }, [callMusicBrain, addGhostWriterSuggestion]);
-
-  const processIntent = useCallback(async () => {
-    const response = await callMusicBrain('process_intent', {
-      intent: {
-        song_root: {
-          core_emotion: songIntent.coreEmotion,
-          sub_emotion: songIntent.subEmotion,
-        },
-        song_intent: {
-          vulnerability_scale: songIntent.vulnerabilityScale,
-          narrative_arc: songIntent.narrativeArc,
-        },
-        technical_constraints: {
-          rule_to_break: songIntent.ruleToBreak,
-        },
-      },
-    });
-
-    if (response.success && response.data) {
-      return response.data as {
-        harmony: string[];
-        tempo: number;
-        key: string;
-        mixer_params: Record<string, number>;
-      };
+  const suggestRuleBreak = useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
+    safeSetIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            const suggestions = ruleBreakingDatabase[emotion] || [
+              {
+                rule: 'HARMONY_ModalInterchange',
+                effect: 'Unexpected harmonic color',
+                use_when: 'You want to surprise the listener',
+                justification: 'Breaking expectations creates emotional impact.',
+              },
+            ];
+            safeSetIsLoading(false);
+            resolve(suggestions);
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
+        }, 500);
+      });
+    } catch (error) {
+      safeSetIsLoading(false);
+      throw error;
     }
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-    return null;
-  }, [callMusicBrain, songIntent]);
+  const processIntent = useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
+    safeSetIsLoading(true);
+    try {
+      // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            // Generate contextual results based on intent
+            const intentData = intent || {};
+            const emotion = (intentData.song_intent as Record<string, string>)?.mood_primary || 'neutral';
+            const key = (intentData.technical_constraints as Record<string, string>)?.technical_key || 'C';
 
-  const getEmotions = useCallback(async (): Promise<EmotionInfo[]> => {
-    const response = await callMusicBrain('get_emotions');
+            const harmonyByEmotion: Record<string, string[]> = {
+              Grief: ['Am', 'F', 'C', 'G'],
+              Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
+              Rage: ['Em', 'C', 'G', 'D'],
+              Joy: ['C', 'G', 'Am', 'F'],
+              Love: ['F', 'Am', 'Dm', 'C'],
+            };
 
-    if (response.success && response.data) {
-      return response.data as EmotionInfo[];
+            const tempoByEmotion: Record<string, number> = {
+              Grief: 72,
+              Anxiety: 140,
+              Rage: 160,
+              Joy: 120,
+              Love: 90,
+            };
+
+            safeSetIsLoading(false);
+            resolve({
+              harmony: harmonyByEmotion[emotion] || ['C', 'Am', 'F', 'G'],
+              tempo: tempoByEmotion[emotion] || 120,
+              key,
+              mixer_params: {
+                reverb: emotion === 'Grief' ? 0.7 : 0.3,
+                delay: emotion === 'Anxiety' ? 0.5 : 0.2,
+                compression: emotion === 'Rage' ? 0.8 : 0.4,
+                warmth: emotion === 'Love' ? 0.6 : 0.3,
+              },
+            });
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
+        }, 800);
+      });
+    } catch (error) {
+      safeSetIsLoading(false);
+      throw error;
     }
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-    // Fallback emotions if Music Brain is not available
-    return [
-      { name: 'Grief', category: 'Sadness', intensity: 0.8 },
-      { name: 'Yearning', category: 'Sadness', intensity: 0.6 },
-      { name: 'Joy', category: 'Happiness', intensity: 0.9 },
-      { name: 'Contentment', category: 'Happiness', intensity: 0.5 },
-      { name: 'Rage', category: 'Anger', intensity: 1.0 },
-      { name: 'Frustration', category: 'Anger', intensity: 0.6 },
-      { name: 'Terror', category: 'Fear', intensity: 1.0 },
-      { name: 'Anxiety', category: 'Fear', intensity: 0.7 },
-      { name: 'Love', category: 'Connection', intensity: 0.9 },
-      { name: 'Loneliness', category: 'Connection', intensity: 0.7 },
-      { name: 'Hope', category: 'Anticipation', intensity: 0.8 },
-      { name: 'Dread', category: 'Anticipation', intensity: 0.7 },
-    ];
-  }, [callMusicBrain]);
-
-  return {
-    isLoading,
-    error,
-    suggestRuleBreak,
-    processIntent,
-    getEmotions,
-  };
-}
-
-// Helper function to categorize rule breaks
-function categorizeRuleBreak(rule: string): GhostWriterSuggestion['type'] {
-  const ruleLower = rule.toLowerCase();
-
-  if (ruleLower.includes('harmony') || ruleLower.includes('chord') || ruleLower.includes('key')) {
-    return 'harmony';
-  }
-  if (ruleLower.includes('rhythm') || ruleLower.includes('tempo') || ruleLower.includes('groove')) {
-    return 'rhythm';
-  }
-  if (ruleLower.includes('arrangement') || ruleLower.includes('structure')) {
-    return 'arrangement';
-  }
-  return 'production';
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      getEmotions,
+      suggestRuleBreak,
+      processIntent,
+      isLoading,
+    }),
+    [getEmotions, suggestRuleBreak, processIntent, isLoading]
+  );
 }
