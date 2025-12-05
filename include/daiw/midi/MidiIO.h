@@ -2,14 +2,7 @@
  * @file MidiIO.h
  * @brief MIDI input/output device management
  *
-<<<<<<< Current (Your changes)
- * This is an interface-only stub for MIDI device I/O.
- * Full implementation requires a MIDI library (RtMidi, PortMidi, etc.)
- *
- * NOTE: Stub implementation - integrate with a MIDI library (RtMidi, PortMidi, etc.) for actual device I/O
-=======
  * Implementation using JUCE MIDI classes.
->>>>>>> Incoming (Background Agent changes)
  */
 
 #pragma once

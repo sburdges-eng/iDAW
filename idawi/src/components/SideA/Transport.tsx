@@ -38,14 +38,16 @@ export const Transport: React.FC = () => {
           onClick={() => setCurrentTime(0)}
           className="btn-ableton p-2"
           title="Go to start"
+          type="button"
         >
           <SkipBack size={18} />
         </button>
 
         <button
           onClick={() => setPlaying(!isPlaying)}
-          className={`btn-ableton p-2 ${isPlaying ? 'btn-ableton-active' : ''}`}
+          className={`btn-ableton p-2${isPlaying ? ' btn-ableton-active' : ''}`}
           title={isPlaying ? 'Pause' : 'Play'}
+          type="button"
         >
           {isPlaying ? <Pause size={18} /> : <Play size={18} />}
         </button>
@@ -57,72 +59,16 @@ export const Transport: React.FC = () => {
           }}
           className="btn-ableton p-2"
           title="Stop"
+          type="button"
         >
           <Square size={18} />
         </button>
 
         <button
           onClick={() => setRecording(!isRecording)}
-          className={`btn-ableton p-2 ${isRecording ? 'bg-red-600 hover:bg-red-500' : ''}`}
+          className={`btn-ableton p-2${isRecording ? ' bg-red-600 hover:bg-red-500' : ''}`}
           title={isRecording ? 'Stop Recording' : 'Record'}
-        >
-          <Circle size={18} fill={isRecording ? '#fff' : 'none'} />
-        </button>
-      </div>
-      {/* End Transport Controls */}
-
-      {/* Time Display */}
-      <div className="flex items-center gap-4 font-mono text-sm">
-        <div className="flex flex-col items-center">
-          <span className="text-xs text-ableton-text-dim">Time</span>
-          <span className="text-lg">{formatTime(currentTime)}</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="text-xs text-ableton-text-dim">Bar.Beat</span>
-          <span className="text-lg">{calculateBarBeat(currentTime)}</span>
-        </div>
-      </div>
-      {/* End Time Display */}
-
-      {/* Tempo */}
-      <div className="flex items-center gap-2">
-        <label htmlFor="tempo-input" className="text-xs text-ableton-text-dim">
-          BPM
-        </label>
-        {/* ... other controls ... */}
-      </div>
-    </div>
-  );
-
-          className="btn-ableton p-2"
-          title="Go to start"
-        >
-          <SkipBack size={18} />
-        </button>
-
-        <button
-          onClick={() => setPlaying(!isPlaying)}
-          className={`btn-ableton p-2 ${isPlaying ? 'btn-ableton-active' : ''}`}
-          title={isPlaying ? 'Pause' : 'Play'}
-        >
-          {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-        </button>
-
-        <button
-          onClick={() => {
-            setPlaying(false);
-            setCurrentTime(0);
-          }}
-          className="btn-ableton p-2"
-          title="Stop"
-        >
-          <Square size={18} />
-        </button>
-
-        <button
-          onClick={() => setRecording(!isRecording)}
-          className={`btn-ableton p-2 ${isRecording ? 'bg-red-600 hover:bg-red-500' : ''}`}
-          title={isRecording ? 'Stop Recording' : 'Record'}
+          type="button"
         >
           <Circle size={18} fill={isRecording ? '#fff' : 'none'} />
         </button>
@@ -159,8 +105,9 @@ export const Transport: React.FC = () => {
         />
         {/* Time Signature */}
         <div className="flex items-center gap-1">
-        <span className="text-xs text-ableton-text-dim">Time Sig</span>
-        <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+          <span className="text-xs text-ableton-text-dim">Time Sig</span>
+          <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+        </div>
       </div>
 
       {/* Spacer */}

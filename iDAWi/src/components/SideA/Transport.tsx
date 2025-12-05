@@ -89,6 +89,7 @@ export const Transport: React.FC = () => {
         </label>
         <input
           id="tempo-input"
+          aria-label="Tempo in beats per minute"
           type="number"
           value={tempo}
           onChange={(e) => setTempo(Math.max(20, Math.min(300, Number(e.target.value))))}
@@ -101,8 +102,9 @@ export const Transport: React.FC = () => {
         />
         {/* Time Signature */}
         <div className="flex items-center gap-1">
-        <span className="text-xs text-ableton-text-dim">Time Sig</span>
-        <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+          <span className="text-xs text-ableton-text-dim">Time Sig</span>
+          <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
+        </div>
       </div>
 
       {/* Spacer */}

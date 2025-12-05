@@ -2,16 +2,32 @@ import { useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 
 // Tauri API - optional, will fallback if not available
+// Use a dynamic loader for Tauri's invoke API in a RT-safe, ESM-friendly way
+
 let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
-// Dynamic import for optional Tauri dependency (does not crash if not installed at runtime)
-import('@tauri-apps/api/core')
-  .then((tauriApi) => {
-    invoke = typeof tauriApi.invoke === 'function' ? tauriApi.invoke : null;
-  })
-  .catch(() => {
-    // Tauri not available, will use fallbacks
+
+// Attempt to dynamically load Tauri's invoke API at runtime (non-crashing fallback)
+async function loadTauriInvoke() {
+  try {
+    // Note: Some Tauri setups use '@tauri-apps/api/tauri' for invoke, others use '@tauri-apps/api/core'
+    let tauriApi;
+    try {
+      tauriApi = await import('@tauri-apps/api/core');
+    } catch {
+      tauriApi = await import('@tauri-apps/api/tauri'); // fallback for some Tauri scaffolds
+    }
+    if (typeof tauriApi.invoke === 'function') {
+      invoke = tauriApi.invoke;
+    } else {
+      invoke = null;
+    }
+  } catch {
+    // Tauri not available; fallback to null (no crash)
     invoke = null;
-  });
+  }
+}
+
+loadTauriInvoke(); // Fire and forget; set invoke if/when tauri loads
 
 interface AudioEngineState {
   is_playing: boolean;

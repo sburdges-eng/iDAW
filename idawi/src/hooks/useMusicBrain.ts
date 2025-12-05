@@ -1,12 +1,7 @@
 // Music Brain integration hook
 // In production, this would use Tauri's invoke to call Python
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-
-interface Emotion {
-  name: string;
-  category: string;
-  intensity: number;
-}
+import type { Emotion, EmotionCategory } from '../components/SideB/EmotionWheel';
 
 interface RuleBreakSuggestion {
   rule: string;
@@ -22,26 +17,35 @@ interface ProcessIntentResult {
   mixer_params: Record<string, number | string>;
 }
 
-// Default emotions for when Music Brain is not available
+// Default emotions matching backend intent_schema.py (lowercase categories)
 const defaultEmotions: Emotion[] = [
-  { name: 'Grief', category: 'Sadness', intensity: 0.9 },
-  { name: 'Melancholy', category: 'Sadness', intensity: 0.6 },
-  { name: 'Longing', category: 'Sadness', intensity: 0.7 },
-  { name: 'Joy', category: 'Happiness', intensity: 0.8 },
-  { name: 'Euphoria', category: 'Happiness', intensity: 1.0 },
-  { name: 'Contentment', category: 'Happiness', intensity: 0.5 },
-  { name: 'Rage', category: 'Anger', intensity: 1.0 },
-  { name: 'Frustration', category: 'Anger', intensity: 0.6 },
-  { name: 'Resentment', category: 'Anger', intensity: 0.7 },
-  { name: 'Terror', category: 'Fear', intensity: 1.0 },
-  { name: 'Anxiety', category: 'Fear', intensity: 0.6 },
-  { name: 'Dread', category: 'Fear', intensity: 0.8 },
-  { name: 'Passion', category: 'Love', intensity: 0.9 },
-  { name: 'Tenderness', category: 'Love', intensity: 0.5 },
-  { name: 'Devotion', category: 'Love', intensity: 0.8 },
+  // Grief category (maps to backend AffectState: grief, longing, melancholy)
+  { name: 'Grief', category: 'grief', intensity: 0.9 },
+  { name: 'Melancholy', category: 'grief', intensity: 0.6 },
+  { name: 'Longing', category: 'grief', intensity: 0.7 },
+  
+  // Joy category (maps to backend AffectState: hope, euphoria)
+  { name: 'Joy', category: 'joy', intensity: 0.8 },
+  { name: 'Euphoria', category: 'joy', intensity: 1.0 },
+  { name: 'Hope', category: 'joy', intensity: 0.6 },
+  
+  // Anger category (maps to backend AffectState: rage, defiance)
+  { name: 'Rage', category: 'anger', intensity: 1.0 },
+  { name: 'Frustration', category: 'anger', intensity: 0.6 },
+  { name: 'Defiance', category: 'anger', intensity: 0.8 },
+  
+  // Fear category (maps to backend AffectState: anxiety, dissociation)
+  { name: 'Terror', category: 'fear', intensity: 1.0 },
+  { name: 'Anxiety', category: 'fear', intensity: 0.6 },
+  { name: 'Dread', category: 'fear', intensity: 0.8 },
+  
+  // Love category (maps to backend AffectState: tenderness, nostalgia)
+  { name: 'Passion', category: 'love', intensity: 0.9 },
+  { name: 'Tenderness', category: 'love', intensity: 0.5 },
+  { name: 'Devotion', category: 'love', intensity: 0.8 },
 ];
 
-// Rule-breaking suggestions based on emotions
+// Rule-breaking suggestions based on emotions (keys match emotion names)
 const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
   Grief: [
     {
@@ -65,7 +69,7 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
       justification: 'Anxiety never follows a predictable pattern.',
     },
     {
-      rule: 'HARMONY_UnresolvedSuspensions',
+      rule: 'HARMONY_UnresolvedDissonance',
       effect: 'Creates tension that never fully releases',
       use_when: 'Showing the impossibility of finding peace',
       justification: 'The anxious mind cannot find resolution.',
@@ -73,13 +77,13 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
   ],
   Rage: [
     {
-      rule: 'DYNAMICS_ExtremeContrasts',
+      rule: 'ARRANGEMENT_ExtremeDynamicRange',
       effect: 'Jarring shifts that mirror emotional volatility',
       use_when: 'The anger comes in unpredictable waves',
       justification: 'Rage rarely announces itself politely.',
     },
     {
-      rule: 'FORM_StructuralCollapse',
+      rule: 'PRODUCTION_Distortion',
       effect: 'Traditional form breaks down as control is lost',
       use_when: 'Representing loss of composure',
       justification: 'Anger destroys structure by nature.',
@@ -93,12 +97,34 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
       justification: 'Real joy often comes from unexpected places.',
     },
   ],
-  Love: [
+  Passion: [
     {
       rule: 'PRODUCTION_PitchImperfection',
       effect: 'Vulnerability through imperfect tuning',
       use_when: 'Love that is honest and unpolished',
       justification: 'Perfect pitch is a lie we tell ourselves.',
+    },
+  ],
+  Longing: [
+    {
+      rule: 'HARMONY_AvoidTonicResolution',
+      effect: 'Creates unresolved yearning',
+      use_when: 'The desire remains unfulfilled',
+      justification: 'Longing by definition never arrives.',
+    },
+    {
+      rule: 'MELODY_AvoidResolution',
+      effect: 'Melodic phrases that never complete',
+      use_when: 'Representing reaching for something just out of grasp',
+      justification: 'The melody mirrors the emotional incompleteness.',
+    },
+  ],
+  Defiance: [
+    {
+      rule: 'HARMONY_ParallelMotion',
+      effect: 'Bold parallel fifths that break classical rules',
+      use_when: 'Representing rebellion against norms',
+      justification: 'Defiance means breaking the rules on purpose.',
     },
   ],
 };
@@ -141,7 +167,7 @@ export function useMusicBrain() {
       safeSetIsLoading(false);
       throw error;
     }
-  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
+  }, [safeSetIsLoading]);
 
   const suggestRuleBreak = useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
     safeSetIsLoading(true);
@@ -170,7 +196,7 @@ export function useMusicBrain() {
       safeSetIsLoading(false);
       throw error;
     }
-  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
+  }, [safeSetIsLoading]);
 
   const processIntent = useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
     safeSetIsLoading(true);
@@ -184,20 +210,28 @@ export function useMusicBrain() {
             const emotion = (intentData.song_intent as Record<string, string>)?.mood_primary || 'neutral';
             const key = (intentData.technical_constraints as Record<string, string>)?.technical_key || 'C';
 
+            // Harmony progressions by emotion (matches backend AFFECT_MODE_MAP)
             const harmonyByEmotion: Record<string, string[]> = {
               Grief: ['Am', 'F', 'C', 'G'],
               Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
               Rage: ['Em', 'C', 'G', 'D'],
               Joy: ['C', 'G', 'Am', 'F'],
-              Love: ['F', 'Am', 'Dm', 'C'],
+              Passion: ['F', 'Am', 'Dm', 'C'],
+              Longing: ['Am', 'Em', 'F', 'G'],
+              Defiance: ['Em', 'G', 'D', 'C'],
+              Hope: ['C', 'F', 'Am', 'G'],
             };
 
+            // Tempo ranges by emotion (matches backend AFFECT_MODE_MAP)
             const tempoByEmotion: Record<string, number> = {
               Grief: 72,
               Anxiety: 140,
               Rage: 160,
               Joy: 120,
-              Love: 90,
+              Passion: 90,
+              Longing: 75,
+              Defiance: 130,
+              Hope: 110,
             };
 
             safeSetIsLoading(false);
@@ -206,10 +240,10 @@ export function useMusicBrain() {
               tempo: tempoByEmotion[emotion] || 120,
               key,
               mixer_params: {
-                reverb: emotion === 'Grief' ? 0.7 : 0.3,
+                reverb: emotion === 'Grief' || emotion === 'Longing' ? 0.7 : 0.3,
                 delay: emotion === 'Anxiety' ? 0.5 : 0.2,
-                compression: emotion === 'Rage' ? 0.8 : 0.4,
-                warmth: emotion === 'Love' ? 0.6 : 0.3,
+                compression: emotion === 'Rage' || emotion === 'Defiance' ? 0.8 : 0.4,
+                warmth: emotion === 'Passion' || emotion === 'Hope' ? 0.6 : 0.3,
               },
             });
           } catch (error) {
@@ -222,7 +256,7 @@ export function useMusicBrain() {
       safeSetIsLoading(false);
       throw error;
     }
-  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
+  }, [safeSetIsLoading]);
 
   // Memoize the return object to prevent unnecessary re-renders
   return useMemo(
