@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, Copy, RefreshCw, Check } from 'lucide-react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
@@ -28,45 +28,91 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
   const [copied, setCopied] = useState(false);
   const { suggestRuleBreak, processIntent } = useMusicBrain();
 
-  const loadSuggestions = useCallback(async () => {
-    if (!emotion) return;
+  // Refs to track what we've already fetched to prevent duplicate requests
+  const lastFetchedEmotionRef = useRef<string | null>(null);
+  const lastFetchedIntentRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
 
+  // Stable refs for the API functions to prevent effect re-runs
+  const suggestRuleBreakRef = useRef(suggestRuleBreak);
+  const processIntentRef = useRef(processIntent);
+  
+  // Update refs when functions change (but don't trigger effects)
+  useEffect(() => {
+    suggestRuleBreakRef.current = suggestRuleBreak;
+    processIntentRef.current = processIntent;
+  }, [suggestRuleBreak, processIntent]);
+
+  const loadSuggestions = useCallback(async (emotionToFetch: string) => {
+    // Prevent duplicate fetches
+    if (isFetchingRef.current || lastFetchedEmotionRef.current === emotionToFetch) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoading(true);
+    
     try {
-      const data = await suggestRuleBreak(emotion);
+      const data = await suggestRuleBreakRef.current(emotionToFetch);
       setSuggestions(data);
+      lastFetchedEmotionRef.current = emotionToFetch;
     } catch (error) {
       console.error('Failed to load suggestions:', error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [emotion, suggestRuleBreak]);
+  }, []);
 
-  const generateMusic = useCallback(async () => {
-    if (!intent) return;
+  const generateMusic = useCallback(async (intentToProcess: Record<string, unknown>) => {
+    // Create a stable key for intent comparison
+    const intentKey = JSON.stringify(intentToProcess);
+    
+    // Prevent duplicate fetches
+    if (isFetchingRef.current || lastFetchedIntentRef.current === intentKey) {
+      return;
+    }
 
+    isFetchingRef.current = true;
     setLoading(true);
+    
     try {
-      const data = await processIntent(intent);
+      const data = await processIntentRef.current(intentToProcess);
       setResult(data);
+      lastFetchedIntentRef.current = intentKey;
     } catch (error) {
       console.error('Failed to generate music:', error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [intent, processIntent]);
+  }, []);
 
+  // Effect for loading suggestions when emotion changes
   useEffect(() => {
-    if (emotion) {
-      loadSuggestions();
+    if (emotion && emotion !== lastFetchedEmotionRef.current) {
+      loadSuggestions(emotion);
     }
   }, [emotion, loadSuggestions]);
 
+  // Effect for generating music when intent changes
   useEffect(() => {
     if (intent) {
-      generateMusic();
+      const intentKey = JSON.stringify(intent);
+      if (intentKey !== lastFetchedIntentRef.current) {
+        generateMusic(intent);
+      }
     }
   }, [intent, generateMusic]);
+
+  // Manual refresh handler
+  const handleRefresh = useCallback(() => {
+    if (emotion) {
+      // Clear the cache to force a refresh
+      lastFetchedEmotionRef.current = null;
+      loadSuggestions(emotion);
+    }
+  }, [emotion, loadSuggestions]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -101,10 +147,11 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
           <h3 className="font-bold">Ghost Writer</h3>
         </div>
         <button
-          onClick={loadSuggestions}
+          onClick={handleRefresh}
           className="btn-ableton p-2"
           disabled={loading}
           title="Refresh suggestions"
+          type="button"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -155,6 +202,7 @@ export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => 
               <button
                 onClick={() => copyToClipboard(result.harmony?.join(' - ') || '')}
                 className="btn-ableton mt-2 text-xs flex items-center gap-1"
+                type="button"
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copied!' : 'Copy to Timeline'}

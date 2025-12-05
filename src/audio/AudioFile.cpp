@@ -76,10 +76,14 @@ bool AudioFile::read(const std::string& filepath) {
     }
 
     // Find and read fmt chunk
+    // NOTE: WAV chunks can appear in any order, so we must find fmt before processing data
     WAVHeader header;
     bool foundFmt = false;
     bool foundData = false;
+    std::streampos dataChunkPos = 0;
+    uint32_t dataChunkSize = 0;
     
+    // First pass: find fmt chunk and record data chunk position
     while (!file.eof() && (!foundFmt || !foundData)) {
         char chunkId[4];
         file.read(chunkId, 4);
@@ -89,7 +93,7 @@ bool AudioFile::read(const std::string& filepath) {
         file.read(reinterpret_cast<char*>(&chunkSize), sizeof(chunkSize));
         
         if (std::strncmp(chunkId, "fmt ", 4) == 0) {
-            // Read fmt chunk
+            // Read fmt chunk - must be processed first for format info
             file.read(reinterpret_cast<char*>(&header.fmtSize), sizeof(header.fmtSize));
             file.read(reinterpret_cast<char*>(&header.audioFormat), sizeof(header.audioFormat));
             file.read(reinterpret_cast<char*>(&header.numChannels), sizeof(header.numChannels));
@@ -104,46 +108,62 @@ bool AudioFile::read(const std::string& filepath) {
             }
             foundFmt = true;
         } else if (std::strncmp(chunkId, "data", 4) == 0) {
-            // Read data chunk
-            header.dataSize = chunkSize;
-            
-            // Set file info
-            info_.format = AudioFormat::WAV;
-            info_.sampleRate = header.sampleRate;
-            info_.numChannels = header.numChannels;
-            info_.sampleFormat = (header.bitsPerSample == 32) ? SampleFormat::Float32 : SampleFormat::Int16;
-            
-            size_t bytesPerSample = header.bitsPerSample / 8;
-            size_t totalSamples = header.dataSize / (header.numChannels * bytesPerSample);
-            info_.numSamples = totalSamples;
-            info_.durationSeconds = static_cast<double>(totalSamples) / info_.sampleRate;
-            
-            // Read audio data
-            if (header.bitsPerSample == 32 && header.audioFormat == 3) {
-                // IEEE float
-                data_.resize(totalSamples * header.numChannels);
-                file.read(reinterpret_cast<char*>(data_.data()), header.dataSize);
-            } else if (header.bitsPerSample == 16) {
-                // 16-bit integer - convert to float
-                std::vector<int16_t> intData(totalSamples * header.numChannels);
-                file.read(reinterpret_cast<char*>(intData.data()), header.dataSize);
-                data_.resize(intData.size());
-                for (size_t i = 0; i < intData.size(); ++i) {
-                    data_[i] = static_cast<float>(intData[i]) / 32768.0f;
-                }
-            } else {
-                // Unsupported format
-                return false;
-            }
-            
+            // Record data chunk position - we'll read it after fmt is found
+            dataChunkSize = chunkSize;
+            dataChunkPos = file.tellg();
             foundData = true;
+            // Skip past data chunk for now (in case fmt comes after)
+            file.seekg(chunkSize, std::ios::cur);
         } else {
             // Skip unknown chunks
             file.seekg(chunkSize, std::ios::cur);
         }
     }
     
-    return foundFmt && foundData;
+    // Verify we found both required chunks
+    if (!foundFmt || !foundData) {
+        return false;
+    }
+    
+    // Validate format values before using them
+    if (header.numChannels == 0 || header.sampleRate == 0 || header.bitsPerSample == 0) {
+        return false;  // Invalid format chunk data
+    }
+    
+    // Now read the data chunk with valid format information
+    file.seekg(dataChunkPos);
+    header.dataSize = dataChunkSize;
+    
+    // Set file info using validated format data
+    info_.format = AudioFormat::WAV;
+    info_.sampleRate = header.sampleRate;
+    info_.numChannels = header.numChannels;
+    info_.sampleFormat = (header.bitsPerSample == 32) ? SampleFormat::Float32 : SampleFormat::Int16;
+    
+    size_t bytesPerSample = header.bitsPerSample / 8;
+    size_t totalSamples = header.dataSize / (header.numChannels * bytesPerSample);
+    info_.numSamples = totalSamples;
+    info_.durationSeconds = static_cast<double>(totalSamples) / info_.sampleRate;
+    
+    // Read audio data with validated format
+    if (header.bitsPerSample == 32 && header.audioFormat == 3) {
+        // IEEE float
+        data_.resize(totalSamples * header.numChannels);
+        file.read(reinterpret_cast<char*>(data_.data()), header.dataSize);
+    } else if (header.bitsPerSample == 16) {
+        // 16-bit integer - convert to float
+        std::vector<int16_t> intData(totalSamples * header.numChannels);
+        file.read(reinterpret_cast<char*>(intData.data()), header.dataSize);
+        data_.resize(intData.size());
+        for (size_t i = 0; i < intData.size(); ++i) {
+            data_[i] = static_cast<float>(intData[i]) / 32768.0f;
+        }
+    } else {
+        // Unsupported format
+        return false;
+    }
+    
+    return true;
 }
 
 bool AudioFile::write(const std::string& filepath,
@@ -275,34 +295,64 @@ bool AudioFile::convertSampleRate(SampleRate targetRate) {
         return true;  // No conversion needed
     }
     
-    if (data_.empty() || info_.numChannels == 0) {
+    if (data_.empty() || info_.numChannels == 0 || info_.numSamples == 0) {
         return false;  // No data to convert
     }
     
     double ratio = static_cast<double>(targetRate) / static_cast<double>(info_.sampleRate);
-    size_t newNumSamples = static_cast<size_t>(info_.numSamples * ratio);
+    size_t newNumSamples = static_cast<size_t>(std::ceil(info_.numSamples * ratio));
     
-    std::vector<Sample> newData(newNumSamples * info_.numChannels);
+    // Ensure we have at least one output sample
+    if (newNumSamples == 0) {
+        newNumSamples = 1;
+    }
+    
+    std::vector<Sample> newData(newNumSamples * info_.numChannels, 0.0f);
+    
+    // Pre-calculate the maximum valid source index to avoid repeated bounds checks
+    const size_t maxSrcSample = info_.numSamples - 1;
+    const size_t dataSize = data_.size();
     
     // Linear interpolation for each channel
     for (uint32_t ch = 0; ch < info_.numChannels; ++ch) {
         for (size_t i = 0; i < newNumSamples; ++i) {
+            // Calculate source position: for output sample i, find corresponding source position
+            // srcPos = i * (srcRate / targetRate) = i / ratio
             double srcPos = static_cast<double>(i) / ratio;
+            
+            // Clamp source position to valid range to prevent out-of-bounds access
+            if (srcPos < 0.0) {
+                srcPos = 0.0;
+            } else if (srcPos > static_cast<double>(maxSrcSample)) {
+                srcPos = static_cast<double>(maxSrcSample);
+            }
+            
             size_t srcIndex = static_cast<size_t>(srcPos);
             double fraction = srcPos - srcIndex;
             
+            // Ensure srcIndex doesn't exceed max valid index
+            if (srcIndex > maxSrcSample) {
+                srcIndex = maxSrcSample;
+                fraction = 0.0;
+            }
+            
             size_t srcIdx1 = srcIndex * info_.numChannels + ch;
             size_t srcIdx2 = (srcIndex + 1) * info_.numChannels + ch;
+            size_t dstIdx = i * info_.numChannels + ch;
             
-            if (srcIdx2 < data_.size()) {
-                // Linear interpolation
-                newData[i * info_.numChannels + ch] = 
-                    static_cast<Sample>(data_[srcIdx1] * (1.0 - fraction) + 
-                                      data_[srcIdx2] * fraction);
-            } else if (srcIdx1 < data_.size()) {
-                // Use last sample if beyond bounds
-                newData[i * info_.numChannels + ch] = data_[srcIdx1];
+            // Safe bounds check with guaranteed valid access
+            if (srcIdx1 < dataSize) {
+                if (srcIdx2 < dataSize && fraction > 0.0) {
+                    // Linear interpolation between two samples
+                    newData[dstIdx] = static_cast<Sample>(
+                        data_[srcIdx1] * (1.0 - fraction) + 
+                        data_[srcIdx2] * fraction);
+                } else {
+                    // Use single sample (at boundary or no interpolation needed)
+                    newData[dstIdx] = data_[srcIdx1];
+                }
             }
+            // If srcIdx1 is out of bounds, newData[dstIdx] stays at initialized 0.0f
         }
     }
     
