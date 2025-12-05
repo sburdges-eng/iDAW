@@ -22,156 +22,71 @@ iDAWi is a dual-interface DAW that combines professional audio production (Side 
 - Ghost Writer AI suggestions
 - Rule-breaking recommendations with justifications
 
-## Tech Stack
-
-- **Frontend**: Tauri 2.0 + React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS (Ableton-style dark theme)
-- **State**: Zustand with persistence
-- **Animation**: Framer Motion
-- **Backend**: Rust (audio engine) + Python (Music Brain)
-- **IPC**: Tauri commands bridge all systems
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│  Tauri Window (Press Cmd+E to flip)     │
-│                                         │
-│  SIDE A (DAW)          SIDE B (Emotion) │
-│  ├── Timeline          ├── Interrogator │
-│  ├── Mixer             ├── Emotion Wheel│
-│  │   ├── VU Meters     ├── Ghost Writer │
-│  │   ├── Pan Knobs     └── Rule Breaker │
-│  │   └── Faders                         │
-│  └── Transport                          │
-│         ↕                      ↕         │
-│    Tauri IPC           Tauri IPC        │
-│         ↕                      ↕         │
-│  Rust Audio Engine    Python Music Brain│
-└─────────────────────────────────────────┘
-```
-
 ## Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Install Rust dependencies
-cd src-tauri && cargo build && cd ..
-
-# Run development server (web only)
-npm run dev
-
-# Run with Tauri (native app)
-npm run tauri dev
+# Start development server
+npm start
 
 # Build for production
-npm run tauri build
-```
+npm run build
 
-## Project Structure
-
-```
-iDAWi/
-├── src/                       # React TypeScript frontend
-│   ├── components/
-│   │   ├── SideA/            # DAW interface components
-│   │   │   ├── Timeline.tsx  # Track arrangement view
-│   │   │   ├── Mixer.tsx     # Channel mixer with VU meters
-│   │   │   ├── VUMeter.tsx   # Real-time level meters
-│   │   │   ├── Knob.tsx      # Draggable pan/parameter knobs
-│   │   │   ├── Transport.tsx # Play/Stop/Record controls
-│   │   │   └── Toolbar.tsx   # Top toolbar
-│   │   ├── SideB/            # Emotion interface components
-│   │   │   ├── EmotionWheel.tsx
-│   │   │   ├── Interrogator.tsx
-│   │   │   ├── GhostWriter.tsx
-│   │   │   └── RuleBreaker.tsx
-│   │   └── shared/           # Shared components
-│   ├── hooks/                # Custom React hooks
-│   │   ├── useMusicBrain.ts  # Music Brain API integration
-│   │   └── useTauriAudio.ts  # Tauri audio bridge
-│   ├── store/                # Zustand state management
-│   │   └── useStore.ts       # Central app state
-│   └── index.css             # Tailwind + custom styles
-├── src-tauri/                # Rust backend
-│   └── src/
-│       ├── main.rs           # Tauri entry point
-│       ├── lib.rs            # Tauri commands
-│       └── audio_engine.rs   # Audio processing
-├── music-brain/              # Python Music Brain bridge
-│   ├── bridge.py             # IPC bridge script
-│   └── music_brain/          # Extracted modules
-├── public/                   # Static assets
-├── index.html                # Entry HTML
-├── tailwind.config.js        # Tailwind configuration
-├── vite.config.ts            # Vite configuration
-└── package.json              # Node dependencies
+# Run with Tauri (native app)
+npm run tauri:dev
 ```
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+E` / `Ctrl+E` | Flip between Side A and Side B |
+| `Cmd+E` / `Ctrl+E` | Toggle Side A/B |
 | `Space` | Play/Pause |
-| `Cmd+N` | New project |
-| `Cmd+S` | Save project |
-| `Cmd+Z` | Undo |
-| `Cmd+Shift+Z` | Redo |
-
-## Component Features
-
-### VU Meter
-- Real-time level visualization
-- Stereo left/right channels
-- Peak hold indicator (1 second decay)
-- Gradient coloring (green → yellow → red)
-- Scale marks for reference
-
-### Knob
-- Drag up/down to adjust value
-- Double-click to reset to center
-- Size variants (sm, md, lg)
-- Optional value display
-- Custom formatters
-
-### Mixer
-- Collapsible panel
-- Per-track: name, pan, VU meters, fader, mute/solo
-- Master channel with summed levels
-- Color-coded track indicators
-- dB readout per channel
 
 ## Philosophy
 
-Unlike traditional DAWs:
-1. ❌ Pick plugin → Tweak knobs → Hope it sounds good
-2. ✅ Describe emotion → AI suggests rules to break → Generate with intent
+Unlike traditional DAWs where you pick plugins and hope they sound good, iDAWi asks: **"What are you feeling?"** and generates music with justified intent.
 
-**Every parameter has emotional justification.**
+- Every parameter has emotional reasoning
+- Every rule-break serves authenticity
+- "The wrong note played with conviction is the right note"
 
-> "The audience doesn't hear 'borrowed from Dorian.' They hear 'that part made me cry.'"
+## Tech Stack
 
-## Development
+- **Frontend**: React 18 + TypeScript
+- **State**: Zustand
+- **Styling**: Tailwind CSS (Ableton-style dark theme)
+- **Animation**: Framer Motion
+- **Native**: Tauri 2.0 (Rust)
+- **AI**: Music Brain (Python)
 
-```bash
-# Type checking
-npm run type-check
+## Architecture
 
-# Linting
-npm run lint
-
-# Preview production build
-npm run preview
+```
+idawi/
+├── src/
+│   ├── components/
+│   │   ├── SideA/          # Professional DAW interface
+│   │   │   ├── Timeline.tsx
+│   │   │   ├── Mixer.tsx
+│   │   │   ├── VUMeter.tsx
+│   │   │   ├── Knob.tsx
+│   │   │   └── Transport.tsx
+│   │   └── SideB/          # Emotion interface
+│   │       ├── EmotionWheel.tsx
+│   │       ├── Interrogator.tsx
+│   │       └── GhostWriter.tsx
+│   ├── hooks/
+│   │   └── useMusicBrain.ts
+│   ├── store/
+│   │   └── useStore.ts
+│   └── App.tsx
+├── public/
+└── music-brain/            # Python AI backend
 ```
 
 ## License
 
 MIT License - Sean Burdges
-
-## Credits
-
-Built by Sean Burdges
-Part of the iDAW ecosystem
