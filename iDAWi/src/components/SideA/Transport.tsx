@@ -84,19 +84,23 @@ export const Transport: React.FC = () => {
 
       {/* Tempo */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-ableton-text-dim">BPM</span>
+        <label htmlFor="tempo-input" className="text-xs text-ableton-text-dim">
+          BPM
+        </label>
         <input
+          id="tempo-input"
           type="number"
           value={tempo}
           onChange={(e) => setTempo(Math.max(20, Math.min(300, Number(e.target.value))))}
           className="w-16 bg-ableton-bg border border-ableton-border rounded px-2 py-1 text-center font-mono"
           min="20"
           max="300"
+          title="Beats per minute"
+          placeholder="BPM"
+          aria-label="Tempo in beats per minute"
         />
-      </div>
-
-      {/* Time Signature */}
-      <div className="flex items-center gap-1">
+        {/* Time Signature */}
+        <div className="flex items-center gap-1">
         <span className="text-xs text-ableton-text-dim">Time Sig</span>
         <span className="font-mono">{timeSignature[0]}/{timeSignature[1]}</span>
       </div>

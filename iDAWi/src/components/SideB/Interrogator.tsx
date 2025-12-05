@@ -138,6 +138,8 @@ export const Interrogator: React.FC<InterrogatorProps> = ({ emotion, onComplete 
                   value={(answers as Record<string, string | number>)[q.key] as string}
                   onChange={(e) => setAnswers({ ...answers, [q.key]: e.target.value })}
                   className="w-full bg-ableton-bg border border-ableton-border rounded px-3 py-2 focus:border-ableton-accent focus:outline-none"
+                  aria-label={q.label}
+                  title={q.label}
                 >
                   {q.options?.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
