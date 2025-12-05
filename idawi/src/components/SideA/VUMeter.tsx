@@ -28,7 +28,7 @@ export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
         timeoutRef.current = null;
       }
     };
-  }, [peak, peakHold]);
+  }, [peak]);
 
   const getColor = (value: number) => {
     if (value > 0.9) return 'bg-ableton-red';
