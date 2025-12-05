@@ -3,14 +3,15 @@ import { useStore } from '../store/useStore';
 
 // Tauri API - optional, will fallback if not available
 let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
-try {
-  // Dynamic import for optional Tauri dependency
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const tauriApi = require('@tauri-apps/api/core');
-  invoke = tauriApi.invoke;
-} catch {
-  // Tauri not available, will use fallbacks
-}
+// Dynamic import for optional Tauri dependency (does not crash if not installed at runtime)
+import('@tauri-apps/api/core')
+  .then((tauriApi) => {
+    invoke = typeof tauriApi.invoke === 'function' ? tauriApi.invoke : null;
+  })
+  .catch(() => {
+    // Tauri not available, will use fallbacks
+    invoke = null;
+  });
 
 interface AudioEngineState {
   is_playing: boolean;
@@ -38,7 +39,6 @@ export function useTauriAudio() {
       play();
     } catch (error) {
       console.error('Failed to play:', error);
-      // Fallback to local state if Tauri is not available
       play();
     }
   }, [play]);

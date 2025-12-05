@@ -125,37 +125,6 @@ export const Interrogator: React.FC<InterrogatorProps> = ({ emotion, onComplete 
       </div>
 
       <div className="space-y-4">
-<<<<<<< Current (Your changes)
-        {currentPhase.questions.map((q) => (
-          <div key={q.key}>
-            <label className="block text-sm font-medium mb-2">
-              {q.label}
-            </label>
-
-            {q.type === 'select' ? (
-              <select
-                value={(answers as Record<string, string | number>)[q.key] as string}
-                onChange={(e) => setAnswers({ ...answers, [q.key]: e.target.value })}
-                className="w-full bg-ableton-bg border border-ableton-border rounded px-3 py-2 focus:border-ableton-accent focus:outline-none"
-              >
-                {q.options?.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            ) : (
-              <textarea
-                value={(answers as Record<string, string | number>)[q.key] as string}
-                onChange={(e) => setAnswers({ ...answers, [q.key]: e.target.value })}
-                placeholder={q.placeholder}
-                disabled={q.disabled}
-                className={`w-full bg-ableton-bg border border-ableton-border rounded px-3 py-2 min-h-[80px] focus:border-ableton-accent focus:outline-none resize-none ${
-                  q.disabled ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              />
-            )}
-          </div>
-        ))}
-=======
         {currentPhase.questions.map((q) => {
           const isDisabled = 'disabled' in q && q.disabled;
           return (
@@ -188,7 +157,6 @@ export const Interrogator: React.FC<InterrogatorProps> = ({ emotion, onComplete 
             </div>
           );
         })}
->>>>>>> Incoming (Background Agent changes)
       </div>
 
       <div className="flex gap-2 mt-6">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Square, SkipBack, SkipForward, Circle } from 'lucide-react';
+import { Play, Pause, Square, SkipBack, Circle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 export const Transport: React.FC = () => {

@@ -25,6 +25,7 @@ export interface SongIntent {
   coreEmotion: string | null;
   subEmotion: string | null;
   ruleToBreak: string | null;
+  intent: Record<string, unknown> | null;
 }
 
 interface StoreState {
@@ -155,6 +156,9 @@ const defaultTracks: Track[] = [
   },
 ];
 
+// Store timeout ID outside Zustand to track and cancel previous timeouts
+let toggleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 export const useStore = create<StoreState>((set) => ({
   // Initial state
   isPlaying: false,
@@ -172,6 +176,7 @@ export const useStore = create<StoreState>((set) => ({
     coreEmotion: null,
     subEmotion: null,
     ruleToBreak: null,
+    intent: null,
   },
 
   // Actions
@@ -184,12 +189,20 @@ export const useStore = create<StoreState>((set) => ({
   setMasterVolume: (volume) => set({ masterVolume: volume }),
 
   toggleSide: () => {
+    // Cancel any pending toggle timeout to prevent race conditions
+    if (toggleTimeoutId !== null) {
+      clearTimeout(toggleTimeoutId);
+      toggleTimeoutId = null;
+    }
+
     set({ isFlipping: true });
-    setTimeout(() => {
+    
+    toggleTimeoutId = setTimeout(() => {
       set((state) => ({
         currentSide: state.currentSide === 'A' ? 'B' : 'A',
         isFlipping: false,
       }));
+      toggleTimeoutId = null;
     }, 100);
   },
 
@@ -226,6 +239,7 @@ export const useStore = create<StoreState>((set) => ({
       coreEmotion: null,
       subEmotion: null,
       ruleToBreak: null,
+      intent: null,
     }
   }),
 }));

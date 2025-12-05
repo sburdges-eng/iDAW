@@ -1,8 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+<<<<<<< Current (Your changes)
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from './store/useStore';
 import { SideA } from './components/SideA/SideA';
 import { SideB } from './components/SideB/SideB';
+=======
+import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useStore } from './store/useStore';
+import { SideA } from './components/SideA/SideA';
+import { SideB } from './components/SideB';
+>>>>>>> Incoming (Background Agent changes)
 
 function App() {
   const { currentSide, toggleSide, isPlaying, setPlaying, setCurrentTime } = useStore();

@@ -7,13 +7,30 @@ interface VUMeterProps {
 
 export const VUMeter: React.FC<VUMeterProps> = ({ level, peak = 0 }) => {
   const [peakHold, setPeakHold] = useState(0);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (peak > peakHold) {
+<<<<<<< Current (Your changes)
+=======
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+>>>>>>> Incoming (Background Agent changes)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPeakHold(peak);
       // Reset peak after 1 second
-      setTimeout(() => setPeakHold(0), 1000);
+      timeoutRef.current = setTimeout(() => {
+        setPeakHold(0);
+        timeoutRef.current = null;
+      }, 1000);
     }
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [peak, peakHold]);
 
   const getColor = (value: number) => {

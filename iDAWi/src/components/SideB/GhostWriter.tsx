@@ -1,224 +1,205 @@
-import React, { useState } from 'react';
-import { useStore } from '../../store/useStore';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Copy, RefreshCw, Check } from 'lucide-react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
-import {
-  Sparkles,
-  Check,
-  X,
-  Music,
-  Zap,
-  Sliders,
-  Layout,
-  Loader2,
-} from 'lucide-react';
-import clsx from 'clsx';
 
-const categoryIcons = {
-  harmony: <Music size={16} />,
-  rhythm: <Zap size={16} />,
-  production: <Sliders size={16} />,
-  arrangement: <Layout size={16} />,
-};
-
-const categoryColors = {
-  harmony: 'border-ableton-blue',
-  rhythm: 'border-ableton-yellow',
-  production: 'border-ableton-green',
-  arrangement: 'border-emotion-love',
-};
-
-export const GhostWriter: React.FC = () => {
-  const {
-    ghostWriterSuggestions,
-    applySuggestion,
-    clearSuggestions,
-    songIntent,
-  } = useStore();
-  const { suggestRuleBreak, processIntent, isLoading } = useMusicBrain();
-  const [activeTab, setActiveTab] = useState<'suggestions' | 'applied'>('suggestions');
-
-  const handleGenerate = async () => {
-    // Generate suggestions based on current intent
-    await suggestRuleBreak(songIntent.coreEmotion);
-  };
-
-  const pendingSuggestions = ghostWriterSuggestions.filter((s) => !s.applied);
-  const appliedSuggestions = ghostWriterSuggestions.filter((s) => s.applied);
-
-  return (
-    <div className="p-4 h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-ableton-accent" />
-          <span className="font-medium">Ghost Writer</span>
-        </div>
-        <button
-          className={clsx(
-            'btn-ableton flex items-center gap-2',
-            isLoading && 'opacity-50'
-          )}
-          onClick={handleGenerate}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <Sparkles size={14} />
-          )}
-          Generate Ideas
-        </button>
-      </div>
-
-      {/* Philosophy Quote */}
-      <div className="p-3 bg-ableton-surface rounded mb-4 text-sm italic text-ableton-text-dim">
-        "The tool shouldn't finish art for people. It should make them braver."
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          className={clsx(
-            'px-3 py-1 rounded text-sm transition-colors',
-            activeTab === 'suggestions'
-              ? 'bg-ableton-accent text-black'
-              : 'bg-ableton-surface hover:bg-ableton-surface-light'
-          )}
-          onClick={() => setActiveTab('suggestions')}
-        >
-          Suggestions ({pendingSuggestions.length})
-        </button>
-        <button
-          className={clsx(
-            'px-3 py-1 rounded text-sm transition-colors',
-            activeTab === 'applied'
-              ? 'bg-ableton-accent text-black'
-              : 'bg-ableton-surface hover:bg-ableton-surface-light'
-          )}
-          onClick={() => setActiveTab('applied')}
-        >
-          Applied ({appliedSuggestions.length})
-        </button>
-      </div>
-
-      {/* Suggestions List */}
-      <div className="flex-1 overflow-auto space-y-2">
-        {activeTab === 'suggestions' && (
-          <>
-            {pendingSuggestions.length === 0 ? (
-              <div className="text-center py-8 text-ableton-text-dim">
-                <Sparkles size={24} className="mx-auto mb-2 opacity-50" />
-                <p>No suggestions yet.</p>
-                <p className="text-sm">Click "Generate Ideas" to get started.</p>
-              </div>
-            ) : (
-              pendingSuggestions.map((suggestion) => (
-                <SuggestionCard
-                  key={suggestion.id}
-                  suggestion={suggestion}
-                  onApply={() => applySuggestion(suggestion.id)}
-                />
-              ))
-            )}
-          </>
-        )}
-
-        {activeTab === 'applied' && (
-          <>
-            {appliedSuggestions.length === 0 ? (
-              <div className="text-center py-8 text-ableton-text-dim">
-                <Check size={24} className="mx-auto mb-2 opacity-50" />
-                <p>No applied suggestions yet.</p>
-              </div>
-            ) : (
-              appliedSuggestions.map((suggestion) => (
-                <div
-                  key={suggestion.id}
-                  className="p-3 bg-ableton-surface rounded border-l-2 border-ableton-green"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Check size={14} className="text-ableton-green" />
-                    <span className="text-sm font-medium">{suggestion.description}</span>
-                  </div>
-                  <p className="text-xs text-ableton-text-dim">
-                    {suggestion.emotionalRationale}
-                  </p>
-                </div>
-              ))
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Current Intent Summary */}
-      <div className="mt-4 pt-4 border-t border-ableton-border">
-        <div className="text-xs text-ableton-text-dim uppercase mb-2">
-          Current Emotional Intent
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="px-2 py-1 bg-ableton-surface rounded text-xs">
-            {songIntent.coreEmotion}
-          </span>
-          <span className="px-2 py-1 bg-ableton-surface rounded text-xs">
-            {songIntent.subEmotion}
-          </span>
-          <span className="px-2 py-1 bg-ableton-surface rounded text-xs">
-            Arc: {songIntent.narrativeArc}
-          </span>
-          <span className="px-2 py-1 bg-ableton-surface rounded text-xs">
-            Vulnerability: {songIntent.vulnerabilityScale}/10
-          </span>
-          {songIntent.ruleToBreak && (
-            <span className="px-2 py-1 bg-ableton-yellow/20 text-ableton-yellow rounded text-xs">
-              Breaking: {songIntent.ruleToBreak.split('_').pop()}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface SuggestionCardProps {
-  suggestion: {
-    id: string;
-    type: 'harmony' | 'rhythm' | 'production' | 'arrangement';
-    description: string;
-    emotionalRationale: string;
-  };
-  onApply: () => void;
+interface RuleBreakSuggestion {
+  rule: string;
+  effect: string;
+  use_when: string;
+  justification: string;
 }
 
-const SuggestionCard: React.FC<SuggestionCardProps> = ({ suggestion, onApply }) => {
-  return (
-    <div
-      className={clsx(
-        'ghost-writer-suggestion border-l-2',
-        categoryColors[suggestion.type]
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-ableton-text-dim">
-              {categoryIcons[suggestion.type]}
-            </span>
-            <span className="text-xs uppercase text-ableton-text-dim">
-              {suggestion.type}
-            </span>
+interface ProcessIntentResult {
+  harmony: string[];
+  tempo: number;
+  key: string;
+  mixer_params: Record<string, number | string>;
+}
+
+interface GhostWriterProps {
+  emotion: string | null;
+  intent: Record<string, unknown> | null;
+}
+
+export const GhostWriter: React.FC<GhostWriterProps> = ({ emotion, intent }) => {
+  const [suggestions, setSuggestions] = useState<RuleBreakSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ProcessIntentResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const { suggestRuleBreak, processIntent } = useMusicBrain();
+
+  useEffect(() => {
+    if (emotion) {
+      loadSuggestions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emotion]);
+
+  useEffect(() => {
+    if (intent) {
+      generateMusic();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
+
+  const loadSuggestions = async () => {
+    if (!emotion) return;
+
+    setLoading(true);
+    try {
+      const data = await suggestRuleBreak(emotion);
+      setSuggestions(data);
+    } catch (error) {
+      console.error('Failed to load suggestions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateMusic = async () => {
+    if (!intent) return;
+
+    setLoading(true);
+    try {
+      const data = await processIntent(intent);
+      setResult(data);
+    } catch (error) {
+      console.error('Failed to generate music:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!emotion) {
+    return (
+      <div className="p-6 border-t border-ableton-border">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="text-ableton-accent" size={20} />
+          <h3 className="font-bold">Ghost Writer</h3>
+        </div>
+        <p className="text-ableton-text-dim text-sm">
+          Complete the interrogation to receive AI-powered suggestions
+        </p>
+        <div className="mt-6 p-4 bg-ableton-bg rounded border border-ableton-border border-dashed">
+          <div className="text-center text-ableton-text-dim text-sm">
+            Waiting for emotional input...
           </div>
-          <p className="text-sm font-medium mb-1">{suggestion.description}</p>
-          <p className="text-xs text-ableton-text-dim">
-            {suggestion.emotionalRationale}
-          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 border-t border-ableton-border overflow-auto max-h-full">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="text-ableton-accent" size={20} />
+          <h3 className="font-bold">Ghost Writer</h3>
         </div>
         <button
-          className="p-2 bg-ableton-accent/20 hover:bg-ableton-accent/40 rounded transition-colors"
-          onClick={onApply}
-          title="Apply this suggestion"
+          onClick={loadSuggestions}
+          className="btn-ableton p-2"
+          disabled={loading}
+          title="Refresh suggestions"
         >
-          <Check size={16} className="text-ableton-accent" />
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
+      </div>
+
+      {/* Rule-Breaking Suggestions */}
+      {suggestions.length > 0 && (
+        <div className="mb-6">
+          <h4 className="text-sm font-medium mb-3 text-ableton-text-dim">
+            Suggested Rule Violations for &ldquo;{emotion}&rdquo;
+          </h4>
+          <div className="space-y-2">
+            {suggestions.map((suggestion, i) => (
+              <div
+                key={i}
+                className="p-3 bg-ableton-surface border border-ableton-border rounded hover:border-ableton-accent transition-colors"
+              >
+                <div className="font-mono text-sm mb-1 text-ableton-accent">
+                  {suggestion.rule}
+                </div>
+                <div className="text-xs text-ableton-text-dim mb-2">
+                  <span className="text-ableton-text">Effect:</span> {suggestion.effect}
+                </div>
+                <div className="text-xs italic text-ableton-text-dim border-l-2 border-ableton-accent pl-2">
+                  &ldquo;{suggestion.justification}&rdquo;
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Generated Music */}
+      {result && (
+        <div className="border-t border-ableton-border pt-4">
+          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <Check size={16} className="text-green-500" />
+            Generated Music
+          </h4>
+
+          <div className="space-y-3">
+            {/* Chord Progression */}
+            <div className="p-3 bg-ableton-surface rounded border border-ableton-border">
+              <div className="text-xs text-ableton-text-dim mb-1">Chord Progression</div>
+              <div className="font-mono text-lg">
+                {result.harmony?.join(' - ') || 'N/A'}
+              </div>
+              <button
+                onClick={() => copyToClipboard(result.harmony?.join(' - ') || '')}
+                className="btn-ableton mt-2 text-xs flex items-center gap-1"
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied!' : 'Copy to Timeline'}
+              </button>
+            </div>
+
+            {/* Tempo and Key */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-ableton-surface rounded border border-ableton-border">
+                <div className="text-xs text-ableton-text-dim mb-1">Tempo</div>
+                <div className="font-mono text-2xl">{result.tempo} <span className="text-sm">BPM</span></div>
+              </div>
+
+              <div className="p-3 bg-ableton-surface rounded border border-ableton-border">
+                <div className="text-xs text-ableton-text-dim mb-1">Key</div>
+                <div className="font-mono text-2xl">{result.key}</div>
+              </div>
+            </div>
+
+            {/* Mixer Settings */}
+            {result.mixer_params && (
+              <div className="p-3 bg-ableton-surface rounded border border-ableton-border">
+                <div className="text-xs text-ableton-text-dim mb-2">Suggested Mixer Settings</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {Object.entries(result.mixer_params).map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="capitalize">{key}:</span>
+                      <span className="font-mono text-ableton-accent">
+                        {typeof value === 'number' ? `${Math.round(value * 100)}%` : value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Philosophy Quote */}
+      <div className="mt-6 p-3 bg-ableton-bg bg-opacity-50 rounded text-xs text-ableton-text-dim italic border-l-2 border-ableton-accent">
+        &ldquo;Interrogate Before Generate&rdquo; - Every suggestion is
+        justified by emotional intent, not arbitrary technical choices.
       </div>
     </div>
   );

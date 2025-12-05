@@ -1,6 +1,6 @@
 // Music Brain integration hook
 // In production, this would use Tauri's invoke to call Python
-import React from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 interface Emotion {
   name: string;
@@ -104,99 +104,134 @@ const ruleBreakingDatabase: Record<string, RuleBreakSuggestion[]> = {
 };
 
 export function useMusicBrain() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const isMountedRef = useRef(true);
 
-  const getEmotions = async (): Promise<Emotion[]> => {
-    setIsLoading(true);
+  // Track mount status to prevent state updates after unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Safe state setter that checks if component is still mounted
+  const safeSetIsLoading = useCallback((value: boolean) => {
+    if (isMountedRef.current) {
+      setIsLoading(value);
+    }
+  }, []);
+
+  const getEmotions = useCallback(async (): Promise<Emotion[]> => {
+    safeSetIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'get_emotions', args: {} });
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         setTimeout(() => {
-          setIsLoading(false);
-          resolve(defaultEmotions);
+          try {
+            safeSetIsLoading(false);
+            resolve(defaultEmotions);
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
         }, 300);
       });
     } catch (error) {
-      setIsLoading(false);
+      safeSetIsLoading(false);
       throw error;
     }
-  };
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-  const suggestRuleBreak = async (emotion: string): Promise<RuleBreakSuggestion[]> => {
-    setIsLoading(true);
+  const suggestRuleBreak = useCallback(async (emotion: string): Promise<RuleBreakSuggestion[]> => {
+    safeSetIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'suggest_rule_break', args: { emotion } });
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         setTimeout(() => {
-          const suggestions = ruleBreakingDatabase[emotion] || [
-            {
-              rule: 'HARMONY_ModalInterchange',
-              effect: 'Unexpected harmonic color',
-              use_when: 'You want to surprise the listener',
-              justification: 'Breaking expectations creates emotional impact.',
-            },
-          ];
-          setIsLoading(false);
-          resolve(suggestions);
+          try {
+            const suggestions = ruleBreakingDatabase[emotion] || [
+              {
+                rule: 'HARMONY_ModalInterchange',
+                effect: 'Unexpected harmonic color',
+                use_when: 'You want to surprise the listener',
+                justification: 'Breaking expectations creates emotional impact.',
+              },
+            ];
+            safeSetIsLoading(false);
+            resolve(suggestions);
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
         }, 500);
       });
     } catch (error) {
-      setIsLoading(false);
+      safeSetIsLoading(false);
       throw error;
     }
-  };
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-  const processIntent = async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
-    setIsLoading(true);
+  const processIntent = useCallback(async (intent?: Record<string, unknown>): Promise<ProcessIntentResult> => {
+    safeSetIsLoading(true);
     try {
       // In production: return invoke('music_brain_command', { command: 'process_intent', args: { intent } });
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         setTimeout(() => {
-          // Generate contextual results based on intent
-          const intentData = intent || {};
-          const emotion = (intentData.song_intent as Record<string, string>)?.mood_primary || 'neutral';
-          const key = (intentData.technical_constraints as Record<string, string>)?.technical_key || 'C';
+          try {
+            // Generate contextual results based on intent
+            const intentData = intent || {};
+            const emotion = (intentData.song_intent as Record<string, string>)?.mood_primary || 'neutral';
+            const key = (intentData.technical_constraints as Record<string, string>)?.technical_key || 'C';
 
-          const harmonyByEmotion: Record<string, string[]> = {
-            Grief: ['Am', 'F', 'C', 'G'],
-            Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
-            Rage: ['Em', 'C', 'G', 'D'],
-            Joy: ['C', 'G', 'Am', 'F'],
-            Love: ['F', 'Am', 'Dm', 'C'],
-          };
+            const harmonyByEmotion: Record<string, string[]> = {
+              Grief: ['Am', 'F', 'C', 'G'],
+              Anxiety: ['Dm', 'Am/E', 'Bb', 'F/A'],
+              Rage: ['Em', 'C', 'G', 'D'],
+              Joy: ['C', 'G', 'Am', 'F'],
+              Love: ['F', 'Am', 'Dm', 'C'],
+            };
 
-          const tempoByEmotion: Record<string, number> = {
-            Grief: 72,
-            Anxiety: 140,
-            Rage: 160,
-            Joy: 120,
-            Love: 90,
-          };
+            const tempoByEmotion: Record<string, number> = {
+              Grief: 72,
+              Anxiety: 140,
+              Rage: 160,
+              Joy: 120,
+              Love: 90,
+            };
 
-          setIsLoading(false);
-          resolve({
-            harmony: harmonyByEmotion[emotion] || ['C', 'Am', 'F', 'G'],
-            tempo: tempoByEmotion[emotion] || 120,
-            key,
-            mixer_params: {
-              reverb: emotion === 'Grief' ? 0.7 : 0.3,
-              delay: emotion === 'Anxiety' ? 0.5 : 0.2,
-              compression: emotion === 'Rage' ? 0.8 : 0.4,
-              warmth: emotion === 'Love' ? 0.6 : 0.3,
-            },
-          });
+            safeSetIsLoading(false);
+            resolve({
+              harmony: harmonyByEmotion[emotion] || ['C', 'Am', 'F', 'G'],
+              tempo: tempoByEmotion[emotion] || 120,
+              key,
+              mixer_params: {
+                reverb: emotion === 'Grief' ? 0.7 : 0.3,
+                delay: emotion === 'Anxiety' ? 0.5 : 0.2,
+                compression: emotion === 'Rage' ? 0.8 : 0.4,
+                warmth: emotion === 'Love' ? 0.6 : 0.3,
+              },
+            });
+          } catch (error) {
+            safeSetIsLoading(false);
+            reject(error);
+          }
         }, 800);
       });
     } catch (error) {
-      setIsLoading(false);
+      safeSetIsLoading(false);
       throw error;
     }
-  };
+  }, [safeSetIsLoading]); // Include safeSetIsLoading in deps
 
-  return {
-    getEmotions,
-    suggestRuleBreak,
-    processIntent,
-    isLoading,
-  };
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      getEmotions,
+      suggestRuleBreak,
+      processIntent,
+      isLoading,
+    }),
+    [getEmotions, suggestRuleBreak, processIntent, isLoading]
+  );
 }

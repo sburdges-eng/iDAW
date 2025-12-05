@@ -18,6 +18,7 @@ export const Mixer: React.FC = () => {
       tracks.forEach(track => {
         clearedLevels[track.id] = { left: 0, right: 0 };
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLevels(clearedLevels);
       return;
     }
@@ -152,8 +153,6 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         label="PAN"
         min={-1}
         max={1}
-        size="sm"
-        showValue
       />
 
       {/* VU Meters + Fader */}
@@ -161,7 +160,6 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         {/* Left VU Meter */}
         <VUMeter
           level={track.muted ? 0 : levels.left}
-          height="h-28"
         />
 
         {/* Fader */}
@@ -186,7 +184,6 @@ const MixerChannel: React.FC<MixerChannelProps> = ({
         {/* Right VU Meter */}
         <VUMeter
           level={track.muted ? 0 : levels.right}
-          height="h-28"
         />
       </div>
 
@@ -279,7 +276,7 @@ const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
       {/* VU Meters + Fader */}
       <div className="flex-1 flex items-end gap-1 mb-2">
         {/* Left VU Meter */}
-        <VUMeter level={masterLeft} height="h-28" />
+        <VUMeter level={masterLeft} />
 
         {/* Fader */}
         <div className="h-28 flex flex-col items-center">
@@ -300,7 +297,7 @@ const MasterChannel: React.FC<MasterChannelProps> = ({ levels, tracks }) => {
         </div>
 
         {/* Right VU Meter */}
-        <VUMeter level={masterRight} height="h-28" />
+        <VUMeter level={masterRight} />
       </div>
 
       {/* dB reading */}
