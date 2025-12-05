@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMusicBrain } from '../../hooks/useMusicBrain';
 
 interface Emotion {
@@ -9,30 +9,35 @@ interface Emotion {
 
 interface EmotionWheelProps {
   onSelectEmotion: (emotion: string) => void;
+  selectedEmotion?: string | null;
 }
 
-export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) => {
+export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion, selectedEmotion: propSelectedEmotion = null }) => {
   const [emotions, setEmotions] = useState<Emotion[]>([]);
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { getEmotions } = useMusicBrain();
 
-  const loadEmotions = useCallback(async () => {
+  useEffect(() => {
+    let isMounted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
-    try {
-      const data = await getEmotions();
-      setEmotions(data);
-    } finally {
-      setIsLoading(false);
-    }
+    getEmotions()
+      .then((emotions) => {
+        if (isMounted) {
+          setEmotions(emotions);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [getEmotions]);
 
-  useEffect(() => {
-    loadEmotions();
-  }, [loadEmotions]);
-
   const handleSelect = (emotion: string) => {
-    setSelectedEmotion(emotion);
     onSelectEmotion(emotion);
   };
 
@@ -86,7 +91,7 @@ export const EmotionWheel: React.FC<EmotionWheelProps> = ({ onSelectEmotion }) =
             onClick={() => handleSelect(emotion.name)}
             className={`
               p-4 rounded border transition-all text-left
-              ${selectedEmotion === emotion.name
+              ${propSelectedEmotion === emotion.name
                 ? 'border-ableton-accent bg-ableton-accent bg-opacity-20 scale-105'
                 : `border-ableton-border hover:bg-ableton-surface ${categoryHoverColors[emotion.category] || ''}`
               }

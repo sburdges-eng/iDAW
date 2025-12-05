@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { EmotionWheel } from './EmotionWheel';
 import { Interrogator } from './Interrogator';
 import { GhostWriter } from './GhostWriter';
@@ -7,39 +7,13 @@ import { SideBToolbar } from './SideBToolbar';
 import { useStore } from '../../store/useStore';
 
 export const SideB: React.FC = () => {
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
-  const [intent, setIntent] = useState<Record<string, unknown> | null>(null);
   const { updateSongIntent, songIntent } = useStore();
 
-  // Sync local state with store state to handle clearSuggestions
-  // When store is cleared, reset local state to keep UI in sync
-  useEffect(() => {
-    setSelectedEmotion((prev) => {
-      if (songIntent.coreEmotion === null) {
-        return null;
-      }
-      // Only update if different to avoid unnecessary re-renders
-      return songIntent.coreEmotion !== prev ? songIntent.coreEmotion : prev;
-    });
-  }, [songIntent.coreEmotion]);
-
-  useEffect(() => {
-    setIntent((prev) => {
-      if (songIntent.intent === null) {
-        return null;
-      }
-      // Only update if different to avoid unnecessary re-renders
-      return songIntent.intent !== prev ? songIntent.intent : prev;
-    });
-  }, [songIntent.intent]);
-
   const handleSelectEmotion = (emotion: string) => {
-    setSelectedEmotion(emotion);
     updateSongIntent({ coreEmotion: emotion });
   };
 
   const handleCompleteIntent = (completedIntent: Record<string, unknown>) => {
-    setIntent(completedIntent);
     updateSongIntent({ intent: completedIntent });
   };
 
@@ -56,8 +30,8 @@ export const SideB: React.FC = () => {
             <div className="panel-header">Core Emotion</div>
             <div className="flex-1 p-4 overflow-auto">
               <EmotionWheel 
-                onSelectEmotion={handleSelectEmotion} 
-                selectedEmotion={selectedEmotion}
+                onSelectEmotion={handleSelectEmotion}
+                selectedEmotion={songIntent.coreEmotion}
               />
             </div>
           </div>
@@ -68,7 +42,7 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Interrogator</div>
             <div className="flex-1 overflow-auto">
-              <Interrogator emotion={selectedEmotion} onComplete={handleCompleteIntent} />
+              <Interrogator emotion={songIntent.coreEmotion} onComplete={handleCompleteIntent} />
             </div>
           </div>
 
@@ -86,7 +60,7 @@ export const SideB: React.FC = () => {
           <div className="panel flex-1 overflow-hidden flex flex-col">
             <div className="panel-header">Ghost Writer</div>
             <div className="flex-1 overflow-auto">
-              <GhostWriter emotion={selectedEmotion} intent={intent} />
+              <GhostWriter emotion={songIntent.coreEmotion} intent={songIntent.intent} />
             </div>
           </div>
         </div>
