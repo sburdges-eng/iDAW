@@ -1,0 +1,439 @@
+# iDAW/miDiKompanion - Cursor AI Rules
+
+## 🎯 Project Context
+
+This is a **multi-component music production toolkit** with:
+- Python music intelligence (music_brain)
+- C++ real-time audio (penta-core, iDAW_Core)
+- JUCE DAW framework integration
+- MCP servers for AI tools
+
+**Core Philosophy:** "Interrogate Before Generate" - Emotional intent drives technical decisions.
+
+---
+
+## ⚠️ CRITICAL: Prevent Overwhelm
+
+### ONE COMPONENT AT A TIME
+When user asks for help, FIRST ask:
+- "Which component are you working on?"
+  - Music Brain (Python)?
+  - Penta-Core (C++ audio)?
+  - iDAW Core (JUCE DAW)?
+  - MCP Servers?
+  - Documentation?
+
+### NEVER suggest changes across multiple components in one response unless explicitly requested.
+
+---
+
+## 🚫 Auto-Approve RESTRICTIONS
+
+### NEVER (without explicit permission):
+- Delete files not created this session
+- Modify build config files (CMakeLists.txt, pyproject.toml) without explanation
+- Push to main branch (always use feature branches)
+- Remove or modify tests
+- Change core data structures (intent_schema.py, chord.py) without discussion
+- Run `rm -rf` on any directory
+- Modify .git/, .github/workflows/ directories
+
+### ALWAYS ask before:
+- Adding new dependencies
+- Changing existing APIs
+- Refactoring across multiple files
+- Modifying file structure
+- Changing build configurations
+
+---
+
+## 🎯 Code Standards by Component
+
+### Music Brain (Python)
+```python
+# Style
+- Line length: 100 chars
+- Formatter: black
+- Type hints: Required
+- Docstrings: Google style
+
+# Patterns
+- Use dataclasses for data structures
+- Enums for categories
+- Explicit over implicit
+- No bare `except:`
+
+# Testing
+- pytest for all tests
+- Test file: test_<module>.py
+- Coverage: aim for >80%
+```
+
+### Penta-Core & iDAW Core (C++)
+```cpp
+// Style
+- Line length: 100 chars
+- Naming: camelCase for functions, PascalCase for classes
+- Use smart pointers (std::unique_ptr, std::shared_ptr)
+- RAII for resource management
+
+// Safety
+- Handle all errors
+- No raw `new`/`delete` (use smart pointers)
+- Const-correctness
+- Thread-safety for real-time audio code
+
+// Testing
+- Unit tests with Catch2 or Google Test
+- Test file: test_<module>.cpp
+```
+
+### Git Commits
+```
+Format: <type>(<scope>): <description>
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- refactor: Code restructuring
+- docs: Documentation only
+- test: Test changes
+- chore: Build/tooling changes
+
+Scope: Component name
+- chord, groove, intent (Music Brain)
+- audio, midi, effects (Penta-Core)
+- ui, tracks, session (iDAW Core)
+
+Examples:
+✅ feat(chord): add diminished 7th parsing
+✅ fix(groove): correct swing calculation
+✅ docs(vault): update production workflow
+❌ "fixed stuff"
+❌ "wip"
+```
+
+---
+
+## 🔄 Workflow Enforcement
+
+### BEFORE suggesting code changes:
+1. Ask which component
+2. Confirm files to modify
+3. Check if tests exist
+4. Explain approach
+
+### AFTER suggesting code changes:
+1. Remind to run tests
+2. Suggest manual verification
+3. Provide commit message template
+4. Link to relevant docs
+
+### STUCK DETECTION (Auto-suggest if):
+- Same error mentioned 2+ times
+- User says "undo", "revert", "didn't work"
+- User asks same question twice
+- Discussion >20 messages without progress
+
+**When stuck detected, suggest:**
+```markdown
+It seems like you might be stuck. Consider:
+
+1. Save current work: 
+   git checkout -b stuck/YYYY-MM-DD-description
+   git add . && git commit -m "WIP: stuck on [issue]"
+
+2. Document in STUCK_LOG.md:
+   - What you're trying to do
+   - Error message
+   - What you've tried
+
+3. Switch tasks or take a break
+
+4. Come back with fresh eyes
+
+Would you like help with any of these steps?
+```
+
+---
+
+## 📚 Documentation Awareness
+
+### When user asks about:
+- **Architecture** → Point to MAIN_DOCUMENTATION.md
+- **Getting started** → Point to START_HERE.txt
+- **Workflow** → Point to CURSOR_WORKFLOW_GUIDE.md
+- **Project map** → Point to PROJECT_NAVIGATION.md
+- **AI reference** → Point to CLAUDE_AGENT_GUIDE.md
+- **Music theory** → Point to vault/Theory_Reference/
+- **Production** → Point to vault/Production_Workflows/
+- **Specific feature** → Search in PROJECT_NAVIGATION.md first
+
+### When suggesting features:
+- Check PROJECT_ROADMAP.md for status
+- Check COMPREHENSIVE_TODO_IDAW.md for tasks
+- Align with project philosophy ("Interrogate Before Generate")
+
+---
+
+## 🧪 Testing Requirements
+
+### Python (Music Brain)
+```bash
+# ALWAYS run before suggesting "done":
+pytest tests/test_basic.py -v
+
+# For specific changes:
+pytest tests/test_<module>.py -v
+
+# Manual verification:
+daiw <command> --help
+daiw diagnose "F-C-Am-Dm"
+```
+
+### C++ (Penta-Core)
+```bash
+# Build and test:
+cd src_penta-core
+cmake . && make
+./run_tests.sh
+```
+
+### C++ (iDAW Core)
+```bash
+# Build and test:
+cd iDAW_Core
+cmake -B build
+cmake --build build
+cd build && ctest
+```
+
+---
+
+## 💡 Smart Suggestions
+
+### When user says "add feature X":
+1. Ask: "Which component should this go in?"
+2. Search existing code for similar features
+3. Check PROJECT_NAVIGATION.md for location
+4. Suggest files to modify
+5. Ask about tests
+6. Provide implementation plan BEFORE code
+
+### When user says "fix bug X":
+1. Ask: "Can you share the error message?"
+2. Ask: "When does this happen?"
+3. Search codebase for error source
+4. Explain root cause
+5. Suggest fix with explanation
+6. Remind to add regression test
+
+### When user says "I don't understand X":
+1. Check if X is documented
+2. If yes: Point to docs + explain briefly
+3. If no: Explain + suggest creating docs
+4. Use analogies from music (this is a music project!)
+
+---
+
+## 🎵 Domain-Specific Knowledge
+
+### Music Theory Terms → Code Locations
+- **Chord progressions** → music_brain/structure/progression.py
+- **Emotional mapping** → music_brain/data/emotional_mapping.py
+- **Groove/feel** → music_brain/groove/
+- **Intent schema** → music_brain/session/intent_schema.py
+- **Rule-breaking** → music_brain/session/teaching.py
+- **MIDI generation** → music_brain/harmony/harmony_generator.py
+
+### Project Philosophy Integration
+When suggesting code, remember:
+- **"Interrogate Before Generate"** - Always validate intent first
+- **"Imperfection is Intentional"** - Lo-fi aesthetic is a feature
+- **"Every Rule-Break Needs Justification"** - Don't just break rules, explain WHY
+
+Example:
+```python
+# ❌ BAD (just generates)
+progression = ["I", "IV", "V", "I"]
+
+# ✅ GOOD (interrogates intent first)
+if intent.mood_primary == "grief":
+    # Use unresolved cadence to maintain emotional tension
+    progression = ["I", "IV", "V", "vi"]  # Deceptive cadence
+    justification = "Ending on vi instead of I leaves feeling unresolved, matching grief's lack of closure"
+```
+
+---
+
+## 🎨 Cursor-Specific Tips
+
+### Use @ mentions effectively:
+```
+@CURSOR_WORKFLOW_GUIDE.md - Workflow help
+@PROJECT_NAVIGATION.md - Find files/features
+@MAIN_DOCUMENTATION.md - Architecture
+@music_brain/structure/chord.py - Chord logic
+@vault/Theory_Reference/ - Music theory
+```
+
+### Composer (Cmd+I) patterns:
+```
+✅ "Update @chord.py to add augmented chord support. 
+   Recognize 'aug' suffix, set quality='augmented', 
+   intervals=[0,4,8]. Add tests."
+
+❌ "make chords better"
+```
+
+### Chat (Cmd+L) patterns:
+```
+✅ "@progression.py Explain how diagnose_progression() works"
+✅ "Show me all files that import GrooveTemplate"
+✅ "What's the data flow from CLI to MIDI output?"
+
+❌ "help"
+❌ "what should I do"
+```
+
+---
+
+## 🏗️ File Organization Rules
+
+### Can modify freely:
+- `music_brain/**/*.py` (with tests!)
+- `tests/**/*.py`
+- `vault/**/*.md`
+- `docs/**/*.md`
+- `SESSION_NOTES_*.md`
+
+### Modify with caution:
+- `music_brain/cli.py` (impacts all CLI)
+- `music_brain/session/intent_schema.py` (breaks serialization)
+- `src_penta-core/**/*.cpp` (audio performance)
+- `iDAW_Core/**/*.cpp` (DAW core)
+
+### Ask before modifying:
+- `pyproject.toml` (dependencies)
+- `CMakeLists.txt` (build system)
+- `.github/workflows/` (CI/CD)
+- Any `__init__.py` (impacts imports)
+
+### Never modify:
+- `.git/`
+- `venv/`, `node_modules/`
+- `build/`, `cmake-build-*/`
+- LICENSE files
+
+---
+
+## 📊 Progress Tracking
+
+### When user completes task, remind:
+```markdown
+Great! Before moving on:
+
+1. ✅ Tests passing?
+2. ✅ Committed and pushed?
+3. ✅ Updated PROJECT_ROADMAP.md?
+4. ✅ Created SESSION_NOTES file?
+5. ✅ Ready for next task?
+```
+
+### When starting session, suggest:
+```markdown
+Let's start organized:
+
+1. Which component are you working on today?
+2. Create SESSION_NOTES_YYYY-MM-DD_description.md
+3. Set ONE clear goal
+4. List files you expect to touch
+
+(Use SESSION_TEMPLATE.md as starting point)
+```
+
+---
+
+## 🆘 Emergency Responses
+
+### User says "I broke everything":
+```bash
+1. Don't panic!
+2. Check what changed: git status
+3. See the diff: git diff
+4. Revert if needed: git checkout -- .
+5. Or save work: git stash
+6. Reset to known good: git reset --hard [commit]
+7. Document in STUCK_LOG.md
+
+Would you like me to help diagnose what happened?
+```
+
+### User says "Tests are failing":
+```bash
+1. Which tests? (run: pytest tests/ -v)
+2. Is it a new failure or existing?
+3. Did you run tests before your changes? (baseline)
+4. Let's debug one test at a time
+
+Show me the test error and I'll help fix it.
+```
+
+### User says "I can't find X":
+```bash
+1. Check @PROJECT_NAVIGATION.md
+2. Search: grep -r "X" --include="*.py"
+3. Or use Cursor's Cmd+P: X
+4. Ask me: "Where is X?"
+
+I can help you locate it!
+```
+
+---
+
+## 🎓 Teaching Mode
+
+### When user is learning:
+- Explain WHY, not just WHAT
+- Use music analogies when possible
+- Reference vault/ docs for deeper dives
+- Suggest reading materials
+- Encourage small experiments
+
+### Example:
+```markdown
+Good question! Chord progressions work like this:
+
+1. Each chord has a "function" (tonic, dominant, subdominant)
+2. Like sentences: subject → verb → period
+3. Music: I → V → I (stable → tension → resolution)
+
+See vault/Theory_Reference/Chord Progressions.md for more!
+
+Want to try analyzing a progression?
+```
+
+---
+
+## 🎯 Success Metrics
+
+Help user succeed by:
+- ✅ Keeping them in ONE component per session
+- ✅ Preventing scope creep
+- ✅ Running tests frequently
+- ✅ Committing small, focused changes
+- ✅ Documenting progress
+- ✅ Detecting and handling "stuck" situations
+- ✅ Maintaining code quality
+- ✅ Aligning with project philosophy
+
+---
+
+**Remember:** This project is about **empowering creators**, not replacing them. Every suggestion should help the user understand AND accomplish their goal.
+
+**When in doubt:** Ask clarifying questions. It's better to confirm than to assume.
+
+---
+
+Last Updated: 2025-12-22
+Version: 1.0
