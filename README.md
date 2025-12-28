@@ -1,3 +1,34 @@
+# iDAW - Intelligent Digital Audio Workstation
+
+> **🎯 New Users Start Here**: This repository is the main integration point for 12+ music/DAW-related repositories. See our comprehensive guides:
+> - 📚 **[Repository Compilation](REPOSITORY_COMPILATION.md)** - Complete analysis of all 12 repositories
+> - 🗺️ **[Cross-Repository Navigation](CROSS_REPOSITORY_NAVIGATION.md)** - Quick navigation guide
+> - 📖 **[Project Navigation](PROJECT_NAVIGATION.md)** - File structure and component map
+
+This repository combines:
+- **Music Brain** - Python music intelligence toolkit ([docs](README_music-brain.md))
+- **Penta-Core** - C++ real-time audio engine ([docs](README_penta-core.md))
+- **JUCE Framework** - Audio plugin framework (see below)
+- **MCP Servers** - Multi-agent task management
+- **Knowledge Vault** - Music theory and production guides
+
+---
+
+## Quick Links
+
+| I want to... | Go to |
+|--------------|-------|
+| **Understand the ecosystem** | [Repository Compilation](REPOSITORY_COMPILATION.md) |
+| **Navigate repositories** | [Cross-Repository Navigation](CROSS_REPOSITORY_NAVIGATION.md) |
+| **Use Python music API** | [Music Brain README](README_music-brain.md) |
+| **Build C++ audio engine** | [Penta-Core README](README_penta-core.md) |
+| **Learn the workflow** | [Workflow Guide](WORKFLOW.md) |
+| **Build everything** | [Multi-Build Guide](MULTI_BUILD.md) |
+
+---
+
+# JUCE Framework (Audio Plugin Component)
+
 ![alt text](https://assets.juce.com/juce/JUCE_banner_github.png "JUCE")
 
 JUCE is an open-source cross-platform C++ application framework for creating
@@ -34,7 +65,13 @@ also possible to include the JUCE modules source code in an existing project
 directly, or build them into a static or dynamic library which can be linked
 into a project.
 
-For further help getting started, please refer to the JUCE
+For further help getting started with iDAW, refer to:
+- **[Repository Compilation](REPOSITORY_COMPILATION.md)** - Complete ecosystem documentation
+- **[Cross-Repository Navigation](CROSS_REPOSITORY_NAVIGATION.md)** - Navigation guide
+- **[Project Navigation](PROJECT_NAVIGATION.md)** - File structure map
+- **[Workflow Guide](WORKFLOW.md)** - Development workflow
+
+For JUCE framework documentation, refer to the JUCE
 [documentation](https://juce.com/learn/documentation) and
 [tutorials](https://juce.com/learn/tutorials).
 
