@@ -1,0 +1,84 @@
+name: Auto-merge Pull Requests
+
+# This workflow automatically processes open pull requests by:
+# 1. Attempting to merge PRs without conflicts
+# 2. Creating conflict branches for PRs with conflicts
+# 3. Commenting on conflicted PRs with file lists
+
+on:
+  # Run every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Specific PR number to process (leave empty for all)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run mode (simulate without making changes)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  merge-prs:
+    name: Process Pull Requests
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install GitHub CLI
+        run: |
+          # GitHub CLI should be pre-installed on ubuntu-latest
+          gh --version || (echo "Installing gh..." && sudo apt-get update && sudo apt-get install gh -y)
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Run PR Manager (All PRs)
+        if: ${{ !inputs.pr_number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python pr_manager.py --dry-run
+          else
+            python pr_manager.py
+          fi
+          
+      - name: Run PR Manager (Specific PR)
+        if: ${{ inputs.pr_number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python pr_manager.py --dry-run --pr ${{ inputs.pr_number }}
+          else
+            python pr_manager.py --pr ${{ inputs.pr_number }}
+          fi
+          
+      - name: Summary
+        if: always()
+        run: |
+          echo "## PR Management Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Workflow completed. Check logs above for details." >> $GITHUB_STEP_SUMMARY
