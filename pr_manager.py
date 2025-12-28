@@ -342,7 +342,7 @@ class PRManager:
         print(f"\n✅ Handling successful merge for PR #{pr.number}")
         
         if self.dry_run:
-            print("🔍 DRY RUN: Would push merge to origin/{pr.base_ref}")
+            print(f"🔍 DRY RUN: Would push merge to origin/{pr.base_ref}")
             print(f"🔍 DRY RUN: Would delete branch {pr.head_ref}")
             return True
         

@@ -20,6 +20,8 @@ class PRManagerTester:
         self.test_dir = None
         self.passed = 0
         self.failed = 0
+        # Get the directory where this script is located
+        self.script_dir = Path(__file__).parent.absolute()
         
     def setup_test_repo(self):
         """Create a temporary test repository."""
@@ -52,7 +54,7 @@ class PRManagerTester:
         """Test that pr_manager can be imported."""
         print("\n📦 Test: Import pr_manager module")
         try:
-            sys.path.insert(0, "/home/runner/work/iDAW/iDAW")
+            sys.path.insert(0, str(self.script_dir))
             import pr_manager
             print("✓ Module imported successfully")
             self.passed += 1
@@ -204,8 +206,9 @@ class PRManagerTester:
         """Test that the script can be executed."""
         print("\n🚀 Test: Script execution")
         try:
+            pr_manager_path = self.script_dir / "pr_manager.py"
             result = subprocess.run(
-                ["python3", "/home/runner/work/iDAW/iDAW/pr_manager.py", "--help"],
+                ["python3", str(pr_manager_path), "--help"],
                 capture_output=True,
                 text=True,
                 timeout=5
